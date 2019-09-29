@@ -1,8 +1,9 @@
 [package]
-name = "thin-waist"
+name = "faces"
 version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"
 
 [dependencies]
-packets = { path = "../packets" }
+smoltcp = "0.5"
+nix = "0.15.0"

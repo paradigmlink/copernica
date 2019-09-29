@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 
 bincode = "1"
-thin-waist = { path = "../thin-waist" }
+router = { path = "../router" }
+faces = { path = "../faces" }

@@ -9,7 +9,6 @@ error-chain = "0.11"
 bincode = "1"
 serde = "1.0.63"
 serde_derive = "1.0.27"
-
-[dev-dependencies]
-serde_bytes = "0.11"
+base64 = "0.10.1"
+sha3 = "0.8.2"
 

@@ -1,0 +1,9 @@
+[package]
+name = "router"
+version = "0.1.0"
+authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
+edition = "2018"
+
+[dependencies]
+packets = { path = "../packets" }
+lru-cache = "0.1.2"

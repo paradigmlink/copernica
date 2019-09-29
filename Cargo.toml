@@ -2,6 +2,7 @@
 
 members = [
     "copernican",
-    "thin-waist",
+    "router",
     "packets",
+    "faces",
 ]
