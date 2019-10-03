@@ -1,5 +1,12 @@
-
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct Data {
-    name: String,
+pub struct Data<'a> {
+    name: &'a str,
+}
+
+impl<'a> Data<'a> {
+    pub fn new(name: &str) -> Data {
+        Data {
+            name : name,
+        }
+    }
 }

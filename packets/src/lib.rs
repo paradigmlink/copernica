@@ -13,3 +13,5 @@ extern crate bitvec;
 
 pub mod interest;
 pub mod data;
+
+pub use crate::{interest::Interest, data::Data};
