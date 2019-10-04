@@ -14,9 +14,6 @@ pub struct Mock {
     d_out: Receiver<Data>,
 }
 
-impl Mock {
-}
-
 impl Face for Mock {
     fn new() -> Mock {
         let (i_in, i_out) = unbounded();
