@@ -4,16 +4,16 @@ use sha3::{Digest, Sha3_512};
 
 const HEX : [&'static str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Interest<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Interest {
+    name: String,
     forwarding_hint: Vec<Vec<usize>>,
 }
 
-impl<'a> Interest<'a> {
-    pub fn new(name: &str) -> Interest {
+impl Interest {
+    pub fn new(name: String) -> Interest {
         Interest {
-            name : name,
+            name : name.clone(),
             forwarding_hint : forwarding_hint(name),
         }
     }
@@ -45,7 +45,7 @@ fn name_sparsity(s: &str) -> Vec<(usize)> {
     gen_2048_sparsity(index_of_lowest_occuring_char_in_hash(&hash_name(s)))
 }
 
-fn forwarding_hint(s: &str) -> Vec<Vec<usize>> {
+fn forwarding_hint(s: String) -> Vec<Vec<usize>> {
     let names = s.split("/");
     let names: Vec<&str> = names.collect();
     let mut fh: Vec<Vec<usize>> = Vec::new();
@@ -55,7 +55,7 @@ fn forwarding_hint(s: &str) -> Vec<Vec<usize>> {
     fh
 }
 
-impl<'a> PartialEq for Interest<'a> {
+impl PartialEq for Interest {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name &&
         self.forwarding_hint == other.forwarding_hint
@@ -127,10 +127,10 @@ mod tests {
 
     #[test]
     fn test_interest_creation() {
-        let interest = Interest::new("mozart/topology/data");
+        let interest = Interest::new("mozart/topology/data".to_string());
         assert_eq!(
             Interest {
-                name: "mozart/topology/data",
+                name: "mozart/topology/data".to_string(),
                 forwarding_hint: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
             , interest);
     }
@@ -150,7 +150,7 @@ mod tests {
             vec![1037, 1565, 1773, 1789],
             vec![145, 945, 1153, 1745],
             vec![154, 250, 1210, 1306, 1770]]
-        , forwarding_hint(s));
+        , forwarding_hint(s.to_string()));
     }
 
     #[test]

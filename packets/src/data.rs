@@ -1,12 +1,19 @@
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Data<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Data {
+    name: String,
 }
 
-impl<'a> Data<'a> {
-    pub fn new(name: &str) -> Data {
+impl Data {
+    pub fn new(name: String) -> Data {
         Data {
             name : name,
         }
     }
 }
+
+impl PartialEq for Data {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+

@@ -4,33 +4,36 @@ use bitvec::prelude::*;
 use packets::{Interest, Data};
 use crossbeam_channel::{unbounded, Sender, Receiver};
 
-pub struct Mock<'a> {
+
+#[derive(Debug, Clone)]
+pub struct Mock {
     sdr: BitVec,
-    i_in: Sender<Interest<'a>>,
-    i_out: Receiver<Interest<'a>>,
-    d_in: Sender<Data<'a>>,
-    d_out: Receiver<Data<'a>>,
+    i_in: Sender<Interest>,
+    i_out: Receiver<Interest>,
+    d_in: Sender<Data>,
+    d_out: Receiver<Data>,
 }
 
-impl<'a> Mock<'a> {
+impl Mock {
 }
 
-impl<'a> Face for Mock<'a> {
-    fn new() -> Mock<'a> {
+impl Face for Mock {
+    fn new() -> Mock {
         let (i_in, i_out) = unbounded();
         let (d_in, d_out) = unbounded();
         Mock { sdr: bitvec![0; 2048], i_in: i_in, i_out: i_out, d_in: d_in, d_out: d_out }
     }
-    fn interest_in<'b>(&self, i: Interest<'b>) {
+    fn interest_in(&self, i: Interest) {
         self.i_in.send(i).unwrap();
     }
     fn interest_out(&self) -> Interest {
         self.i_out.recv().unwrap()
     }
     fn data_in(&self, d: Data) {
+        self.d_in.send(d).unwrap();
     }
     fn data_out(&self) -> Data {
-        Data::new("blah")
+        self.d_out.recv().unwrap()
     }
 }
 
@@ -39,11 +42,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn send_and_receive_interest_and_data() {
+    fn mock_face_send_and_receive_interest() {
         let mock_face: Mock = Face::new();
-        let interest = Interest::new("blah");
-        mock_face.interest_in(interest);
-//        println!("interest out: {:?}" mock_face.interest_out());
+        let interest = Interest::new("blah".to_string());
+        mock_face.interest_in(interest.clone());
         assert_eq!(interest, mock_face.interest_out());
+    }
+
+    #[test]
+    fn mock_face_send_and_receive_data() {
+        let mock_face: Mock = Face::new();
+        let data = Data::new("blah".to_string());
+        mock_face.data_in(data.clone());
+        assert_eq!(data, mock_face.data_out());
     }
 }
