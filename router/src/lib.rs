@@ -40,5 +40,8 @@ mod tests {
         let mut router = Router::new();
         router.add_face(&f1);
         router.add_face(&f2);
+        let interest = Interest::new("blah".to_string());
+        f1.interest_in(interest.clone());
+        assert_eq!(interest, f1.interest_out());
     }
 }
