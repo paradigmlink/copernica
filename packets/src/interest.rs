@@ -4,7 +4,7 @@ use sha3::{Digest, Sha3_512};
 
 const HEX : [&'static str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Interest<'a> {
     name: &'a str,
     forwarding_hint: Vec<Vec<usize>>,
@@ -55,6 +55,13 @@ fn forwarding_hint(s: &str) -> Vec<Vec<usize>> {
     fh
 }
 
+impl<'a> PartialEq for Interest<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name &&
+        self.forwarding_hint == other.forwarding_hint
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,7 +73,6 @@ mod tests {
     use flate2::read::GzDecoder;
     use tar::Archive;
     use std::io::{BufRead, BufReader};
-    use std::path::{Path, PathBuf};
     use bitvec::prelude::*;
 
     #[test]

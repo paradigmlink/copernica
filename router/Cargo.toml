@@ -6,4 +6,5 @@ edition = "2018"
 
 [dependencies]
 packets = { path = "../packets" }
+faces = { path = "../faces" }
 lru-cache = "0.1.2"

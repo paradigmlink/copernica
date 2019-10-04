@@ -1,4 +1,4 @@
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Data<'a> {
     name: &'a str,
 }

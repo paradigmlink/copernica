@@ -1,17 +1,17 @@
 extern crate lru_cache;
 
 use lru_cache::LruCache;
-use packets::{interest::Interest, data::Data};
-use faces::{Faces, Face};
+use packets::{Interest, Data};
+use faces::{Face};
 
 pub struct Router {
-    cs: LruCache<String, Data>,
+    cs: LruCache<String, String>,
     pit: bool,
     fib: bool
 }
 
 impl Router {
-    pub fn new(faces: Faces) -> Self {
+    pub fn new() -> Self {
         Router {
             cs: LruCache::new(10),
             pit: false,
