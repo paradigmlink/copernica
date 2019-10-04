@@ -21,9 +21,11 @@ impl Face for Mock {
         Mock { sdr: bitvec![0; 2048], i_in: i_in, i_out: i_out, d_in: d_in, d_out: d_out }
     }
     fn interest_in(&self, i: Interest) {
+        println!("interest_in");
         self.i_in.send(i).unwrap();
     }
     fn interest_out(&self) -> Interest {
+        println!("interest_out");
         self.i_out.recv().unwrap()
     }
     fn data_in(&self, d: Data) {
