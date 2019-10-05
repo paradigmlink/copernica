@@ -3,13 +3,16 @@ extern crate lru_cache;
 use lru_cache::LruCache;
 use packets::{Interest, Data};
 use faces::{Face, Mock};
+use std::thread;
+use crossbeam_utils;
 
 #[derive(Clone)]
 pub struct Router<'a> {
     faces: Vec<&'a dyn Face>,
     cs: LruCache<String, String>,
     pit: bool,
-    fib: bool
+    fib: bool,
+    is_running: bool,
 }
 
 impl<'a> Router<'a> {
@@ -19,6 +22,7 @@ impl<'a> Router<'a> {
             cs: LruCache::new(10),
             pit: false,
             fib: false,
+            is_running: false,
         }
     }
 
@@ -26,9 +30,21 @@ impl<'a> Router<'a> {
         self.faces.push(face);
     }
 
-    pub fn run(self) {
-        self.faces[1].interest_in(self.faces[0].interest_out());
+    pub fn run(&mut self) {
+        self.is_running = true;
+        crossbeam_utils::thread::scope(|scope| {
+            loop {
+                self.faces[1].interest_in(self.faces[0].interest_out());
+                //print!("-");
+                if self.is_running == true { break; }
+            }
+         });
     }
+
+    pub fn stop(mut self) {
+        self.is_running = false;
+    }
+
 }
 
 #[cfg(test)]
@@ -39,7 +55,7 @@ mod tests {
 
     #[test]
     fn setup_router_and_ensure_faces_still_operate_does_not_pass_ownership_into_router() {
-        let f1: Mock = Face::new();
+        let mut f1: Mock = Face::new();
         let mut router = Router::new();
         router.add_face(&f1);
         let interest = Interest::new("interest".to_string());
@@ -49,10 +65,10 @@ mod tests {
 
     #[test]
     fn test_throughput() {
-        let f1: Mock = Face::new();
-        let f2: Mock = Face::new();
-        let f3: Mock = Face::new();
-        let f4: Mock = Face::new();
+        let mut f1: Mock = Face::new();
+        let mut f2: Mock = Face::new();
+        let mut f3: Mock = Face::new();
+        let mut f4: Mock = Face::new();
         let mut r1 = Router::new();
         let mut r2 = Router::new();
         r1.add_face(&f1);
@@ -67,6 +83,9 @@ mod tests {
         f3.interest_in(i_out.recv().unwrap());
         r2.run();
         assert_eq!(interest, f4.interest_out());
+
+        r1.stop();
+        r2.stop();
         // i -> f1 r1 f2 -> f3 r2 f4
 
     }
