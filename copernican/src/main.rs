@@ -6,6 +6,6 @@ extern crate router;
 fn main() {
     let mut router = router::Router::new();
     router.run();
-    router.stop();
+    //router.stop();
     println!("Copernican");
 }

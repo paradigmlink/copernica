@@ -24,15 +24,22 @@ impl Face for Mock {
         println!("interest_in");
         self.i_in.send(i).unwrap();
     }
-    fn interest_out(&self) -> Interest {
-        println!("interest_out");
-        self.i_out.recv().unwrap()
+    fn interest_poll(&self) -> Option<Interest> {
+        if self.i_out.is_empty() {
+            None
+        } else {
+            Some(self.i_out.recv().unwrap())
+        }
     }
     fn data_in(&self, d: Data) {
         self.d_in.send(d).unwrap();
     }
-    fn data_out(&self) -> Data {
-        self.d_out.recv().unwrap()
+    fn data_poll(&self) -> Option<Data> {
+        if self.d_out.is_empty() {
+            None
+        } else {
+            Some(self.d_out.recv().unwrap())
+        }
     }
 }
 
@@ -45,7 +52,11 @@ mod tests {
         let mock_face: Mock = Face::new();
         let interest = Interest::new("blah".to_string());
         mock_face.interest_in(interest.clone());
-        assert_eq!(interest, mock_face.interest_out());
+        let out = match mock_face.interest_poll() {
+            Some(i) => i,
+            None => Interest::new("".to_string()),
+        };
+        assert_eq!(interest, out);
     }
 
     #[test]
@@ -53,6 +64,10 @@ mod tests {
         let mock_face: Mock = Face::new();
         let data = Data::new("blah".to_string());
         mock_face.data_in(data.clone());
-        assert_eq!(data, mock_face.data_out());
+        let out = match mock_face.data_poll() {
+            Some(i) => i,
+            None => Data::new("".to_string()),
+        };
+        assert_eq!(data, out);
     }
 }
