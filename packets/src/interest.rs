@@ -7,15 +7,23 @@ const HEX : [&'static str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Interest {
     name: String,
-    forwarding_hint: Vec<Vec<usize>>,
+    index: Vec<Vec<usize>>,
 }
 
 impl Interest {
     pub fn new(name: String) -> Interest {
         Interest {
             name : name.clone(),
-            forwarding_hint : forwarding_hint(name),
+            index : forwarding_hint(name),
         }
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn index(&self) -> &Vec<Vec<usize>> {
+        &self.index
     }
 }
 
@@ -30,7 +38,10 @@ fn index_of_lowest_occuring_char_in_hash<'a>( hash: &'a String) -> Vec<(usize, &
     for c in HEX[0..].iter() {
         let new: Vec<(usize, &str)> = hash.match_indices(c).collect();
         if new.len() > 1 && new.len() < old.len()  {
-            println!("new len: {}, old len: {}", new.len(), old.len());
+            // @Sparsity: running the words list yields an entire byte of 1s! meaning the way this is being done
+            // could be dodgy. Look at trying to making sparsity exactly 3 bitvec index elements, maybe feed an RNG
+            // with the extracted indices and generate a reproducible index per name.
+            //println!("new len: {}, old len: {}", new.len(), old.len());
             old = new;
         }
     }
@@ -58,7 +69,7 @@ fn forwarding_hint(s: String) -> Vec<Vec<usize>> {
 impl PartialEq for Interest {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name &&
-        self.forwarding_hint == other.forwarding_hint
+        self.index == other.index
     }
 }
 
@@ -105,15 +116,15 @@ mod tests {
         	let mut first_hit: Vec<bool> = Vec::new();
         	
         	let sdrs = name_sparsity(line.as_str());
-        	print!("index: {}, word: {}, ",index, line);
+        	//print!("index: {}, word: {}, ",index, line);
         	for sdr in &sdrs {
         	    first_hit.push(bs.get(*sdr).unwrap());
-        	    print!("{:?} ", bs.get(*sdr).unwrap());
+        	    //print!("{:?} ", bs.get(*sdr).unwrap());
         	    bs.set(*sdr, true);
         	}
-        	println!("\n");
+        	//println!("\n");
         	if is_all_true(first_hit.as_slice()) {
-        	    println!("BitVector:\n {}", &bs);
+        	    //println!("BitVector:\n {}", &bs);
         	    break_on_line = index;
             	break
             }
@@ -131,7 +142,7 @@ mod tests {
         assert_eq!(
             Interest {
                 name: "mozart/topology/data".to_string(),
-                forwarding_hint: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
+                index: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
             , interest);
     }
 

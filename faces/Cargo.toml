@@ -5,6 +5,7 @@ authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"
 
 [dependencies]
+lru = "0.3.0"
 crossbeam-channel = "0.3.9"
 bitvec = "0.15.2"
 packets = { path = "../packets" }

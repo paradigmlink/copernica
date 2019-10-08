@@ -4,7 +4,6 @@ use bitvec::prelude::*;
 use packets::{Interest, Data};
 use crossbeam_channel::{unbounded, Sender, Receiver};
 
-
 #[derive(Debug, Clone)]
 pub struct Mock {
     sdr: BitVec,
@@ -18,13 +17,18 @@ impl Face for Mock {
     fn new() -> Mock {
         let (i_in, i_out) = unbounded();
         let (d_in, d_out) = unbounded();
-        Mock { sdr: bitvec![0; 2048], i_in: i_in, i_out: i_out, d_in: d_in, d_out: d_out }
+        Mock {
+            sdr: bitvec![0; 2048],
+            i_in: i_in,
+            i_out: i_out,
+            d_in: d_in,
+            d_out: d_out,
+        }
     }
     fn interest_in(&self, i: Interest) {
-        println!("interest_in");
         self.i_in.send(i).unwrap();
     }
-    fn interest_poll(&self) -> Option<Interest> {
+    fn interest_out(&self) -> Option<Interest> {
         if self.i_out.is_empty() {
             None
         } else {
@@ -34,7 +38,7 @@ impl Face for Mock {
     fn data_in(&self, d: Data) {
         self.d_in.send(d).unwrap();
     }
-    fn data_poll(&self) -> Option<Data> {
+    fn data_out(&self) -> Option<Data> {
         if self.d_out.is_empty() {
             None
         } else {
@@ -52,7 +56,7 @@ mod tests {
         let mock_face: Mock = Face::new();
         let interest = Interest::new("blah".to_string());
         mock_face.interest_in(interest.clone());
-        let out = match mock_face.interest_poll() {
+        let out = match mock_face.interest_out() {
             Some(i) => i,
             None => Interest::new("".to_string()),
         };
@@ -64,7 +68,7 @@ mod tests {
         let mock_face: Mock = Face::new();
         let data = Data::new("blah".to_string());
         mock_face.data_in(data.clone());
-        let out = match mock_face.data_poll() {
+        let out = match mock_face.data_out() {
             Some(i) => i,
             None => Data::new("".to_string()),
         };
