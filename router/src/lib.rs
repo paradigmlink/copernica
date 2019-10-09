@@ -1,6 +1,7 @@
 extern crate lru_cache;
 
-mod content_store;
+pub mod content_store;
+pub use crate::{content_store::ContentStore};
 mod pending_interest_table;
 mod forwarding_information_base;
 

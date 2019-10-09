@@ -1,49 +1,77 @@
+extern crate rand;
+
+use rand::Rng;
 use crate::Face;
 
 use bitvec::prelude::*;
 use packets::{Interest, Data};
-use crossbeam_channel::{unbounded, Sender, Receiver};
+use crate::sparse_distributed_representation::{SparseDistributedRepresentation};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Mock {
-    sdr: BitVec,
-    i_in: Sender<Interest>,
-    i_out: Receiver<Interest>,
-    d_in: Sender<Data>,
-    d_out: Receiver<Data>,
+    pub id: u8,
+    pending_interest_sdr: SparseDistributedRepresentation,
+    breadcrumb_trail_sdr: SparseDistributedRepresentation,
+    forwarding_hint_sdr: SparseDistributedRepresentation,
+    interest_inbound: Vec<Interest>,
+    interest_outbound: Vec<Interest>,
+    data_inbound: Vec<Data>,
+    data_outbound: Vec<Data>,
 }
 
 impl Face for Mock {
     fn new() -> Mock {
-        let (i_in, i_out) = unbounded();
-        let (d_in, d_out) = unbounded();
+        let mut rng = rand::thread_rng();
         Mock {
-            sdr: bitvec![0; 2048],
-            i_in: i_in,
-            i_out: i_out,
-            d_in: d_in,
-            d_out: d_out,
+            id: rng.gen(),
+            interest_inbound: Vec::new(),
+            interest_outbound: Vec::new(),
+            data_inbound: Vec::new(),
+            data_outbound: Vec::new(),
+            pending_interest_sdr: SparseDistributedRepresentation::new(),
+            breadcrumb_trail_sdr: SparseDistributedRepresentation::new(),
+            forwarding_hint_sdr: SparseDistributedRepresentation::new(),
         }
     }
-    fn interest_in(&self, i: Interest) {
-        self.i_in.send(i).unwrap();
+
+    fn id(&self) -> u8 {
+        self.id
     }
-    fn interest_out(&self) -> Option<Interest> {
-        if self.i_out.is_empty() {
-            None
-        } else {
-            Some(self.i_out.recv().unwrap())
-        }
+
+    fn send_interest_downstream(&mut self, i: Interest) {
+        self.interest_outbound.push(i);
     }
-    fn data_in(&self, d: Data) {
-        self.d_in.send(d).unwrap();
+    fn receive_upstream_interest(&mut self) -> Option<Interest> {
+        self.interest_inbound.pop()
     }
-    fn data_out(&self) -> Option<Data> {
-        if self.d_out.is_empty() {
-            None
-        } else {
-            Some(self.d_out.recv().unwrap())
-        }
+    fn send_data_upstream(&mut self, d: Data) {
+        self.data_outbound.push(d);
+    }
+    fn receive_downstream_data(&mut self) -> Option<Data> {
+        self.data_inbound.pop()
+    }
+
+    fn create_pending_interest(&mut self, interest: Interest) {
+        self.pending_interest_sdr.insert(interest);
+    }
+
+    fn create_breadcrumb_trail(&mut self, interest: Interest) {
+        self.breadcrumb_trail_sdr.insert(interest);
+    }
+
+    fn contains_forwarding_hint(&mut self, interest: Interest) -> u8 {
+        self.forwarding_hint_sdr.contains(interest)
+    }
+
+    fn contains_pending_interest(&mut self, interest: Interest) -> u8 {
+        self.pending_interest_sdr.contains(interest)
+    }
+}
+
+
+impl PartialEq for dyn Face {
+    fn eq(&self, other: &dyn Face) -> bool {
+        self.id() == other.id()
     }
 }
 
@@ -55,8 +83,8 @@ mod tests {
     fn mock_face_send_and_receive_interest() {
         let mock_face: Mock = Face::new();
         let interest = Interest::new("blah".to_string());
-        mock_face.interest_in(interest.clone());
-        let out = match mock_face.interest_out() {
+        mock_face.send_interest_downstream(interest.clone());
+        let out = match mock_face.receive_upstream_interest() {
             Some(i) => i,
             None => Interest::new("".to_string()),
         };
@@ -67,9 +95,9 @@ mod tests {
     fn mock_face_send_and_receive_data() {
         let mock_face: Mock = Face::new();
         let data = Data::new("blah".to_string());
-        mock_face.data_in(data.clone());
-        let out = match mock_face.data_out() {
-            Some(i) => i,
+        mock_face.send_data_upstream(data.clone());
+        let out = match mock_face.receive_downstream_data() {
+            Some(d) => d,
             None => Data::new("".to_string()),
         };
         assert_eq!(data, out);

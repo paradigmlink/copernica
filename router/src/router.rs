@@ -1,30 +1,37 @@
 use packets::{Interest, Data};
 use faces::{Face, Mock};
 use crate::content_store::{ContentStore};
-use crate::pending_interest_table::{PendingInterestTable};
-use crate::forwarding_information_base::{ForwardingInformationBase};
-//use crossbeam_utils::{thread::scope};
-use std::thread;
 
 #[derive(Clone)]
 pub struct Router<'a> {
     faces: Vec<&'a dyn Face>,
     cs:  ContentStore,
-    pit: PendingInterestTable,
-    fib: ForwardingInformationBase,
     is_running: bool,
 }
 
 /*
-    1) interest comes in on a face, and is written in the face's bread-crumb-sdr
-    2) the router then looks up *other* faces' forwarding-sdr
-    3) if another face's f-sdr matches, the interest is forwarded to that face, index is written to face's pending interest table
-    4) data comes back, the face checks to see if the interest index matches in the pi-sdr, if it does the pi-sdr entry is removed
-    and added to the forwarding-sdr.
-    5) now take the data and check all the other faces' bread-crumb-sdr, then return the data to every face that has a hit. Removing
-    the entry from the bread-crumb-sdr of each face.
-    6) the data is then added to the content store.
-    7) each forwarding-sdr is regenerated after a certain percentage of bits are flipped to ensure sparsity.
+    -> interest goes out on a face, and is written in the face's bread-crumb-sdr
+        - checks the cs for data
+            - if found
+                - the interest is killed and data is returned via the sending interface
+            - if cs is empty
+                - interest index is written into incoming face breadcrumb-sdr
+                - then search all other faces' forwarding sdr
+                    - faces who's forwarding hint hits of a certain percentage AND miss on the faces' pending interest gets the interest forwarded
+                        - forwarded interests are then inserted into the face's pending interest sdr (so that we don't forward the same interest again)
+                    - if no face contains a forwarding interest hit then the interest is broadcast on all faces except the incoming face
+
+    <- data comes in on a face
+        - checks the face's pending interest sdr
+            - if there's a miss on the pisdr then the data is dropped
+            - if there's a hit on the pisdr
+                - then the pisdr entry is removed on that face
+                - forwarding-hint sdr insert - so future interests can be forwarded
+                - then scan all other faces' breadcrumb-sdr
+                    - if there's a hit then forward the data on that face
+                        - remove the breadcrumb sdr data entry
+                    - if there's a miss then drop the data
+                - stick the data in the cs
 
     forwarding-sdr: is constructed from an LRU (index), which regenerates after a percentage of on bits reaches a threshold.
         this way the sdr maintains a high degree of data it's aware of and can adapt when downstream changes.
@@ -44,8 +51,6 @@ impl<'a> Router<'a> {
         Router {
             faces: Vec::new(),
             cs:  ContentStore::new(),
-            pit: PendingInterestTable::new(),
-            fib: ForwardingInformationBase::new(),
             is_running: false,
         }
     }
@@ -55,20 +60,35 @@ impl<'a> Router<'a> {
     }
 
     pub fn run(&mut self) {
-        // add loop later
         self.is_running = true;
-        for face in self.faces.iter() {
-            match face.interest_out() {
-                Some(i) => {
-                    match self.cs.has_data(i) {
-                        Some(d) => {
-                            face.data_in(d);
-                        },
-                        None => { continue }
-                    }
-                },
-                None => { },
+        loop {
+            for face in self.faces.iter_mut() {
+                match face.receive_upstream_interest() {
+                    Some(i) => {
+                        match self.cs.has_data(i.clone()) {
+                            Some(d) => {
+                                face.send_data_upstream(d);
+                                continue
+                            },
+                            None => {
+                                face.create_breadcrumb_trail(i.clone());
+                                /*for maybe_forward_face in self.faces.iter_mut() {
+                                    if maybe_forward_face.contains_pending_interest(i.clone()) > 90 &&
+                                       maybe_forward_face.contains_forwarding_hint(i.clone())  > 10 &&
+                                       maybe_forward_face.id() != face.id() {
+                                        maybe_forward_face.create_pending_interest(i.clone());
+                                        maybe_forward_face.send_interest_downstream(i.clone());
+                                        continue
+                                    }
+                                }*/
+                                continue
+                            }
+                        }
+                    },
+                    None => { continue },
+                }
             }
+            if self.is_running == false { break }
         }
     }
 
@@ -93,15 +113,15 @@ mod tests {
         let f4: Mock = Face::new();
         let i1 = Interest::new("interest 1".to_string());
         let i2 = Interest::new("interest 2".to_string());
-        f1.interest_in(i1);
-        f2.interest_in(i2);
+        f1.send_interest_downstream(i1);
+        f2.send_interest_downstream(i2);
         r1.add_face(&f1);
         r1.add_face(&f2);
         r1.add_face(&f3);
         r1.add_face(&f4);
         r1.run();
         r1.stop();
-        println!("data out {:?}", f1.data_out());
+        println!("data out {:?}", f1.receive_downstream_data());
     }
 /*
     #[test]
