@@ -1,7 +1,7 @@
 extern crate rand;
 
 use rand::Rng;
-use crate::Face;
+//use crate::Face;
 
 use bitvec::prelude::*;
 use packets::{Interest, Data};
@@ -19,8 +19,8 @@ pub struct Mock {
     data_outbound: Vec<Data>,
 }
 
-impl Face for Mock {
-    fn new() -> Mock {
+impl Mock { // Face for Mock {
+    pub fn new() -> Mock {
         let mut rng = rand::thread_rng();
         Mock {
             id: rng.gen(),
@@ -34,46 +34,46 @@ impl Face for Mock {
         }
     }
 
-    fn id(&self) -> u8 {
+    pub fn id(&self) -> u8 {
         self.id
     }
 
-    fn send_interest_downstream(&mut self, i: Interest) {
+    pub fn send_interest_downstream(&mut self, i: Interest) {
         self.interest_outbound.push(i);
     }
-    fn receive_upstream_interest(&mut self) -> Option<Interest> {
+    pub fn receive_upstream_interest(&mut self) -> Option<Interest> {
         self.interest_inbound.pop()
     }
-    fn send_data_upstream(&mut self, d: Data) {
+    pub fn send_data_upstream(&mut self, d: Data) {
         self.data_outbound.push(d);
     }
-    fn receive_downstream_data(&mut self) -> Option<Data> {
+    pub fn receive_downstream_data(&mut self) -> Option<Data> {
         self.data_inbound.pop()
     }
 
-    fn create_pending_interest(&mut self, interest: Interest) {
+    pub fn create_pending_interest(&mut self, interest: Interest) {
         self.pending_interest_sdr.insert(interest);
     }
 
-    fn create_breadcrumb_trail(&mut self, interest: Interest) {
+    pub fn create_breadcrumb_trail(&mut self, interest: Interest) {
         self.breadcrumb_trail_sdr.insert(interest);
     }
 
-    fn contains_forwarding_hint(&mut self, interest: Interest) -> u8 {
+    pub fn contains_forwarding_hint(&mut self, interest: Interest) -> u8 {
         self.forwarding_hint_sdr.contains(interest)
     }
 
-    fn contains_pending_interest(&mut self, interest: Interest) -> u8 {
+    pub fn contains_pending_interest(&mut self, interest: Interest) -> u8 {
         self.pending_interest_sdr.contains(interest)
     }
 }
 
 
-impl PartialEq for dyn Face {
-    fn eq(&self, other: &dyn Face) -> bool {
-        self.id() == other.id()
-    }
-}
+//impl PartialEq for dyn Face {
+//    fn eq(&self, other: &dyn Face) -> bool {
+//        self.id() == other.id()
+//    }
+//}
 
 #[cfg(test)]
 mod tests {

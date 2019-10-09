@@ -3,8 +3,8 @@ use faces::{Face, Mock};
 use crate::content_store::{ContentStore};
 
 #[derive(Clone)]
-pub struct Router<'a> {
-    faces: Vec<&'a dyn Face>,
+pub struct Router {
+    faces: Vec<Mock>,
     cs:  ContentStore,
     is_running: bool,
 }
@@ -46,7 +46,7 @@ pub struct Router<'a> {
 
 */
 
-impl<'a> Router<'a> {
+impl Router {
     pub fn new() -> Self {
         Router {
             faces: Vec::new(),
@@ -55,14 +55,15 @@ impl<'a> Router<'a> {
         }
     }
 
-    pub fn add_face(&mut self, face: &'a dyn Face) {
+    pub fn add_face(&mut self, face: Mock) {
         self.faces.push(face);
     }
 
     pub fn run(&mut self) {
         self.is_running = true;
         loop {
-            for face in self.faces.iter_mut() {
+            for i in 0 .. self.faces.len() {
+                let (face, other_faces) = self.faces.split_one_mut(i);
                 match face.receive_upstream_interest() {
                     Some(i) => {
                         match self.cs.has_data(i.clone()) {
@@ -72,15 +73,26 @@ impl<'a> Router<'a> {
                             },
                             None => {
                                 face.create_breadcrumb_trail(i.clone());
-                                /*for maybe_forward_face in self.faces.iter_mut() {
+                                let mut is_forwarded = false;
+                                let mut burst_faces: Vec<&mut Mock> = Vec::new();
+                                for maybe_forward_face in other_faces {
                                     if maybe_forward_face.contains_pending_interest(i.clone()) > 90 &&
-                                       maybe_forward_face.contains_forwarding_hint(i.clone())  > 10 &&
-                                       maybe_forward_face.id() != face.id() {
+                                       maybe_forward_face.contains_forwarding_hint(i.clone())  > 10 {
                                         maybe_forward_face.create_pending_interest(i.clone());
                                         maybe_forward_face.send_interest_downstream(i.clone());
+                                        is_forwarded = true;
+                                        continue
+                                    } else {
+                                        burst_faces.push(maybe_forward_face);
+                                    }
+                                }
+                                if is_forwarded == false {
+                                    for burst_face in burst_faces {
+                                        burst_face.create_pending_interest(i.clone());
+                                        burst_face.send_interest_downstream(i.clone());
                                         continue
                                     }
-                                }*/
+                                }
                                 continue
                             }
                         }
@@ -96,6 +108,38 @@ impl<'a> Router<'a> {
         self.is_running = false;
     }
 
+}
+
+type ImplIteratorMut<'a, Item> =
+    ::std::iter::Chain<
+        ::std::slice::IterMut<'a, Item>,
+        ::std::slice::IterMut<'a, Item>,
+    >
+;
+trait SplitOneMut {
+    type Item;
+
+    fn split_one_mut (
+        self: &'_ mut Self,
+        i: usize,
+    ) -> (&'_ mut Self::Item, ImplIteratorMut<'_, Self::Item>);
+}
+
+impl<T> SplitOneMut for [T] {
+    type Item = T;
+
+    fn split_one_mut (
+        self: &'_ mut Self,
+        i: usize,
+    ) -> (&'_ mut Self::Item, ImplIteratorMut<'_, Self::Item>)
+    {
+        let (prev, current_and_end) = self.split_at_mut(i);
+        let (current, end) = current_and_end.split_at_mut(1);
+        (
+            &mut current[0],
+            prev.iter_mut().chain(end),
+        )
+    }
 }
 
 #[cfg(test)]
