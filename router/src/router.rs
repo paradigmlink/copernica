@@ -75,7 +75,6 @@ impl Router {
                                 continue
                             },
                             None => {
-                                face.create_breadcrumb_trail(i.clone());
                                 let mut is_forwarded = false;
                                 let mut burst_faces: Vec<&mut Mock> = Vec::new();
                                 for maybe_forward_face in other_faces {
@@ -103,12 +102,23 @@ impl Router {
                     None => { continue },
                 }
             }
+
+            // Data Upstream
+
             for i in 0 .. self.faces.len() {
                 let (face, other_faces) = self.faces.split_one_mut(i);
                 match face.receive_downstream_data() {
                     Some(d) => {
-                        if face.contains_pending_interest(d) > 5 {
-                            //face.delete_pending_interest(d.index());
+                        if face.contains_pending_interest(d.clone()) > 5 {
+                            face.delete_pending_interest(d.clone());
+                            face.create_forwarding_hint(d.clone());
+                            for maybe_return_face in other_faces {
+                                if maybe_return_face.contains_pending_interest(d.clone()) > 50 {
+                                    maybe_return_face.delete_pending_interest(d.clone());
+                                    maybe_return_face.send_data_upstream(d.clone());
+                                    continue
+                                }
+                            }
                         }
                         continue
                     },

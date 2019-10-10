@@ -3,7 +3,7 @@ extern crate bincode;
 extern crate faces;
 extern crate router;
 
-use faces::{Face, Mock};
+use faces::{Mock};
 
 fn main() {
     let mut router = router::Router::new();

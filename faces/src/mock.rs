@@ -11,7 +11,6 @@ use crate::sparse_distributed_representation::{SparseDistributedRepresentation};
 pub struct Mock {
     pub id: u8,
     pending_interest_sdr: SparseDistributedRepresentation,
-    breadcrumb_trail_sdr: SparseDistributedRepresentation,
     forwarding_hint_sdr: SparseDistributedRepresentation,
     interest_inbound: Vec<Packet>,
     interest_outbound: Vec<Packet>,
@@ -29,7 +28,6 @@ impl Mock { // Face for Mock {
             data_inbound: Vec::new(),
             data_outbound: Vec::new(),
             pending_interest_sdr: SparseDistributedRepresentation::new(),
-            breadcrumb_trail_sdr: SparseDistributedRepresentation::new(),
             forwarding_hint_sdr: SparseDistributedRepresentation::new(),
         }
     }
@@ -55,8 +53,8 @@ impl Mock { // Face for Mock {
         self.pending_interest_sdr.insert(packet);
     }
 
-    pub fn create_breadcrumb_trail(&mut self, interest: Packet) {
-        self.breadcrumb_trail_sdr.insert(interest);
+    pub fn create_forwarding_hint(&mut self, data: Packet) {
+        self.forwarding_hint_sdr.insert(data);
     }
 
     pub fn contains_forwarding_hint(&mut self, interest: Packet) -> u8 {
