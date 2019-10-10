@@ -5,36 +5,13 @@ use crate::Packet;
 
 const HEX : [&'static str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Interest {
-    name: String,
-    index: Vec<Vec<usize>>,
-}
-
-impl Interest {
-    pub fn new(name: String) -> Interest {
-        Interest {
-            name : name.clone(),
-            index : forwarding_hint(name),
-        }
-    }
-
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    pub fn index(&self) -> &Vec<Vec<usize>> {
-        &self.index
-    }
-}
-
 fn hash_name(s: &str) -> String {
     let mut hasher = Sha3_512::new();
     hasher.input(s.as_bytes());
     format!("{:x}", hasher.result())
 }
 
-fn index_of_lowest_occuring_char_in_hash<'a>( hash: &'a String) -> Vec<(usize, &'a str)> {
+fn index_of_lowest_occuring_char_in_hash<'a>( hash: &'a String) -> Vec<(u16, &'a str)> {
     let mut old: Vec<(usize, &str)> = vec![(0,""); 15];
     for c in HEX[0..].iter() {
         let new: Vec<(usize, &str)> = hash.match_indices(c).collect();
@@ -46,33 +23,35 @@ fn index_of_lowest_occuring_char_in_hash<'a>( hash: &'a String) -> Vec<(usize, &
             old = new;
         }
     }
-    old
+    old.iter().map(|(x, y)| (*x as u16, *y)).collect()
 }
 
-fn gen_2048_sparsity(u: Vec<(usize, &str)>) -> Vec<usize> {
-    u.iter().map(|(x, y)| (x * 16 + ((usize::from_str_radix(y, 16).unwrap())))).collect::<Vec<usize>>()
+fn gen_2048_sparsity(u: Vec<(u16, &str)>) -> Vec<u16> {
+    u.iter().map(|(x, y)| (x * 16 + ((u16::from_str_radix(y, 16).unwrap())))).collect::<Vec<u16>>()
 }
 
-fn name_sparsity(s: &str) -> Vec<(usize)> {
+fn name_sparsity(s: &str) -> Vec<(u16)> {
     gen_2048_sparsity(index_of_lowest_occuring_char_in_hash(&hash_name(s)))
 }
 
-fn forwarding_hint(s: String) -> Vec<Vec<usize>> {
+pub fn forwarding_hint(s: String) -> Vec<Vec<u16>> {
     let names = s.split("/");
     let names: Vec<&str> = names.collect();
-    let mut fh: Vec<Vec<usize>> = Vec::new();
+    let mut fh: Vec<Vec<u16>> = Vec::new();
     for name in names {
         fh.push(name_sparsity(name));
     }
     fh
 }
 
+/*
 impl PartialEq for Interest {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name &&
         self.index == other.index
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
@@ -86,6 +65,7 @@ mod tests {
     use tar::Archive;
     use std::io::{BufRead, BufReader};
     use bitvec::prelude::*;
+    use crate::{mk_interest};
 
     #[test]
     fn load_test_sdr() {
@@ -119,9 +99,9 @@ mod tests {
         	let sdrs = name_sparsity(line.as_str());
         	//print!("index: {}, word: {}, ",index, line);
         	for sdr in &sdrs {
-        	    first_hit.push(bs.get(*sdr).unwrap());
+        	    first_hit.push(bs.get(*sdr as usize).unwrap());
         	    //print!("{:?} ", bs.get(*sdr).unwrap());
-        	    bs.set(*sdr, true);
+        	    bs.set(*sdr as usize, true);
         	}
         	//println!("\n");
         	if is_all_true(first_hit.as_slice()) {
@@ -139,11 +119,11 @@ mod tests {
 
     #[test]
     fn test_interest_creation() {
-        let interest = Interest::new("mozart/topology/data".to_string());
+        let interest = mk_interest("mozart/topology/data".to_string());
         assert_eq!(
-            Interest {
+            Packet::Interest {
                 name: "mozart/topology/data".to_string(),
-                index: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
+                sdri: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
             , interest);
     }
 

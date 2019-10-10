@@ -1,5 +1,5 @@
-use packets::{Interest, Data};
-use faces::{Face, Mock};
+use packets::{mk_interest, mk_data, Packet};
+use faces::{Mock};
 use crate::content_store::{ContentStore};
 
 #[derive(Clone)]
@@ -62,6 +62,9 @@ impl Router {
     pub fn run(&mut self) {
         self.is_running = true;
         loop {
+
+            // Interest Downstream
+
             for i in 0 .. self.faces.len() {
                 let (face, other_faces) = self.faces.split_one_mut(i);
                 match face.receive_upstream_interest() {
@@ -100,6 +103,19 @@ impl Router {
                     None => { continue },
                 }
             }
+            for i in 0 .. self.faces.len() {
+                let (face, other_faces) = self.faces.split_one_mut(i);
+                match face.receive_downstream_data() {
+                    Some(d) => {
+                        if face.contains_pending_interest(d) > 5 {
+                            //face.delete_pending_interest(d.index());
+                        }
+                        continue
+                    },
+                    None => {},
+                }
+            }
+
             if self.is_running == false { break }
         }
     }
@@ -145,27 +161,24 @@ impl<T> SplitOneMut for [T] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossbeam_channel::{unbounded};
-
 
     #[test]
     fn test_cs() {
         let mut r1 = Router::new();
-        let f1: Mock = Face::new();
-        let f2: Mock = Face::new();
-        let f3: Mock = Face::new();
-        let f4: Mock = Face::new();
-        let i1 = Interest::new("interest 1".to_string());
-        let i2 = Interest::new("interest 2".to_string());
+        let mut f1: Mock = Mock::new();
+        let mut f2: Mock = Mock::new();
+        let f3: Mock = Mock::new();
+        let f4: Mock = Mock::new();
+        let i1 = mk_interest("interest 1".to_string());
+        let i2 = mk_interest("interest 2".to_string());
         f1.send_interest_downstream(i1);
         f2.send_interest_downstream(i2);
-        r1.add_face(&f1);
-        r1.add_face(&f2);
-        r1.add_face(&f3);
-        r1.add_face(&f4);
+        r1.add_face(f1);
+        r1.add_face(f2);
+        r1.add_face(f3);
+        r1.add_face(f4);
         r1.run();
         r1.stop();
-        println!("data out {:?}", f1.receive_downstream_data());
     }
 /*
     #[test]

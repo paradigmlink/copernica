@@ -5,7 +5,8 @@ mod sparse_distributed_representation;
 pub mod mock;
 pub use crate::{mock::Mock};
 
-use packets::{Interest, Data};
+/*
+use packets::{Packet};
 
 pub trait Face {
     fn new() -> Self where Self: Sized;
@@ -18,4 +19,6 @@ pub trait Face {
     fn create_breadcrumb_trail(&mut self, interest: Interest);
     fn contains_forwarding_hint(&mut self, interest: Interest) -> u8;
     fn contains_pending_interest(&mut self, interest: Interest) -> u8;
+    fn delete_pending_interest(&mut self, interest: Interest);
 }
+*/

@@ -7,6 +7,5 @@ edition = "2018"
 [dependencies]
 rand = "0.7.2"
 lru = "0.3.0"
-crossbeam-channel = "0.3.9"
 bitvec = "0.15.2"
 packets = { path = "../packets" }

@@ -1,4 +1,4 @@
-use packets::{Interest, Data};
+use packets::{mk_data, Packet};
 
 #[derive(Clone)]
 pub struct ContentStore {
@@ -10,7 +10,7 @@ impl ContentStore {
         ContentStore { store: "".to_string() }
     }
 
-    pub fn has_data(&self, i: Interest) -> Option<Data> {
-        Some(Data::new("stewart".to_string()))
+    pub fn has_data(&self, i: Packet) -> Option<Packet> {
+        Some(mk_data("stewart".to_string()))
     }
 }
