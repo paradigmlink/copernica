@@ -109,7 +109,7 @@ impl Router {
                 let (face, other_faces) = self.faces.split_one_mut(i);
                 match face.receive_downstream_data() {
                     Some(d) => {
-                        if face.contains_pending_interest(d.clone()) > 5 {
+                        if face.contains_pending_interest(d.clone()) > 15 {
                             face.delete_pending_interest(d.clone());
                             face.create_forwarding_hint(d.clone());
                             for maybe_return_face in other_faces {
