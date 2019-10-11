@@ -1,10 +1,9 @@
-use packets::{mk_interest, mk_data, Packet};
-use faces::{Mock};
+use faces::{Face};
 use crate::content_store::{ContentStore};
 
 #[derive(Clone)]
 pub struct Router {
-    faces: Vec<Mock>,
+    faces: Vec<Box<dyn Face>>,
     cs:  ContentStore,
     is_running: bool,
 }
@@ -55,7 +54,7 @@ impl Router {
         }
     }
 
-    pub fn add_face(&mut self, face: Mock) {
+    pub fn add_face(&mut self, face: Box<dyn Face>) {
         self.faces.push(face);
     }
 
@@ -76,7 +75,7 @@ impl Router {
                             },
                             None => {
                                 let mut is_forwarded = false;
-                                let mut burst_faces: Vec<&mut Mock> = Vec::new();
+                                let mut burst_faces = Vec::new(); //: Vec<&mut dyn Face> = Vec::new();
                                 for maybe_forward_face in other_faces {
                                     if maybe_forward_face.contains_pending_interest(i.clone()) > 90 &&
                                        maybe_forward_face.contains_forwarding_hint(i.clone())  > 10 {
@@ -171,14 +170,16 @@ impl<T> SplitOneMut for [T] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use packets::{mk_interest, mk_data, Packet};
+    use faces::{Face, Tcp};
 
     #[test]
     fn test_cs() {
         let mut r1 = Router::new();
-        let mut f1: Mock = Mock::new();
-        let mut f2: Mock = Mock::new();
-        let f3: Mock = Mock::new();
-        let f4: Mock = Mock::new();
+        let f1 = Tcp::new();
+        let f2 = Tcp::new();
+        let f3 = Tcp::new();
+        let f4 = Tcp::new();
         let i1 = mk_interest("interest 1".to_string());
         let i2 = mk_interest("interest 2".to_string());
         f1.send_interest_downstream(i1);
