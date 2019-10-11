@@ -61,65 +61,64 @@ impl Router {
     pub fn run(&mut self) {
         self.is_running = true;
         loop {
+            //@Optimisation: put every face upstream and downstream face on its own thread
 
             // Interest Downstream
 
-            for i in 0 .. self.faces.len() {
-                let (face, other_faces) = self.faces.split_one_mut(i);
-                match face.receive_upstream_interest() {
-                    Some(i) => {
-                        match self.cs.has_data(i.clone()) {
-                            Some(d) => {
-                                face.send_data_upstream(d);
-                                continue
+            for current_face in 0 .. self.faces.len() {
+                let (this_face, potential_forward_on_faces) = self.faces.split_one_mut(current_face);
+                match this_face.receive_upstream_interest() {
+                    Some(interest) => {
+                        match self.cs.has_data(interest.clone()) {
+                            Some(data) => {
+                                this_face.send_data_upstream(data);
                             },
                             None => {
                                 let mut is_forwarded = false;
-                                let mut burst_faces = Vec::new(); //: Vec<&mut dyn Face> = Vec::new();
-                                for maybe_forward_face in other_faces {
-                                    if maybe_forward_face.contains_pending_interest(i.clone()) > 90 &&
-                                       maybe_forward_face.contains_forwarding_hint(i.clone())  > 10 {
-                                        maybe_forward_face.create_pending_interest(i.clone());
-                                        maybe_forward_face.send_interest_downstream(i.clone());
+                                let mut optimistic_burst_faces = Vec::new();
+                                for that_face in potential_forward_on_faces {
+                                    if that_face.contains_pending_interest(interest.clone()) > 90 &&
+                                       that_face.contains_forwarding_hint(interest.clone())  > 10 {
+                                        that_face.create_pending_interest(interest.clone());
+                                        that_face.send_interest_downstream(interest.clone());
                                         is_forwarded = true;
-                                        continue
                                     } else {
-                                        burst_faces.push(maybe_forward_face);
+                                        if is_forwarded == false { optimistic_burst_faces.push(that_face); }
                                     }
                                 }
                                 if is_forwarded == false {
-                                    for burst_face in burst_faces {
-                                        burst_face.create_pending_interest(i.clone());
-                                        burst_face.send_interest_downstream(i.clone());
-                                        continue
+                                    for burst_face in optimistic_burst_faces {
+                                        burst_face.create_pending_interest(interest.clone());
+                                        burst_face.send_interest_downstream(interest.clone());
                                     }
                                 }
-                                continue
                             }
                         }
                     },
-                    None => { continue },
+                    None => {},
                 }
             }
 
             // Data Upstream
 
-            for i in 0 .. self.faces.len() {
-                let (face, other_faces) = self.faces.split_one_mut(i);
-                match face.receive_downstream_data() {
-                    Some(d) => {
-                        if face.contains_pending_interest(d.clone()) > 15 {
-                            face.delete_pending_interest(d.clone());
-                            face.create_forwarding_hint(d.clone());
-                            for maybe_return_face in other_faces {
-                                if maybe_return_face.contains_pending_interest(d.clone()) > 50 {
-                                    maybe_return_face.delete_pending_interest(d.clone());
-                                    maybe_return_face.send_data_upstream(d.clone());
-                                    continue
+            for current_face in 0 .. self.faces.len() {
+                let (this_face, maybe_upstream_data_on_faces) = self.faces.split_one_mut(current_face);
+                match this_face.receive_downstream_data() {
+                    Some(data) => {
+                        if this_face.contains_pending_interest(data.clone()) > 15 {
+                            this_face.delete_pending_interest(data.clone());
+                            //@Optimisation: check on every return? maybe periodically check the forwarding hint?
+                            if this_face.forwarding_hint_decoherence() > 80 {
+                                this_face.restore_forwarding_hint();
+                            }
+                            this_face.create_forwarding_hint(data.clone());
+                            for that_face in maybe_upstream_data_on_faces {
+                                if that_face.contains_pending_interest(data.clone()) > 50 {
+                                    that_face.delete_pending_interest(data.clone());
+                                    that_face.send_data_upstream(data.clone());
                                 }
                             }
                         }
-                        continue
                     },
                     None => {},
                 }
