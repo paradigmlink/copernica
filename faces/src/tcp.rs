@@ -6,7 +6,7 @@ use packets::{Packet, mk_data, mk_interest};
 use crate::sparse_distributed_representation::{SparseDistributedRepresentation};
 
 #[derive(Debug, Clone)]
-pub struct Uds {
+pub struct Tcp {
     pub id: u32,
     pending_interest: SparseDistributedRepresentation,
     forwarding_hint: SparseDistributedRepresentation,
@@ -16,10 +16,10 @@ pub struct Uds {
     data_outbound: Vec<Packet>,
 }
 
-impl Uds {
-    pub fn new() -> Box<Uds> {
+impl Tcp {
+    pub fn new() -> Box<Tcp> {
         let mut rng = rand::thread_rng();
-        Box::new(Uds {
+        Box::new(Tcp {
             id: rng.gen(),
             interest_inbound: Vec::new(),
             interest_outbound: Vec::new(),
@@ -31,7 +31,7 @@ impl Uds {
     }
 }
 
-impl Face for Uds {
+impl Face for Tcp {
 
     fn id(&self) -> u32 {
         self.id
@@ -93,8 +93,8 @@ mod face {
     #[test]
     fn vector_of_faces_and_calls_trait_methods() {
         // trait methods never return `Self`!
-        let mut f1 = Uds::new();
-        let mut f2 = Uds::new();
+        let mut f1 = Tcp::new();
+        let mut f2 = Tcp::new();
         let faces: Vec<Box<dyn Face>> = vec![f1, f2];
         let mut id = 0;
         for face in &faces {

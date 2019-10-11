@@ -8,4 +8,5 @@ edition = "2018"
 rand = "0.7.2"
 lru = "0.3.0"
 bitvec = "0.15.2"
+libp2p = "0.12.0"
 packets = { path = "../packets" }

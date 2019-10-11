@@ -1,10 +1,12 @@
 extern crate bitvec;
 extern crate packets;
+extern crate libp2p;
 extern crate rand;
 
 mod sparse_distributed_representation;
 pub mod uds;
-pub use crate::{uds::Uds};
+pub mod tcp;
+pub use crate::{uds::Uds, tcp::Tcp};
 
 use packets::{Packet};
 
