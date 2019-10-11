@@ -1,36 +1,30 @@
 use packets::{Packet};
 
-use lru::LruCache;
 use bitvec::prelude::*;
+use rand::Rng;
 
 #[derive(Debug, Clone)]
 pub struct SparseDistributedRepresentation {
     sdr: BitVec,
-    //lru: LruCache<String, Vec<Vec<usize>>>,
 }
 
 impl SparseDistributedRepresentation {
     pub fn new() -> Self {
         SparseDistributedRepresentation {
             sdr: bitvec![0; 2048],
-         //   lru: LruCache::new(1000),
         }
     }
 
     pub fn insert(&mut self, packet: Packet) {
-        let mut n: String = String::new();
         let mut i: Vec<Vec<u16>> = Vec::new();
         match packet {
-            Packet::Interest { name, sdri } => {
-                n = name;
+            Packet::Interest { name: _, sdri } => {
                 i = sdri;
             },
-            Packet::Data { name, sdri } => {
-                n = name;
+            Packet::Data { name: _, sdri } => {
                 i = sdri;
             },
         }
-        //self.lru.put(name.to_string(), indices.clone());
         for row in i {
             for elem in row {
                 self.sdr.set(elem as usize, true);
@@ -39,16 +33,13 @@ impl SparseDistributedRepresentation {
     }
 
     pub fn contains(&mut self, packet: Packet) -> u8 {
-        let mut n: String = String::new();
         let mut i: Vec<Vec<u16>> = Vec::new();
         let mut sdr_vals: Vec<u32> = Vec::new();
         match packet {
-            Packet::Interest { name, sdri } => {
-                n = name;
+            Packet::Interest { name: _, sdri } => {
                 i = sdri;
             },
-            Packet::Data     { name, sdri } => {
-                n = name;
+            Packet::Data     { name: _, sdri } => {
                 i = sdri;
             },
         }
@@ -64,16 +55,12 @@ impl SparseDistributedRepresentation {
     }
 
     pub fn delete(&mut self, packet: Packet) {
-        let mut n: String = String::new();
         let mut i: Vec<Vec<u16>> = Vec::new();
-        let mut sdr_vals: Vec<u32> = Vec::new();
         match packet {
-            Packet::Interest { name, sdri } => {
-                n = name;
+            Packet::Interest { name: _, sdri } => {
                 i = sdri;
             },
-            Packet::Data     { name, sdri } => {
-                n = name;
+            Packet::Data     { name: _, sdri } => {
                 i = sdri;
             },
         }
@@ -84,9 +71,31 @@ impl SparseDistributedRepresentation {
         }
     }
 
-    //pub fn print(&self) {
-    //    println!("{:?}", self.sdr);
-    //}
+    pub fn restore(&mut self) {
+        let mut rng = rand::thread_rng();
+        for _ in 0 .. 2048 {
+            self.sdr.set(rng.gen_range(0, 2048), false);
+        }
+    }
+
+    pub fn decoherence(&mut self) -> u8 {
+        let hits = self.sdr.iter().try_fold(0u32, |acc, elem| acc.checked_add(elem as u32));
+        let percentage = (hits.unwrap() as f32 / self.sdr.len() as f32) * 100f32;
+        //println!("hits: {:?}, length: {:?}, percentage: {}", hits.unwrap(), vals.len(), percentage);
+        percentage as u8
+    }
+
+    #[cfg(test)]
+    pub fn print(&self) {
+        println!("{:?}", self.sdr);
+    }
+
+    #[cfg(test)]
+    pub fn fill_1s(&mut self) {
+        for i in 0 .. 2048 {
+            self.sdr.set(i, true);
+        }
+    }
 }
 
 impl PartialEq for SparseDistributedRepresentation {
@@ -97,17 +106,23 @@ impl PartialEq for SparseDistributedRepresentation {
 
 
 #[cfg(test)]
-mod sdr_tests {
+mod sdr {
     use super::*;
     use packets::{ mk_interest};
 
     #[test]
-    fn contains_return_100_percent() {
+    fn interest_100_percent_present() {
         let interest = mk_interest("interested/in/world/affairs".to_string());
         let mut sdr = SparseDistributedRepresentation::new();
         sdr.insert(interest.clone());
-        //println!("{}", sdr.contains(interest.clone()));
-        //sdr.print();
         assert_eq!(sdr.contains(interest), 100);
+    }
+
+    #[test]
+    fn decoherence_restoration() {
+        let mut sdr = SparseDistributedRepresentation::new();
+        sdr.fill_1s();
+        sdr.restore();
+        assert!(sdr.decoherence() < 40);
     }
 }
