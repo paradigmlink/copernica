@@ -18,10 +18,10 @@ impl SparseDistributedRepresentation {
     pub fn insert(&mut self, packet: Packet) {
         let mut i: Vec<Vec<u16>> = Vec::new();
         match packet {
-            Packet::Interest { name: _, sdri } => {
+            Packet::Interest { sdri } => {
                 i = sdri;
             },
-            Packet::Data { name: _, sdri } => {
+            Packet::Data { sdri } => {
                 i = sdri;
             },
         }
@@ -36,10 +36,10 @@ impl SparseDistributedRepresentation {
         let mut i: Vec<Vec<u16>> = Vec::new();
         let mut sdr_vals: Vec<u32> = Vec::new();
         match packet {
-            Packet::Interest { name: _, sdri } => {
+            Packet::Interest { sdri } => {
                 i = sdri;
             },
-            Packet::Data     { name: _, sdri } => {
+            Packet::Data { sdri } => {
                 i = sdri;
             },
         }
@@ -57,10 +57,10 @@ impl SparseDistributedRepresentation {
     pub fn delete(&mut self, packet: Packet) {
         let mut i: Vec<Vec<u16>> = Vec::new();
         match packet {
-            Packet::Interest { name: _, sdri } => {
+            Packet::Interest { sdri } => {
                 i = sdri;
             },
-            Packet::Data     { name: _, sdri } => {
+            Packet::Data { sdri } => {
                 i = sdri;
             },
         }
@@ -108,7 +108,7 @@ impl PartialEq for SparseDistributedRepresentation {
 #[cfg(test)]
 mod sdr {
     use super::*;
-    use packets::{ mk_interest};
+    use packets::{mk_interest};
 
     #[test]
     fn interest_100_percent_present() {

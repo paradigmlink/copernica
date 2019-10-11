@@ -34,7 +34,7 @@ fn name_sparsity(s: &str) -> Vec<(u16)> {
     gen_2048_sparsity(index_of_lowest_occuring_char_in_hash(&hash_name(s)))
 }
 
-pub fn forwarding_hint(s: String) -> Vec<Vec<u16>> {
+pub fn generate_sdr_index(s: String) -> Vec<Vec<u16>> {
     let names = s.split("/");
     let names: Vec<&str> = names.collect();
     let mut fh: Vec<Vec<u16>> = Vec::new();
@@ -43,15 +43,6 @@ pub fn forwarding_hint(s: String) -> Vec<Vec<u16>> {
     }
     fh
 }
-
-/*
-impl PartialEq for Interest {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name &&
-        self.index == other.index
-    }
-}
-*/
 
 #[cfg(test)]
 mod tests {
@@ -123,13 +114,12 @@ mod tests {
         let interest = mk_interest("mozart/topology/data".to_string());
         assert_eq!(
             Packet::Interest {
-                name: "mozart/topology/data".to_string(),
                 sdri: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
             , interest);
     }
 
     #[test]
-    fn gen_forwarding_hint() {
+    fn gen_sdr_index() {
         let s = "domain/app/data/stewart/calculus/topology/mozart/Johann Sebastian Bach/abracadabra/abc";
         assert_eq!(
         vec![
@@ -143,7 +133,7 @@ mod tests {
             vec![1037, 1565, 1773, 1789],
             vec![145, 945, 1153, 1745],
             vec![154, 250, 1210, 1306, 1770]]
-        , forwarding_hint(s.to_string()));
+        , generate_sdr_index(s.to_string()));
     }
 
     #[test]

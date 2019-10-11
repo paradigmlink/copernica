@@ -11,30 +11,26 @@ extern crate flate2;
 #[cfg(test)]
 extern crate bitvec;
 
-pub mod interest;
-pub mod data;
 mod index;
 
-use crate::{index::forwarding_hint};
+use crate::{index::generate_sdr_index};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Packet {
-    Interest { name: String, sdri: Vec<Vec<u16>> },
-    Data     { name: String, sdri: Vec<Vec<u16>> },
+    Interest { sdri: Vec<Vec<u16>> },
+    Data     { sdri: Vec<Vec<u16>> },
 }
 
 pub fn mk_interest(name: String) -> Packet {
     Packet::Interest {
-        name: name.clone(),
-        sdri: forwarding_hint(name)
+        sdri: generate_sdr_index(name)
         // more to come
     }
 }
 
 pub fn mk_data(name: String) -> Packet {
     Packet::Data {
-        name: name.clone(),
-        sdri: forwarding_hint(name)
+        sdri: generate_sdr_index(name)
         // more to come
     }
 }
