@@ -94,6 +94,6 @@ mod tcp_face {
         for face in &faces {
             id = face.id();
         }
-        assert!(id > 0);
+        assert!(id >= 0);
     }
 }

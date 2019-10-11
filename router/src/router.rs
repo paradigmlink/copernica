@@ -176,8 +176,8 @@ mod tests {
     #[test]
     fn test_cs() {
         let mut r1 = Router::new();
-        let f1 = Tcp::new();
-        let f2 = Tcp::new();
+        let mut f1 = Tcp::new();
+        let mut f2 = Tcp::new();
         let f3 = Tcp::new();
         let f4 = Tcp::new();
         let i1 = mk_interest("interest 1".to_string());

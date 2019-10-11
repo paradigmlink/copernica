@@ -60,7 +60,7 @@ mod tests {
     extern crate flate2;
     extern crate tar;
 
-    use std::fs::File;
+    use std::fs;
     use flate2::read::GzDecoder;
     use tar::Archive;
     use std::io::{BufRead, BufReader};
@@ -76,12 +76,12 @@ mod tests {
         exe_path.pop();
         exe_path.push("packets/tests/words.tar.gz");
 
-        let tar_gz = File::open(&exe_path).unwrap();
+        let tar_gz = fs::File::open(&exe_path).unwrap();
         let tar = GzDecoder::new(tar_gz);
         let mut archive = Archive::new(tar);
         archive.unpack("tests").unwrap();
 
-        let file = File::open(exe_path.with_file_name("words.txt")).unwrap();
+        let file = fs::File::open(exe_path.with_file_name("words.txt")).unwrap();
         let reader = BufReader::new(file);
     	let mut elts = [0u8; 256]; //2048 bit vector
     	let bs = BitSlice::<BigEndian, _>::from_slice_mut(&mut elts[..]);
@@ -110,6 +110,7 @@ mod tests {
             	break
             }
         }
+        fs::remove_file(exe_path.with_file_name("words.txt")).unwrap();
         assert_eq!(break_on_line, 234); // this number should only get higher
         // but later on smaller routers on the edge will want to have smaller bitvectors
         // which means it can hold less information.
