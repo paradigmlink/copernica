@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate serde_derive;
-extern crate bincode;
 extern crate base64;
 extern crate sha3;
 
@@ -15,7 +14,7 @@ mod index;
 
 use crate::{index::generate_sdr_index};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Packet {
     Interest { sdri: Vec<Vec<u16>> },
     Data     { sdri: Vec<Vec<u16>> },

@@ -6,7 +6,11 @@ edition = "2018"
 
 [dependencies]
 rand = "0.7.2"
-lru = "0.3.0"
 bitvec = "0.15.2"
-libp2p = "0.12.0"
+bincode = "1"
+serde = "1.0.63"
+serde_derive = "1.0.27"
+bytes = "0.4.12"
+tokio = "0.1.22"
+futures = "0.1.20"
 packets = { path = "../packets" }

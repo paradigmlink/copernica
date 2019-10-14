@@ -88,7 +88,9 @@ impl Router {
                                 }
                                 if is_forwarded == false {
                                     for burst_face in optimistic_burst_faces {
+                                        burst_face.print_pi();
                                         burst_face.create_pending_interest(interest.clone());
+                                        burst_face.print_pi();
                                         burst_face.send_interest_downstream(interest.clone());
                                     }
                                 }
@@ -170,25 +172,29 @@ impl<T> SplitOneMut for [T] {
 mod tests {
     use super::*;
     use packets::{mk_interest, mk_data, Packet};
-    use faces::{Face, Tcp};
+    use faces::{Face, Tcp, Uds};
+    use std::thread;
 
     #[test]
     fn test_cs() {
-        let mut r1 = Router::new();
-        let mut f1 = Tcp::new();
-        let mut f2 = Tcp::new();
-        let f3 = Tcp::new();
-        let f4 = Tcp::new();
+        let mut f1 = Uds::new();
+        let mut f2 = Uds::new();
+        let f3 = Uds::new();
+        let f4 = Uds::new();
         let i1 = mk_interest("interest 1".to_string());
         let i2 = mk_interest("interest 2".to_string());
         f1.send_interest_downstream(i1);
         f2.send_interest_downstream(i2);
-        r1.add_face(f1);
-        r1.add_face(f2);
-        r1.add_face(f3);
-        r1.add_face(f4);
-        r1.run();
-        r1.stop();
+        thread::spawn(move || {
+            let mut r1 = Router::new();
+            r1.add_face(f1);
+            r1.add_face(f2);
+            r1.add_face(f3);
+            r1.add_face(f4);
+            r1.run();
+        });
+
+//        r1.stop();
     }
 /*
     #[test]

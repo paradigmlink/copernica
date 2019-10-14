@@ -1,0 +1,9 @@
+[package]
+name = "devtools"
+version = "0.1.0"
+authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
+edition = "2018"
+
+[dependencies]
+packets = { path = "../packets" }
+bincode = "1"

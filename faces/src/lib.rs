@@ -1,12 +1,13 @@
 extern crate bitvec;
 extern crate packets;
-extern crate libp2p;
 extern crate rand;
+#[macro_use]
+extern crate serde_derive;
 
 mod sparse_distributed_representation;
-pub mod uds;
+pub mod udp;
 pub mod tcp;
-pub use crate::{uds::Uds, tcp::Tcp};
+pub use crate::{udp::Udp, tcp::Tcp};
 
 use packets::{Packet};
 
@@ -27,6 +28,10 @@ pub trait Face {
     fn restore_forwarding_hint(&mut self);
 
     fn box_clone(&self) -> Box::<dyn Face>;
+    fn receive(&mut self);
+    fn send(&mut self);
+    fn print_pi(&self);
+    fn print_fh(&self);
 }
 
 impl Clone for Box<dyn Face> {

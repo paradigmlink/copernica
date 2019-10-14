@@ -1,5 +1,6 @@
 use rand::Rng;
 use crate::Face;
+use std::collections::VecDeque;
 
 use bitvec::prelude::*;
 use packets::{Packet, mk_data, mk_interest};
@@ -10,10 +11,10 @@ pub struct Tcp {
     pub id: u32,
     pending_interest: SparseDistributedRepresentation,
     forwarding_hint: SparseDistributedRepresentation,
-    interest_inbound: Vec<Packet>,
-    interest_outbound: Vec<Packet>,
-    data_inbound: Vec<Packet>,
-    data_outbound: Vec<Packet>,
+    interest_inbound: VecDeque<Packet>,
+    interest_outbound: VecDeque<Packet>,
+    data_inbound: VecDeque<Packet>,
+    data_outbound: VecDeque<Packet>,
 }
 
 impl Tcp {
@@ -21,10 +22,10 @@ impl Tcp {
         let mut rng = rand::thread_rng();
         Box::new(Tcp {
             id: rng.gen(),
-            interest_inbound: Vec::new(),
-            interest_outbound: Vec::new(),
-            data_inbound: Vec::new(),
-            data_outbound: Vec::new(),
+            interest_inbound: VecDeque::new(),
+            interest_outbound: VecDeque::new(),
+            data_inbound: VecDeque::new(),
+            data_outbound: VecDeque::new(),
             pending_interest: SparseDistributedRepresentation::new(),
             forwarding_hint: SparseDistributedRepresentation::new(),
         })
@@ -40,16 +41,16 @@ impl Face for Tcp {
     // Basic Send and Receive Operations
 
     fn send_interest_downstream(&mut self, interest: Packet) {
-        self.interest_outbound.push(interest);
+        self.interest_outbound.push_back(interest);
     }
     fn receive_upstream_interest(&mut self) -> Option<Packet> {
-        self.interest_inbound.pop()
+        self.interest_inbound.pop_front()
     }
     fn send_data_upstream(&mut self, data: Packet) {
-        self.data_outbound.push(data);
+        self.data_outbound.push_back(data);
     }
     fn receive_downstream_data(&mut self) -> Option<Packet> {
-        self.data_inbound.pop()
+        self.data_inbound.pop_front()
     }
 
     // Pending Interest Sparse Distributed Representation
@@ -83,6 +84,20 @@ impl Face for Tcp {
 
     fn box_clone(&self) -> Box<dyn Face> {
         Box::new((*self).clone())
+    }
+
+    fn receive(&mut self){
+    }
+
+    fn send(&mut self){
+    }
+
+    fn print_pi(&self) {
+        println!("pending interest:\n{:?}", self.pending_interest);
+    }
+
+    fn print_fh(&self) {
+        println!("forwarding hint:\n{:?}", self.forwarding_hint);
     }
 }
 
