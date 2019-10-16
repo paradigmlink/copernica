@@ -2,6 +2,7 @@ use rand::Rng;
 use crate::Face;
 use std::collections::VecDeque;
 
+use async_std::io;
 use bitvec::prelude::*;
 use packets::{Packet, mk_data, mk_interest};
 use crate::sparse_distributed_representation::{SparseDistributedRepresentation};
@@ -86,7 +87,8 @@ impl Face for Tcp {
         Box::new((*self).clone())
     }
 
-    fn receive(&mut self){
+    fn receive(&mut self) -> async_std::io::Result<()> {
+        Ok(())
     }
 
     fn send(&mut self){

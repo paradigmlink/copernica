@@ -4,10 +4,11 @@ use rand::Rng;
 use crate::Face;
 use std::collections::VecDeque;
 
-use std::net::{UdpSocket, SocketAddr, SocketAddrV4, Ipv4Addr};
-use std::time::{Duration, Instant};
-use std::io;
-use std::thread;
+use async_std::io;
+use async_std::net::UdpSocket;
+use async_std::task;
+
+use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use bincode::{serialize, deserialize};
 
 use packets::{Packet, mk_data, mk_interest};
@@ -120,50 +121,34 @@ impl Face for Udp {
         }
     }
 
-    fn receive(&mut self) {
-        let mut socket = UdpSocket::bind(SocketAddr::V4(self.listen_addr)).unwrap();
-        socket.set_nonblocking(true).unwrap();
-        let start = Instant::now();
+    fn receive(&mut self) -> io::Result<()>  {
+        task::block_on(async {
+            let socket = UdpSocket::bind("127.0.0.1:8080").await?;
+            let mut buf = vec![0u8; 1024];
 
-        let mut buf: [u8; 200] = [0; 200];
+            println!("Listening on {}", socket.local_addr()?);
 
-        let (amt, _) =
             loop {
-                match socket.recv_from(&mut buf) {
-                    Ok(n) => break n,
-                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                        if start.elapsed() > Duration::from_millis(10) {
-                            //println!("{}", start.elapsed().as_millis());
-                            return
-                        } else {
-                            continue
-                        }
-                    }
-                    Err(e) => panic!("encountered IO error: {}", e),
-                    _ => { return }
+                let (n, peer) = socket.recv_from(&mut buf).await?;
+                let packet: Packet = deserialize(&buf[..n]).unwrap();
+                match packet {
+                    Packet::Interest{ sdri: _ } => {
+                        self.interest_inbound.push_back(packet)
+                    },
+                    Packet::Data{ sdri: _ } => {
+                        self.data_inbound.push_back(packet)
+                    },
                 };
-            };
-        let buf = &mut buf[..amt];
-        let received_mesg: Packet = deserialize(&buf).unwrap();
-        println!("Got {:?}", received_mesg);
-        match received_mesg {
-            Packet::Interest{ sdri: _ } => {
-                self.interest_inbound.push_back(received_mesg)
-            },
-            Packet::Data{ sdri: _ } => {
-                self.data_inbound.push_back(received_mesg)
-            },
-        };
-
+                let sent = socket.send_to(&buf[..n], &peer).await?;
+                println!("Received: {:?}", &buf[..n]);
+                println!("Sent {} out of {} bytes to {}", sent, n, peer);
+            }
+        })
     }
 }
 
 fn send(listen_addr: SocketAddrV4, send_addr: SocketAddrV4, packet: Packet) {
-    let mut socket = UdpSocket::bind(SocketAddr::V4(listen_addr)).unwrap();
-    let target = SocketAddr::V4(send_addr);
-    socket.send_to(&serialize(&packet).unwrap(), target);
 }
-
 
 #[cfg(test)]
 mod face {

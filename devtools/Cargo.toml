@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 packets = { path = "../packets" }
 bincode = "1"
+async-std = "0.99.9"

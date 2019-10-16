@@ -8,42 +8,6 @@ pub struct Router {
     is_running: bool,
 }
 
-/*
-    -> interest goes out on a face, and is written in the face's bread-crumb-sdr
-        - checks the cs for data
-            - if found
-                - the interest is killed and data is returned via the sending interface
-            - if cs is empty
-                - interest index is written into incoming face breadcrumb-sdr
-                - then search all other faces' forwarding sdr
-                    - faces who's forwarding hint hits of a certain percentage AND miss on the faces' pending interest gets the interest forwarded
-                        - forwarded interests are then inserted into the face's pending interest sdr (so that we don't forward the same interest again)
-                    - if no face contains a forwarding interest hit then the interest is broadcast on all faces except the incoming face
-
-    <- data comes in on a face
-        - checks the face's pending interest sdr
-            - if there's a miss on the pisdr then the data is dropped
-            - if there's a hit on the pisdr
-                - then the pisdr entry is removed on that face
-                - forwarding-hint sdr insert - so future interests can be forwarded
-                - then scan all other faces' breadcrumb-sdr
-                    - if there's a hit then forward the data on that face
-                        - remove the breadcrumb sdr data entry
-                    - if there's a miss then drop the data
-                - stick the data in the cs
-
-    forwarding-sdr: is constructed from an LRU (index), which regenerates after a percentage of on bits reaches a threshold.
-        this way the sdr maintains a high degree of data it's aware of and can adapt when downstream changes.
-
-    pending-sdr: is constructed from an LRU (index) and is regenerated after the sdr reaches a critical threshold of on bits.
-        if a data returns and the sdr has been regenerated then check other faces for breadcrumbs, if none, drop the data.
-        the pending interest sdr is so the router will not forward the same interest again on that face.
-
-    breadcrumb-sdr: is constructed from an LRU(index) and is regenerated after the sdr reaches a critical threshold of on bits.
-        An index is written immediately into the LRU and sdr when an interest comes in. If the interest is not satisfied after a certain
-        threshold the sdr is regenerated. If data is returned the breadcrumb-sdr entry is removed from the LRU and sdr.
-
-*/
 
 impl Router {
     pub fn new() -> Self {
@@ -61,7 +25,7 @@ impl Router {
     pub fn run(&mut self) {
         self.is_running = true;
         loop {
-            //@Optimisation: put every face upstream and downstream face on its own thread
+            //@Optimisation: put every face upstream and downstream face on its own future
 
             // Interest Downstream
 
@@ -88,9 +52,7 @@ impl Router {
                                 }
                                 if is_forwarded == false {
                                     for burst_face in optimistic_burst_faces {
-                                        burst_face.print_pi();
                                         burst_face.create_pending_interest(interest.clone());
-                                        burst_face.print_pi();
                                         burst_face.send_interest_downstream(interest.clone());
                                     }
                                 }
