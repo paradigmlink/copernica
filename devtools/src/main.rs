@@ -15,13 +15,16 @@ fn main() -> io::Result<()> {
         println!("To Send : {:?}", &msg);
         let msg = serialize(&msg).unwrap();
         println!("<- {:?}", msg);
-        socket.send_to(&msg, "127.0.0.1:8080").await?;
+        socket.send_to(&msg, "127.0.0.1:8090").await?;
+        socket.send_to(&msg, "127.0.0.1:8091").await?;
+        socket.send_to(&msg, "127.0.0.1:8092").await?;
 
-        let mut buf = vec![0u8; 1024];
-        let (n, _) = socket.recv_from(&mut buf).await?;
-        println!("-> {:?}", &buf[..n]);
-        let packet: Packet = deserialize(&buf[..n]).unwrap();
-        println!("Returned: {:?}", packet);
+
+        //let mut buf = vec![0u8; 1024];
+        //let (n, _) = socket.recv_from(&mut buf).await?;
+        //println!("-> {:?}", &buf[..n]);
+        //let packet: Packet = deserialize(&buf[..n]).unwrap();
+        //println!("Returned: {:?}", packet);
 
         Ok(())
     })

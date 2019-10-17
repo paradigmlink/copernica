@@ -113,42 +113,43 @@ impl Face for Udp {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
 
-    fn run(&mut self) -> async_task::JoinHandle<(), ()>
-    {
-        let future = async {
-            //let socket = UdpSocket::bind(self.listen_addr).await.unwrap();
+    fn run(&mut self) -> async_task::JoinHandle<(), ()> {
+        let addr = self.listen_addr.clone();
+        let send_addr = self.send_addr.clone();
+        let mut interest_inbound = self.interest_inbound.clone();
+        let mut interest_outbound = self.interest_outbound.clone();
+        let mut data_inbound = self.data_inbound.clone();
+        let mut data_outbound = self.data_outbound.clone();
+        let future = async move {
+            let socket = UdpSocket::bind(addr).await.unwrap();
             println!("Hello >");
-/*
             let mut buf = vec![0u8; 1024];
             println!("Listening on {}", socket.local_addr().unwrap());
             let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
             let packet: Packet = deserialize(&buf[..n]).unwrap();
             match packet {
                 Packet::Interest{ sdri: _ } => {
-                    self.interest_inbound.push_back(packet)
+                    println!("{:?}", packet);
+                    interest_inbound.push_back(packet)
                 },
                 Packet::Data{ sdri: _ } => {
-                    self.data_inbound.push_back(packet)
+                    data_inbound.push_back(packet)
                 },
             };
-            match self.interest_outbound.pop_front() {
+            match interest_outbound.pop_front() {
                 Some(interest) => {
                     let interest = serialize(&interest).unwrap();
-                    socket.send_to(&interest, self.send_addr);
+                    socket.send_to(&interest, send_addr);
                 },
                 None => {},
             }
-            match self.data_outbound.pop_front() {
+            match data_outbound.pop_front() {
                 Some(data) => {
                     let data = serialize(&data).unwrap();
-                    socket.send_to(&data, self.send_addr);
+                    socket.send_to(&data, send_addr);
                 },
                 None => {},
             }
-            let sent = socket.send_to(&buf[..n], &peer).await.unwrap();
-            println!("Received: {:?}", &buf[..n]);
-            println!("Sent {} out of {} bytes to {}", sent, n, peer);
-*/
         };
 
         let (sender, receiver) = crossbeam_channel::unbounded();
