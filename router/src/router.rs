@@ -1,6 +1,9 @@
 use faces::{Face};
 use crate::content_store::{ContentStore};
 
+use futures::executor;
+
+
 #[derive(Clone)]
 pub struct Router {
     faces: Vec<Box<dyn Face>>,
@@ -31,6 +34,8 @@ impl Router {
 
             for current_face in 0 .. self.faces.len() {
                 let (this_face, potential_forward_on_faces) = self.faces.split_one_mut(current_face);
+                futures::executor::block_on(this_face.run());
+                println!("< World");
                 match this_face.receive_upstream_interest() {
                     Some(interest) => {
                         match self.cs.has_data(interest.clone()) {

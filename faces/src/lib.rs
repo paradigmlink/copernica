@@ -3,11 +3,13 @@ extern crate packets;
 extern crate rand;
 #[macro_use]
 extern crate serde_derive;
+extern crate crossbeam_channel;
+extern crate async_task;
 
 mod sparse_distributed_representation;
 pub mod udp;
-pub mod tcp;
-pub use crate::{udp::Udp, tcp::Tcp};
+//pub mod tcp;
+pub use crate::{udp::Udp};//, tcp::Tcp};
 
 use packets::{Packet};
 use async_std::io;
@@ -35,8 +37,7 @@ pub trait Face {
 
 
     fn box_clone(&self) -> Box::<dyn Face>;
-    fn receive(&mut self) -> async_std::io::Result<()> ;
-    fn send(&mut self);
+    fn run(&mut self) -> async_task::JoinHandle<(), ()>;
     fn print_pi(&self);
     fn print_fh(&self);
 }

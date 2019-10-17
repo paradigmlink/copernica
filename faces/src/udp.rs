@@ -7,6 +7,8 @@ use std::collections::VecDeque;
 use async_std::io;
 use async_std::net::UdpSocket;
 use async_std::task;
+use async_task;
+use crossbeam_channel;
 
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use bincode::{serialize, deserialize};
@@ -14,12 +16,18 @@ use bincode::{serialize, deserialize};
 use packets::{Packet, mk_data, mk_interest};
 use crate::sparse_distributed_representation::{SparseDistributedRepresentation};
 
+use std::future::Future;
+use std::sync::Arc;
+use std::thread;
+
+use futures::executor;
+
 
 #[derive(Debug, Clone)]
 pub struct Udp {
+    pub id: u32,
     listen_addr: SocketAddrV4,
     send_addr: SocketAddrV4,
-    pub id: u32,
     pending_interest: SparseDistributedRepresentation,
     forwarding_hint: SparseDistributedRepresentation,
     interest_inbound: VecDeque<Packet>,
@@ -55,18 +63,14 @@ impl Face for Udp {
 
     fn send_interest_downstream(&mut self, interest: Packet) {
         self.interest_outbound.push_back(interest);
-        self.send();
     }
     fn receive_upstream_interest(&mut self) -> Option<Packet> {
-        self.receive();
         self.interest_inbound.pop_front()
     }
     fn send_data_upstream(&mut self, data: Packet) {
         self.data_outbound.push_back(data);
-        self.send();
     }
     fn receive_downstream_data(&mut self) -> Option<Packet> {
-        self.receive();
         self.data_inbound.pop_front()
     }
 
@@ -108,46 +112,62 @@ impl Face for Udp {
     fn print_fh(&self) {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
-    // @Optimisation: keeping send and recv as part of the API cause maybe I want to
-    // batch send this during the router main loop after an interval
-    fn send(&mut self) {
-        match self.interest_outbound.pop_front() {
-            Some(interest) => send(self.listen_addr, self.send_addr, interest),
-            None => {},
-        }
-        match self.data_outbound.pop_front() {
-            Some(data) => send(self.listen_addr, self.send_addr, data),
-            None => {},
-        }
-    }
 
-    fn receive(&mut self) -> io::Result<()>  {
-        task::block_on(async {
-            let socket = UdpSocket::bind("127.0.0.1:8080").await?;
+    fn run(&mut self) -> async_task::JoinHandle<(), ()>
+    {
+        let future = async {
+            //let socket = UdpSocket::bind(self.listen_addr).await.unwrap();
+            println!("Hello >");
+/*
             let mut buf = vec![0u8; 1024];
-
-            println!("Listening on {}", socket.local_addr()?);
-
-            loop {
-                let (n, peer) = socket.recv_from(&mut buf).await?;
-                let packet: Packet = deserialize(&buf[..n]).unwrap();
-                match packet {
-                    Packet::Interest{ sdri: _ } => {
-                        self.interest_inbound.push_back(packet)
-                    },
-                    Packet::Data{ sdri: _ } => {
-                        self.data_inbound.push_back(packet)
-                    },
-                };
-                let sent = socket.send_to(&buf[..n], &peer).await?;
-                println!("Received: {:?}", &buf[..n]);
-                println!("Sent {} out of {} bytes to {}", sent, n, peer);
+            println!("Listening on {}", socket.local_addr().unwrap());
+            let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
+            let packet: Packet = deserialize(&buf[..n]).unwrap();
+            match packet {
+                Packet::Interest{ sdri: _ } => {
+                    self.interest_inbound.push_back(packet)
+                },
+                Packet::Data{ sdri: _ } => {
+                    self.data_inbound.push_back(packet)
+                },
+            };
+            match self.interest_outbound.pop_front() {
+                Some(interest) => {
+                    let interest = serialize(&interest).unwrap();
+                    socket.send_to(&interest, self.send_addr);
+                },
+                None => {},
             }
-        })
-    }
-}
+            match self.data_outbound.pop_front() {
+                Some(data) => {
+                    let data = serialize(&data).unwrap();
+                    socket.send_to(&data, self.send_addr);
+                },
+                None => {},
+            }
+            let sent = socket.send_to(&buf[..n], &peer).await.unwrap();
+            println!("Received: {:?}", &buf[..n]);
+            println!("Sent {} out of {} bytes to {}", sent, n, peer);
+*/
+        };
 
-fn send(listen_addr: SocketAddrV4, send_addr: SocketAddrV4, packet: Packet) {
+        let (sender, receiver) = crossbeam_channel::unbounded();
+        let sender = Arc::new(sender);
+        let s = Arc::downgrade(&sender);
+        let future = async move {
+            let _sender = sender;
+            future.await
+        };
+        let schedule = move |t| s.upgrade().unwrap().send(t).unwrap();
+        let (task, handle) = async_task::spawn(future, schedule, ());
+        task.schedule();
+        thread::spawn(move || {
+            for task in receiver {
+                task.run();
+            }
+        });
+        handle
+    }
 }
 
 #[cfg(test)]
