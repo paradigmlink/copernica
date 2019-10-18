@@ -2,6 +2,7 @@
 extern crate bincode;
 extern crate faces;
 extern crate router;
+extern crate futures;
 
 use faces::{Udp};
 use router::{Router};
@@ -13,5 +14,5 @@ fn main() {
     r.add_face(f1);
     r.add_face(f2);
     r.add_face(f3);
-    r.run();
+    futures::executor::block_on(r.run());
 }

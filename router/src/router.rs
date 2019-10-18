@@ -2,6 +2,10 @@ use faces::{Face};
 use crate::content_store::{ContentStore};
 
 use futures::executor;
+use futures::future::{select_all};
+use async_std::future;
+use futures::task::LocalSpawnExt;
+use futures_util::task::SpawnExt;
 
 
 #[derive(Clone)]
@@ -25,16 +29,18 @@ impl Router {
         self.faces.push(face);
     }
 
-    pub fn run(&mut self) {
+    pub async fn run(&mut self) {
         self.is_running = true;
-        loop {
-            //@Optimisation: put every face upstream and downstream face on its own future
 
+        loop {
+            let f = select_all( self.faces.iter().map(|face| face.receive()));
+            f.await;
+            println!(">>>");
             // Interest Downstream
 
-            for current_face in 0 .. self.faces.len() {
+            /*for current_face in 0 .. self.faces.len() {
                 let (this_face, potential_forward_on_faces) = self.faces.split_one_mut(current_face);
-                futures::executor::block_on(this_face.run());
+
                 println!("< World");
                 match this_face.receive_upstream_interest() {
                     Some(interest) => {
@@ -54,6 +60,7 @@ impl Router {
                                     } else {
                                         if is_forwarded == false { optimistic_burst_faces.push(that_face); }
                                     }
+
                                 }
                                 if is_forwarded == false {
                                     for burst_face in optimistic_burst_faces {
@@ -64,7 +71,10 @@ impl Router {
                             }
                         }
                     },
-                    None => {},
+                    None => {
+
+                                this_face.print_pi();
+                    },
                 }
             }
 
@@ -94,6 +104,7 @@ impl Router {
             }
 
             if self.is_running == false { break }
+        */
         }
     }
 

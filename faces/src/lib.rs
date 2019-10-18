@@ -13,6 +13,9 @@ pub use crate::{udp::Udp};//, tcp::Tcp};
 
 use packets::{Packet};
 use async_std::io;
+use async_std::io::Error;
+use std::pin::Pin;
+use std::future::Future;
 
 pub trait Face {
     fn id(&self) -> u32;
@@ -37,7 +40,8 @@ pub trait Face {
 
 
     fn box_clone(&self) -> Box::<dyn Face>;
-    fn run(&mut self) -> async_task::JoinHandle<(), ()>;
+    fn send(&mut self) -> async_task::JoinHandle<(), ()>;
+    fn receive(&self) -> Pin<Box<dyn Future<Output = Result<Packet, Error>> + Send + 'static>>;
     fn print_pi(&self);
     fn print_fh(&self);
 }

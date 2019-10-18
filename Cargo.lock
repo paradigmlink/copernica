@@ -170,6 +170,7 @@ version = "0.1.0"
 dependencies = [
  "bincode 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "faces 0.1.0",
+ "futures-preview 0.3.0-alpha.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.1.0",
 ]
 
@@ -631,10 +632,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "router"
 version = "0.1.0"
 dependencies = [
+ "async-std 0.99.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-task 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam-channel 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "faces 0.1.0",
  "futures-preview 0.3.0-alpha.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-util-preview 0.3.0-alpha.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "packets 0.1.0",
 ]

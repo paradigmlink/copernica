@@ -8,6 +8,7 @@ use async_std::io;
 use async_std::net::UdpSocket;
 use async_std::task;
 use async_task;
+use async_std::io::Error;
 use crossbeam_channel;
 
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
@@ -21,6 +22,7 @@ use std::sync::Arc;
 use std::thread;
 
 use futures::executor;
+use std::pin::Pin;
 
 
 #[derive(Debug, Clone)]
@@ -113,7 +115,54 @@ impl Face for Udp {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
 
-    fn run(&mut self) -> async_task::JoinHandle<(), ()> {
+    fn receive(&self) -> Pin<Box<dyn Future<Output = Result<Packet, Error>> + Send + 'static>> {
+        let addr = self.listen_addr.clone();
+        let send_addr = self.send_addr.clone();
+        let mut interest_inbound = self.interest_inbound.clone();
+        let mut interest_outbound = self.interest_outbound.clone();
+        let mut data_inbound = self.data_inbound.clone();
+        let mut data_outbound = self.data_outbound.clone();
+        let future = async move {
+            let socket = UdpSocket::bind(addr).await.unwrap();
+            let mut buf = vec![0u8; 1024];
+            println!("Listening on {}", socket.local_addr().unwrap());
+            let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
+            let packet: Packet = deserialize(&buf[..n]).unwrap();
+            match packet {
+                Packet::Interest{ sdri: _ } => {
+                    println!("{:?}", packet);
+                    //interest_inbound.push_back(packet);
+                },
+                Packet::Data{ sdri: _ } => {
+                    //data_inbound.push_back(packet);
+                },
+            };
+
+            Ok(packet)
+        };
+/*
+        let (sender, receiver) = crossbeam_channel::unbounded();
+        let sender = Arc::new(sender);
+        let s = Arc::downgrade(&sender);
+        let future = async move {
+            let _sender = sender;
+            future.await
+        };
+        let schedule = move |t| s.upgrade().unwrap().send(t).unwrap();
+        let (task, handle) = async_task::spawn(future, schedule, ());
+        task.schedule();
+        thread::spawn(move || {
+            for task in receiver {
+                task.run();
+            }
+        });
+        handle
+*/
+        Box::pin(future)
+    }
+
+
+    fn send(&mut self) -> async_task::JoinHandle<(), ()> {
         let addr = self.listen_addr.clone();
         let send_addr = self.send_addr.clone();
         let mut interest_inbound = self.interest_inbound.clone();
