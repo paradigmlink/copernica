@@ -78,22 +78,22 @@ impl Face for Udp {
 
     // Pending Interest Sparse Distributed Representation
 
-    fn create_pending_interest(&mut self, packet: Packet) {
-        self.pending_interest.insert(packet);
+    fn create_pending_interest(&mut self, packet_sdri: &Vec<Vec<u16>>) {
+        self.pending_interest.insert(&packet_sdri);
     }
-    fn contains_pending_interest(&mut self, interest: Packet) -> u8 {
-        self.pending_interest.contains(interest)
+    fn contains_pending_interest(&mut self, interest_sdri: &Vec<Vec<u16>>) -> u8 {
+        self.pending_interest.contains(interest_sdri)
     }
-    fn delete_pending_interest(&mut self, interest: Packet) {
-        self.pending_interest.delete(interest);
+    fn delete_pending_interest(&mut self, interest_sdri: &Vec<Vec<u16>>) {
+        self.pending_interest.delete(interest_sdri);
     }
 
     // Forwarding Hint Sparse Distributed Representation
-    fn create_forwarding_hint(&mut self, data: Packet) {
-        self.forwarding_hint.insert(data);
+    fn create_forwarding_hint(&mut self, data_sdri: &Vec<Vec<u16>>) {
+        self.forwarding_hint.insert(&data_sdri);
     }
-    fn contains_forwarding_hint(&mut self, interest: Packet) -> u8 {
-        self.forwarding_hint.contains(interest)
+    fn contains_forwarding_hint(&mut self, interest_sdri: &Vec<Vec<u16>>) -> u8 {
+        self.forwarding_hint.contains(interest_sdri)
     }
     fn forwarding_hint_decoherence(&mut self) -> u8 {
         self.forwarding_hint.decoherence()

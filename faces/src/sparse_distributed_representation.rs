@@ -15,37 +15,19 @@ impl SparseDistributedRepresentation {
         }
     }
 
-    pub fn insert(&mut self, packet: Packet) {
-        let mut i: Vec<Vec<u16>> = Vec::new();
-        match packet {
-            Packet::Interest { sdri } => {
-                i = sdri;
-            },
-            Packet::Data { sdri } => {
-                i = sdri;
-            },
-        }
-        for row in i {
+    pub fn insert(&mut self, packet: &Vec<Vec<u16>>) {
+        for row in packet {
             for elem in row {
-                self.sdr.set(elem as usize, true);
+                self.sdr.set(*elem as usize, true);
             }
         }
     }
 
-    pub fn contains(&mut self, packet: Packet) -> u8 {
-        let mut i: Vec<Vec<u16>> = Vec::new();
+    pub fn contains(&mut self, packet: &Vec<Vec<u16>>) -> u8 {
         let mut sdr_vals: Vec<u32> = Vec::new();
-        match packet {
-            Packet::Interest { sdri } => {
-                i = sdri;
-            },
-            Packet::Data { sdri } => {
-                i = sdri;
-            },
-        }
-        for row in i {
+        for row in packet {
             for elem in row {
-                sdr_vals.push(self.sdr.get(elem as usize).unwrap() as u32);
+                sdr_vals.push(self.sdr.get(*elem as usize).unwrap() as u32);
             }
         }
         let hits = sdr_vals.iter().try_fold(0u32, |acc, &elem| acc.checked_add(elem));
@@ -54,19 +36,10 @@ impl SparseDistributedRepresentation {
         percentage as u8
     }
 
-    pub fn delete(&mut self, packet: Packet) {
-        let mut i: Vec<Vec<u16>> = Vec::new();
-        match packet {
-            Packet::Interest { sdri } => {
-                i = sdri;
-            },
-            Packet::Data { sdri } => {
-                i = sdri;
-            },
-        }
-        for row in i {
+    pub fn delete(&mut self, packet: &Vec<Vec<u16>>) {
+        for row in packet {
             for elem in row {
-                self.sdr.set(elem as usize, false);
+                self.sdr.set(*elem as usize, false);
             }
         }
     }

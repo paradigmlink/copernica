@@ -10,7 +10,7 @@ impl ContentStore {
         ContentStore { store: "".to_string() }
     }
 
-    pub fn has_data(&self, i: Packet) -> Option<Packet> {
+    pub fn has_data(&self, sdri: &Vec<Vec<u16>>) -> Option<Packet> {
 //        Some(mk_data("stewart".to_string()))
         None
     }

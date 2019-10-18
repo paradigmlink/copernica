@@ -25,12 +25,12 @@ pub trait Face {
     fn send_data_upstream(&mut self, data: Packet);
     fn receive_downstream_data(&mut self) -> Option<Packet>;
 
-    fn create_pending_interest(&mut self, interest: Packet);
-    fn contains_pending_interest(&mut self, packet: Packet) -> u8;
-    fn delete_pending_interest(&mut self, interest: Packet);
+    fn create_pending_interest(&mut self, sdri: &Vec<Vec<u16>>);
+    fn contains_pending_interest(&mut self, sdri: &Vec<Vec<u16>>) -> u8;
+    fn delete_pending_interest(&mut self, sdri: &Vec<Vec<u16>>);
 
-    fn create_forwarding_hint(&mut self, interest: Packet);
-    fn contains_forwarding_hint(&mut self, interest: Packet) -> u8;
+    fn create_forwarding_hint(&mut self, sdri: &Vec<Vec<u16>>);
+    fn contains_forwarding_hint(&mut self, sdri: &Vec<Vec<u16>>) -> u8;
     fn forwarding_hint_decoherence(&mut self) -> u8;
     fn restore_forwarding_hint(&mut self);
 
