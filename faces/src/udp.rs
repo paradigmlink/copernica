@@ -32,10 +32,6 @@ pub struct Udp {
     send_addr: SocketAddrV4,
     pending_interest: SparseDistributedRepresentation,
     forwarding_hint: SparseDistributedRepresentation,
-    interest_inbound: VecDeque<Packet>,
-    interest_outbound: VecDeque<Packet>,
-    data_inbound: VecDeque<Packet>,
-    data_outbound: VecDeque<Packet>,
 }
 
 impl Udp {
@@ -45,10 +41,6 @@ impl Udp {
             id: rng.gen(),
             listen_addr: listen_addr.parse().unwrap(),
             send_addr: send_addr.parse().unwrap(),
-            interest_inbound: VecDeque::new(),
-            interest_outbound: VecDeque::new(),
-            data_inbound: VecDeque::new(),
-            data_outbound: VecDeque::new(),
             pending_interest: SparseDistributedRepresentation::new(),
             forwarding_hint: SparseDistributedRepresentation::new(),
         })
@@ -64,16 +56,10 @@ impl Face for Udp {
     // Basic Send and Receive Operations
 
     fn send_interest_downstream(&mut self, interest: Packet) {
-        self.interest_outbound.push_back(interest);
-    }
-    fn receive_upstream_interest(&mut self) -> Option<Packet> {
-        self.interest_inbound.pop_front()
+        send_interest_downstream_or_data_upstream(self.listen_addr, self.send_addr, interest);
     }
     fn send_data_upstream(&mut self, data: Packet) {
-        self.data_outbound.push_back(data);
-    }
-    fn receive_downstream_data(&mut self) -> Option<Packet> {
-        self.data_inbound.pop_front()
+        send_interest_downstream_or_data_upstream(self.listen_addr, self.send_addr, data);
     }
 
     // Pending Interest Sparse Distributed Representation
@@ -87,6 +73,12 @@ impl Face for Udp {
     fn delete_pending_interest(&mut self, interest_sdri: &Vec<Vec<u16>>) {
         self.pending_interest.delete(interest_sdri);
     }
+    fn pending_interest_decoherence(&mut self) -> u8 {
+        self.pending_interest.decoherence()
+    }
+    fn partially_forget_pending_interests(&mut self) {
+        self.pending_interest.partially_forget();
+    }
 
     // Forwarding Hint Sparse Distributed Representation
     fn create_forwarding_hint(&mut self, data_sdri: &Vec<Vec<u16>>) {
@@ -98,8 +90,8 @@ impl Face for Udp {
     fn forwarding_hint_decoherence(&mut self) -> u8 {
         self.forwarding_hint.decoherence()
     }
-    fn restore_forwarding_hint(&mut self) {
-        self.forwarding_hint.restore();
+    fn partially_forget_forwarding_hints(&mut self) {
+        self.forwarding_hint.partially_forget();
     }
 
     // @boilerplate: can't find a way to enable this witout polluting api
@@ -115,109 +107,36 @@ impl Face for Udp {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
 
-    fn receive(&self) -> Pin<Box<dyn Future<Output = Result<Packet, Error>> + Send + 'static>> {
+    fn receive_upstream_interest_or_downstream_data(&self) -> Pin<Box<dyn Future<Output = Result<Packet, Error>> + Send + 'static>> {
         let addr = self.listen_addr.clone();
         let send_addr = self.send_addr.clone();
-        let mut interest_inbound = self.interest_inbound.clone();
-        let mut interest_outbound = self.interest_outbound.clone();
-        let mut data_inbound = self.data_inbound.clone();
-        let mut data_outbound = self.data_outbound.clone();
         let future = async move {
             let socket = UdpSocket::bind(addr).await.unwrap();
             let mut buf = vec![0u8; 1024];
             println!("Listening on {}", socket.local_addr().unwrap());
             let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
             let packet: Packet = deserialize(&buf[..n]).unwrap();
-            match packet {
-                Packet::Interest{ sdri: _ } => {
-                    println!("{:?}", packet);
-                    //interest_inbound.push_back(packet);
-                },
-                Packet::Data{ sdri: _ } => {
-                    //data_inbound.push_back(packet);
-                },
-            };
-
+            println!("ROUTER RECEIVED {:?}", packet);
             Ok(packet)
         };
-/*
-        let (sender, receiver) = crossbeam_channel::unbounded();
-        let sender = Arc::new(sender);
-        let s = Arc::downgrade(&sender);
-        let future = async move {
-            let _sender = sender;
-            future.await
-        };
-        let schedule = move |t| s.upgrade().unwrap().send(t).unwrap();
-        let (task, handle) = async_task::spawn(future, schedule, ());
-        task.schedule();
-        thread::spawn(move || {
-            for task in receiver {
-                task.run();
-            }
-        });
-        handle
-*/
         Box::pin(future)
     }
+}
 
+// I can't drop a socket. The send is still part of the loop and the other sockets have been dropped. I need a way to retain it... But doesn't socket 1 execute and the block_on in mai
 
-    fn send(&mut self) -> async_task::JoinHandle<(), ()> {
-        let addr = self.listen_addr.clone();
-        let send_addr = self.send_addr.clone();
-        let mut interest_inbound = self.interest_inbound.clone();
-        let mut interest_outbound = self.interest_outbound.clone();
-        let mut data_inbound = self.data_inbound.clone();
-        let mut data_outbound = self.data_outbound.clone();
-        let future = async move {
-            let socket = UdpSocket::bind(addr).await.unwrap();
-            println!("Hello >");
-            let mut buf = vec![0u8; 1024];
-            println!("Listening on {}", socket.local_addr().unwrap());
-            let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
-            let packet: Packet = deserialize(&buf[..n]).unwrap();
-            match packet {
-                Packet::Interest{ sdri: _ } => {
-                    println!("{:?}", packet);
-                    interest_inbound.push_back(packet)
-                },
-                Packet::Data{ sdri: _ } => {
-                    data_inbound.push_back(packet)
-                },
-            };
-            match interest_outbound.pop_front() {
-                Some(interest) => {
-                    let interest = serialize(&interest).unwrap();
-                    socket.send_to(&interest, send_addr);
-                },
-                None => {},
-            }
-            match data_outbound.pop_front() {
-                Some(data) => {
-                    let data = serialize(&data).unwrap();
-                    socket.send_to(&data, send_addr);
-                },
-                None => {},
-            }
-        };
-
-        let (sender, receiver) = crossbeam_channel::unbounded();
-        let sender = Arc::new(sender);
-        let s = Arc::downgrade(&sender);
-        let future = async move {
-            let _sender = sender;
-            future.await
-        };
-        let schedule = move |t| s.upgrade().unwrap().send(t).unwrap();
-        let (task, handle) = async_task::spawn(future, schedule, ());
-        task.schedule();
-        thread::spawn(move || {
-            for task in receiver {
-                task.run();
-            }
-        });
-        handle
-    }
+fn send_interest_downstream_or_data_upstream(
+    listen_addr: SocketAddrV4,
+    send_addr: SocketAddrV4,
+    packet: Packet) {
+    task::block_on( async move {
+        let socket = UdpSocket::bind("0.0.0.0:0").await.unwrap();
+        let mut buf = vec![0u8; 1024];
+        println!("Listening on {}", socket.local_addr().unwrap());
+        let packet = serialize(&packet).unwrap();
+        let sent_it = socket.send_to(&packet, send_addr);
+        println!("ROUTER SENT {:?} to port {}, sent_it {:?}", packet, send_addr, task::block_on(sent_it));
+    });
 }
 
 #[cfg(test)]

@@ -10,3 +10,4 @@ bincode = "1"
 futures-preview = "0.3.0-alpha.17"
 router = { path = "../router" }
 faces = { path = "../faces" }
+client = {path = "../client" }

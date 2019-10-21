@@ -2,7 +2,7 @@ use faces::{Face};
 use crate::content_store::{ContentStore};
 
 use futures::executor;
-use futures::future::{select_all};
+use futures::future::{select_all, select_ok};
 use async_std::future;
 use futures::task::LocalSpawnExt;
 use futures_util::task::SpawnExt;
@@ -34,18 +34,16 @@ impl Router {
         self.is_running = true;
 
         loop {
-            let select = select_all(self.faces.iter().map(|face| face.receive()));
-            let (packet, index, futures) = select.await;
-            println!(">>> index: {}, {:?}", index, packet);
+            let select = select_all(self.faces.iter().map(|face| face.receive_upstream_interest_or_downstream_data()));
+            let (packet, index, _futures) = select.await;
             let (this_face, other_faces) = self.faces.split_one_mut(index);
             let packet = packet.unwrap();
-            let packet1 = packet.clone();
-            match packet1 {
+            match packet.clone() {
                 // Interest Downstream
                 Packet::Interest { sdri: sdri } => {
                     match self.cs.has_data(&sdri) {
                         Some(data) => {
-                            this_face.send_data_upstream(packet.clone());
+                            this_face.send_data_upstream(packet);
                         },
                         None => {
                             let mut is_forwarded = false;
@@ -62,14 +60,14 @@ impl Router {
                             }
                             if is_forwarded == false {
                                 for burst_face in optimistic_burst_faces {
+                                //println!("face pi : {:?}", burst_face.print_pi());
                                     burst_face.create_pending_interest(&sdri);
+                                //println!("face pi : {:?}", burst_face.print_pi());
                                     burst_face.send_interest_downstream(packet.clone());
-                                    burst_face.print_pi();
                                 }
                             }
                         },
                     }
-                    println!("sdri: {:?}", sdri);
                 },
                 // Data Upstream
                 Packet::Data { sdri: sdri } => {
@@ -77,7 +75,7 @@ impl Router {
                         this_face.delete_pending_interest(&sdri);
                         //@Optimisation: check on every return? maybe periodically check the forwarding hint?
                         if this_face.forwarding_hint_decoherence() > 80 {
-                            this_face.restore_forwarding_hint();
+                            this_face.partially_forget_forwarding_hints();
                         }
                         this_face.create_forwarding_hint(&sdri);
                         for that_face in other_faces {

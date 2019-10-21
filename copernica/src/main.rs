@@ -1,4 +1,3 @@
-
 extern crate bincode;
 extern crate faces;
 extern crate router;

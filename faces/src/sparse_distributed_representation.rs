@@ -44,7 +44,7 @@ impl SparseDistributedRepresentation {
         }
     }
 
-    pub fn restore(&mut self) {
+    pub fn partially_forget(&mut self) {
         let mut rng = rand::thread_rng();
         for _ in 0 .. 2048 {
             self.sdr.set(rng.gen_range(0, 2048), false);

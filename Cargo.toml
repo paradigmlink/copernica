@@ -5,5 +5,5 @@ members = [
     "router",
     "packets",
     "faces",
-    "devtools",
+    "client",
 ]

@@ -21,18 +21,18 @@ pub trait Face {
     fn id(&self) -> u32;
     // router uses these
     fn send_interest_downstream(&mut self, interest: Packet);
-    fn receive_upstream_interest(&mut self) -> Option<Packet>;
     fn send_data_upstream(&mut self, data: Packet);
-    fn receive_downstream_data(&mut self) -> Option<Packet>;
 
     fn create_pending_interest(&mut self, sdri: &Vec<Vec<u16>>);
     fn contains_pending_interest(&mut self, sdri: &Vec<Vec<u16>>) -> u8;
     fn delete_pending_interest(&mut self, sdri: &Vec<Vec<u16>>);
+    fn pending_interest_decoherence(&mut self) -> u8;
+    fn partially_forget_pending_interests(&mut self);
 
     fn create_forwarding_hint(&mut self, sdri: &Vec<Vec<u16>>);
     fn contains_forwarding_hint(&mut self, sdri: &Vec<Vec<u16>>) -> u8;
     fn forwarding_hint_decoherence(&mut self) -> u8;
-    fn restore_forwarding_hint(&mut self);
+    fn partially_forget_forwarding_hints(&mut self);
 
     // application uses these
     //fn try_interest(&self) -> Option<Packet>;
@@ -40,8 +40,7 @@ pub trait Face {
 
 
     fn box_clone(&self) -> Box::<dyn Face>;
-    fn send(&mut self) -> async_task::JoinHandle<(), ()>;
-    fn receive(&self) -> Pin<Box<dyn Future<Output = Result<Packet, Error>> + Send + 'static>>;
+    fn receive_upstream_interest_or_downstream_data(&self) -> Pin<Box<dyn Future<Output = Result<Packet, Error>> + Send + 'static>>;
     fn print_pi(&self);
     fn print_fh(&self);
 }
