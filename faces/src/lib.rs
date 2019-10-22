@@ -22,7 +22,7 @@ use {
 };
 
 pub trait Face {
-    fn id(&self) -> u32;
+    fn set_id(&mut self, face_id: usize);
     // router uses these
     fn send_interest_downstream(&mut self, interest: Packet);
     fn send_data_upstream(&mut self, data: Packet);
@@ -44,7 +44,7 @@ pub trait Face {
 
 
     fn box_clone(&self) -> Box::<dyn Face>;
-    fn receive_upstream_interest_or_downstream_data(&self, spawner: Spawner, packet_sender: Sender<Packet>);
+    fn receive_upstream_interest_or_downstream_data(&mut self, face_id: usize, spawner: Spawner, packet_sender: Sender<(usize, Packet)>);
     fn print_pi(&self);
     fn print_fh(&self);
 }

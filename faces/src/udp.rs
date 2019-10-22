@@ -1,6 +1,5 @@
 #![cfg(unix)]
 #![warn(rust_2018_idioms)]
-use rand::Rng;
 use crate::{Face, Spawner};
 use std::collections::VecDeque;
 
@@ -27,7 +26,7 @@ use std::pin::Pin;
 
 #[derive(Debug, Clone)]
 pub struct Udp {
-    pub id: u32,
+    pub id: usize,
     listen_addr: SocketAddrV4,
     send_addr: SocketAddrV4,
     pending_interest: SparseDistributedRepresentation,
@@ -36,9 +35,8 @@ pub struct Udp {
 
 impl Udp {
     pub fn new(listen_addr: String, send_addr: String) -> Box<Udp> {
-        let mut rng = rand::thread_rng();
         Box::new(Udp {
-            id: rng.gen(),
+            id: 0,
             listen_addr: listen_addr.parse().unwrap(),
             send_addr: send_addr.parse().unwrap(),
             pending_interest: SparseDistributedRepresentation::new(),
@@ -49,8 +47,8 @@ impl Udp {
 
 impl Face for Udp {
 
-    fn id(&self) -> u32 {
-        self.id
+    fn set_id(&mut self, face_id: usize) {
+        self.id = face_id;
     }
 
     // Basic Send and Receive Operations
@@ -107,9 +105,10 @@ impl Face for Udp {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
 
-    fn receive_upstream_interest_or_downstream_data(&self, spawner: Spawner, packet_sender: Sender<Packet>) {
+    fn receive_upstream_interest_or_downstream_data(&mut self, face_id: usize, spawner: Spawner, packet_sender: Sender<(usize, Packet)>) {
         let addr = self.listen_addr.clone();
         let send_addr = self.send_addr.clone();
+        self.set_id(face_id);
         spawner.spawn(async move {
             loop {
                 let socket = UdpSocket::bind(addr).await.unwrap();
@@ -118,7 +117,7 @@ impl Face for Udp {
                 let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
                 let packet: Packet = deserialize(&buf[..n]).unwrap();
                 println!("ROUTER RECEIVED on {} information: {:?}", peer, packet);
-                packet_sender.send(packet);
+                packet_sender.send((face_id, packet));
             }
         });
     }

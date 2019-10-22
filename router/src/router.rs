@@ -31,13 +31,15 @@ impl Router {
 
         let (spawner, executor) = new_spawner_and_executor();
         let (packet_sender, packet_receiver) = unbounded();
+        let mut face_id = 0;
         for face in self.faces.iter_mut() {
-            face.receive_upstream_interest_or_downstream_data(spawner.clone(), packet_sender.clone());
+            face.receive_upstream_interest_or_downstream_data(face_id, spawner.clone(), packet_sender.clone());
+            face_id += 1;
         }
         std::thread::spawn(move || { executor.run() });
         loop {
-            let packet = packet_receiver.recv().unwrap();
-            let (this_face, other_faces) = self.faces.split_one_mut(0);
+            let (face_id, packet) = packet_receiver.recv().unwrap();
+            let (this_face, other_faces) = self.faces.split_one_mut(face_id);
             match packet.clone() {
                 // Interest Downstream
                 Packet::Interest { sdri: sdri } => {
