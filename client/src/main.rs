@@ -13,38 +13,51 @@ fn main() {
         let socket = UdpSocket::bind("127.0.0.1:8081").await.unwrap();
 
         println!("Listening on {}", socket.local_addr().unwrap());
-
+        let add0 = "127.0.0.1:8090";
         let msg0 = mk_interest("oa".to_string());
-        //let msg0 = mk_interest("h/el/loo/uh/tn/oh/unt/oe/uho/nt/eu/han/to/uha/on/tuh/ne/otu/hao/nt/uh/aon/tu/hoa/nt/uho/an/tuh/oen/tu/ho/au/nt/eoh/un/toa/eh/un/eot/hu/oan/et/uhe/oa/ntu/ha/eon/tu/he/oa".to_string());
-        println!("To Send : {:?}", &msg0);
-        let msg0 = serialize(&msg0).unwrap();
-        /*let msg1 = mk_interest("world".to_string());
-        println!("To Send : {:?}", &msg1);
-        let msg1 = serialize(&msg1).unwrap();
+        let msg0s = serialize(&msg0).unwrap();
+        let add1 = "127.0.0.1:8092";
+        let msg1 = mk_interest("world".to_string());
+        let msg1s = serialize(&msg1).unwrap();
+        let add2 = "127.0.0.1:8094";
         let msg2 = mk_interest("hello world".to_string());
-        println!("To Send : {:?}", &msg2);
-        let msg2 = serialize(&msg2).unwrap();
-        */
-        socket.send_to(&msg0, "127.0.0.1:8092").await.unwrap();
-        /*
-        thread::sleep(time::Duration::from_millis(3));
-        socket.send_to(&msg1, "127.0.0.1:8091").await?;
-        thread::sleep(time::Duration::from_millis(1));
-        socket.send_to(&msg2, "127.0.0.1:8092").await?;
-*/
+        let msg2s = serialize(&msg2).unwrap();
+        socket.send_to(&msg0s, &add0).await.unwrap();
+        println!("Sent to {} information : {:?}", add0,  &msg0);
+        socket.send_to(&msg1s, &add1).await.unwrap();
+        println!("Sent to {} information : {:?}", add1, &msg1);
+        socket.send_to(&msg2s, &add2).await.unwrap();
+        println!("Sent to {} information : {:?}", add2, &msg2);
     };
-    let recv = async {
-        let socket1 = UdpSocket::bind("127.0.0.1:8093").await.unwrap();
+    let recv0 = async {
+        let socket1 = UdpSocket::bind("127.0.0.1:8091").await.unwrap();
         let mut buf = vec![0u8; 1024];
         println!("Listening on {}", socket1.local_addr().unwrap());
         let (n, peer) = socket1.recv_from(&mut buf).await.unwrap();
-        println!("Peer: {:?}", peer);
         let packet: Packet = deserialize(&buf[..n]).unwrap();
-        println!("Received: {:?}", packet);
-
+        println!("Received from {}, information: {:?}", peer, packet);
     };
 
-    let joined = future::join!(recv, send);
+
+    let recv1 = async {
+        let socket2 = UdpSocket::bind("127.0.0.1:8093").await.unwrap();
+        let mut buf = vec![0u8; 1024];
+        println!("Listening on {}", socket2.local_addr().unwrap());
+        let (n, peer) = socket2.recv_from(&mut buf).await.unwrap();
+        let packet: Packet = deserialize(&buf[..n]).unwrap();
+        println!("Received from {}, information: {:?}", peer, packet);
+    };
+
+
+    let recv2 = async {
+        let socket3 = UdpSocket::bind("127.0.0.1:8095").await.unwrap();
+        let mut buf = vec![0u8; 1024];
+        println!("Listening on {}", socket3.local_addr().unwrap());
+        let (n, peer) = socket3.recv_from(&mut buf).await.unwrap();
+        let packet: Packet = deserialize(&buf[..n]).unwrap();
+        println!("Received from {}, information: {:?}", peer, packet);
+    };
+    let joined = future::join!(recv0, recv1, recv2, send);
 
     task::block_on(joined);
 

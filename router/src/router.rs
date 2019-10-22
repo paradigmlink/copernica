@@ -1,13 +1,9 @@
-use faces::{Face};
-use crate::content_store::{ContentStore};
-
-use futures::executor;
-use futures::future::{select_all, select_ok};
-use async_std::future;
-use futures::task::LocalSpawnExt;
-use futures_util::task::SpawnExt;
-
-use packets::{Packet};
+use {
+    crossbeam_channel::{unbounded},
+    packets::{Packet},
+    crate::content_store::{ContentStore},
+    faces::{Face, Executor, Spawner, new_spawner_and_executor},
+};
 
 #[derive(Clone)]
 pub struct Router {
@@ -33,11 +29,15 @@ impl Router {
     pub async fn run(&mut self) {
         self.is_running = true;
 
+        let (spawner, executor) = new_spawner_and_executor();
+        let (packet_sender, packet_receiver) = unbounded();
+        for face in self.faces.iter_mut() {
+            face.receive_upstream_interest_or_downstream_data(spawner.clone(), packet_sender.clone());
+        }
+        std::thread::spawn(move || { executor.run() });
         loop {
-            let select = select_all(self.faces.iter().map(|face| face.receive_upstream_interest_or_downstream_data()));
-            let (packet, index, _futures) = select.await;
-            let (this_face, other_faces) = self.faces.split_one_mut(index);
-            let packet = packet.unwrap();
+            let packet = packet_receiver.recv().unwrap();
+            let (this_face, other_faces) = self.faces.split_one_mut(0);
             match packet.clone() {
                 // Interest Downstream
                 Packet::Interest { sdri: sdri } => {
@@ -95,6 +95,7 @@ impl Router {
     }
 
 }
+
 
 type ImplIteratorMut<'a, Item> =
     ::std::iter::Chain<

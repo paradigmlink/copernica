@@ -1,7 +1,7 @@
 #![cfg(unix)]
 #![warn(rust_2018_idioms)]
 use rand::Rng;
-use crate::Face;
+use crate::{Face, Spawner};
 use std::collections::VecDeque;
 
 use async_std::io;
@@ -9,7 +9,7 @@ use async_std::net::UdpSocket;
 use async_std::task;
 use async_task;
 use async_std::io::Error;
-use crossbeam_channel;
+use crossbeam_channel::{Sender};
 
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use bincode::{serialize, deserialize};
@@ -107,35 +107,34 @@ impl Face for Udp {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
 
-    fn receive_upstream_interest_or_downstream_data(&self) -> Pin<Box<dyn Future<Output = Result<Packet, Error>> + Send + 'static>> {
+    fn receive_upstream_interest_or_downstream_data(&self, spawner: Spawner, packet_sender: Sender<Packet>) {
         let addr = self.listen_addr.clone();
         let send_addr = self.send_addr.clone();
-        let future = async move {
-            let socket = UdpSocket::bind(addr).await.unwrap();
-            let mut buf = vec![0u8; 1024];
-            println!("Listening on {}", socket.local_addr().unwrap());
-            let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
-            let packet: Packet = deserialize(&buf[..n]).unwrap();
-            println!("ROUTER RECEIVED {:?}", packet);
-            Ok(packet)
-        };
-        Box::pin(future)
+        spawner.spawn(async move {
+            loop {
+                let socket = UdpSocket::bind(addr).await.unwrap();
+                let mut buf = vec![0u8; 1024];
+                println!("Listening on {}", socket.local_addr().unwrap());
+                let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
+                let packet: Packet = deserialize(&buf[..n]).unwrap();
+                println!("ROUTER RECEIVED on {} information: {:?}", peer, packet);
+                packet_sender.send(packet);
+            }
+        });
     }
 }
-
-// I can't drop a socket. The send is still part of the loop and the other sockets have been dropped. I need a way to retain it... But doesn't socket 1 execute and the block_on in mai
 
 fn send_interest_downstream_or_data_upstream(
     listen_addr: SocketAddrV4,
     send_addr: SocketAddrV4,
     packet: Packet) {
     task::block_on( async move {
-        let socket = UdpSocket::bind("0.0.0.0:0").await.unwrap();
+        let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let mut buf = vec![0u8; 1024];
-        println!("Listening on {}", socket.local_addr().unwrap());
-        let packet = serialize(&packet).unwrap();
-        let sent_it = socket.send_to(&packet, send_addr);
-        println!("ROUTER SENT {:?} to port {}, sent_it {:?}", packet, send_addr, task::block_on(sent_it));
+        //println!("Listening on {}", socket.local_addr().unwrap());
+        let packet_ser = serialize(&packet).unwrap();
+        socket.send_to(&packet_ser, send_addr).await;
+        println!("ROUTER SENT to {} information: {:?}", send_addr, packet);
     });
 }
 
