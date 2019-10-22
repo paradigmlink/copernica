@@ -113,10 +113,9 @@ impl Face for Udp {
             loop {
                 let socket = UdpSocket::bind(addr).await.unwrap();
                 let mut buf = vec![0u8; 1024];
-                println!("Listening on {}", socket.local_addr().unwrap());
                 let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
                 let packet: Packet = deserialize(&buf[..n]).unwrap();
-                println!("ROUTER RECEIVED on {} information: {:?}", peer, packet);
+                println!("UDP RECV {}>{}:{:?}", peer, socket.local_addr().unwrap(), packet);
                 packet_sender.send((face_id, packet));
             }
         });
@@ -133,7 +132,7 @@ fn send_interest_downstream_or_data_upstream(
         //println!("Listening on {}", socket.local_addr().unwrap());
         let packet_ser = serialize(&packet).unwrap();
         socket.send_to(&packet_ser, send_addr).await;
-        println!("ROUTER SENT to {} information: {:?}", send_addr, packet);
+        println!("UDP SENT {}>{}:{:?}",socket.local_addr().unwrap(), send_addr, packet);
     });
 }
 
