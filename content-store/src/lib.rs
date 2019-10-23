@@ -1,6 +1,7 @@
 
 pub mod fs;
-pub use crate::{fs::Fs};//, tcp::Tcp};
+pub mod in_memory;
+pub use crate::{fs::Fs, in_memory::InMemory};
 use packets::{mk_data, Packet};
 
 pub trait ContentStore {
