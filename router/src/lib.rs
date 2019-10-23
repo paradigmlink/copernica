@@ -1,6 +1,6 @@
 extern crate lru_cache;
 
-pub mod content_store;
+extern crate content_store;
 pub use crate::{content_store::ContentStore};
 
 pub mod router;

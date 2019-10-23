@@ -129,7 +129,6 @@ fn send_interest_downstream_or_data_upstream(
     task::block_on( async move {
         let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let mut buf = vec![0u8; 1024];
-        //println!("Listening on {}", socket.local_addr().unwrap());
         let packet_ser = serialize(&packet).unwrap();
         socket.send_to(&packet_ser, send_addr).await;
         println!("UDP SENT {}>{}:{:?}",socket.local_addr().unwrap(), send_addr, packet);

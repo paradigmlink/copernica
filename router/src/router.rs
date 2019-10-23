@@ -1,14 +1,14 @@
 use {
     crossbeam_channel::{unbounded},
     packets::{Packet},
-    crate::content_store::{ContentStore},
+    content_store::{ContentStore},
     faces::{Face, Executor, Spawner, new_spawner_and_executor},
 };
 
 #[derive(Clone)]
 pub struct Router {
     faces: Vec<Box<dyn Face>>,
-    cs:  ContentStore,
+    cs:  Vec<Box<dyn ContentStore>>,
     is_running: bool,
 }
 
@@ -17,9 +17,13 @@ impl Router {
     pub fn new() -> Self {
         Router {
             faces: Vec::new(),
-            cs:  ContentStore::new(),
+            cs:  Vec::new(),
             is_running: false,
         }
+    }
+
+    pub fn add_content_store(&mut self, cs: Box<dyn ContentStore>) {
+        self.cs.push(cs);
     }
 
     pub fn add_face(&mut self, face: Box<dyn Face>) {
@@ -43,7 +47,12 @@ impl Router {
             match packet.clone() {
                 // Interest Downstream
                 Packet::Interest { sdri: sdri } => {
-                    match self.cs.has_data(&sdri) {
+                    let mut data: Option<Packet> = None;
+                    for cs in self.cs.iter() {
+                        data = cs.has_data(&sdri);
+                        if data != None { break }
+                    }
+                    match data {
                         Some(data) => {
                             this_face.send_data_upstream(packet);
                         },

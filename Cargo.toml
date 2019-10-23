@@ -5,5 +5,6 @@ members = [
     "router",
     "packets",
     "faces",
-    "client",
+    "content-store",
+    "network-integration-tests",
 ]
