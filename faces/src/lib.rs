@@ -45,4 +45,3 @@ impl Clone for Box<dyn Face> {
         self.box_clone()
     }
 }
-

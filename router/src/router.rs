@@ -80,7 +80,7 @@ impl Router {
                     }
                 },
                 // Data Upstream
-                Packet::Data { sdri: sdri } => {
+                Packet::Data { sdri: sdri, data: data } => {
                     if this_face.contains_pending_interest(&sdri) > 15 {
                         this_face.delete_pending_interest(&sdri);
                         //@Optimisation: check on every return? maybe periodically check the forwarding hint?

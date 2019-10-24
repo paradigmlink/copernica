@@ -17,7 +17,7 @@ use crate::{index::generate_sdr_index};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Packet {
     Interest { sdri: Vec<Vec<u16>> },
-    Data     { sdri: Vec<Vec<u16>> },
+    Data     { sdri: Vec<Vec<u16>>, data: Vec<u8> },
 }
 
 pub fn mk_interest(name: String) -> Packet {
@@ -27,9 +27,9 @@ pub fn mk_interest(name: String) -> Packet {
     }
 }
 
-pub fn mk_data(name: String) -> Packet {
+pub fn mk_data(name: String, data: Vec<u8>) -> Packet {
     Packet::Data {
-        sdri: generate_sdr_index(name)
-        // more to come
+        sdri: generate_sdr_index(name),
+        data: data,
     }
 }

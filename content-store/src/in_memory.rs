@@ -1,14 +1,19 @@
-
 use crate::{ContentStore};
 use packets::{mk_data, Packet};
+use lru::LruCache;
+use std::vec::Vec;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct InMemory {
+    cache: Arc<Mutex<LruCache<Vec<Vec<u16>>, Packet>>>,
 }
 
 impl InMemory {
     pub fn new() -> Box<InMemory> {
         Box::new(InMemory {
+            cache:  Arc::new(Mutex::new(LruCache::new(2))),
         })
     }
 
@@ -16,11 +21,24 @@ impl InMemory {
 
 impl ContentStore for InMemory {
     fn has_data(&self, sdri: &Vec<Vec<u16>>) -> Option<Packet> {
-        None
+        match self.cache.lock().unwrap().get(sdri) {
+            Some(packet) => {Some(packet.clone())},
+            None => None,
+        }
+    }
+
+    fn put_data(&mut self, data: Packet) {
+        match data.clone() {
+            Packet::Data { sdri: sdri, data: p_data } => {
+                self.cache.lock().unwrap().put(sdri.clone(), data);
+            },
+            Packet::Interest { sdri: sdri } => {
+                assert_eq!(Packet::Interest { sdri: sdri }, data);
+            },
+        };
     }
 
     fn box_clone(&self) -> Box<dyn ContentStore> {
         Box::new((*self).clone())
     }
-
 }
