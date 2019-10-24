@@ -97,7 +97,7 @@ impl Router {
                     }
                 },
             };
-        }
+        } // loop end
     }
 
     pub fn stop(mut self) {
