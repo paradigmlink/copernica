@@ -1,6 +1,6 @@
 
 use crate::{ContentStore};
-use packets::{mk_data, Packet};
+use packets::{Packet};
 use std::vec::Vec;
 
 #[derive(Debug, Clone)]
@@ -16,10 +16,10 @@ impl Fs {
 }
 
 impl ContentStore for Fs {
-    fn has_data(&self, sdri: &Vec<Vec<u16>>) -> Option<Packet> {
+    fn has_data(&self, _sdri: &Vec<Vec<u16>>) -> Option<Packet> {
         None
     }
-    fn put_data(&mut self, data: Packet) {
+    fn put_data(&mut self, _data: Packet) {
     }
 
     fn box_clone(&self) -> Box<dyn ContentStore> {

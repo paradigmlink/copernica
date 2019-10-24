@@ -1,5 +1,3 @@
-use packets::{Packet};
-
 use bitvec::prelude::*;
 use rand::Rng;
 

@@ -37,32 +37,32 @@ impl Router {
         let (packet_sender, packet_receiver) = unbounded();
         let mut face_id = 0;
         for face in self.faces.iter_mut() {
-            face.receive_upstream_interest_or_downstream_data(face_id, spawner.clone(), packet_sender.clone());
+            face.receive_upstream_request_or_downstream_response(face_id, spawner.clone(), packet_sender.clone());
             face_id += 1;
         }
         loop {
             let (face_id, packet) = packet_receiver.recv().unwrap();
             let (this_face, other_faces) = self.faces.split_one_mut(face_id);
             match packet.clone() {
-                // Interest Downstream
-                Packet::Request { sdri: sdri } => {
+                // Request Downstream
+                Packet::Request { sdri } => {
                     let mut data: Option<Packet> = None;
                     for cs in self.cs.iter() {
                         data = cs.has_data(&sdri);
                         if data != None { break }
                     }
                     match data {
-                        Some(data) => {
-                            this_face.send_data_upstream(packet);
+                        Some(_data) => {
+                            this_face.send_response_upstream(packet);
                         },
                         None => {
                             let mut is_forwarded = false;
                             let mut optimistic_burst_faces = Vec::new();
                             for that_face in other_faces {
-                                if that_face.contains_pending_interest(&sdri) > 90 &&
+                                if that_face.contains_pending_request(&sdri) > 90 &&
                                    that_face.contains_forwarding_hint(&sdri) > 10 {
-                                    that_face.create_pending_interest(&sdri);
-                                    that_face.send_interest_downstream(packet.clone());
+                                    that_face.create_pending_request(&sdri);
+                                    that_face.send_request_downstream(packet.clone());
                                     is_forwarded = true;
                                 } else {
                                     if is_forwarded == false { optimistic_burst_faces.push(that_face); }
@@ -70,28 +70,27 @@ impl Router {
                             }
                             if is_forwarded == false {
                                 for burst_face in optimistic_burst_faces {
-                                //println!("face pi : {:?}", burst_face.print_pi());
-                                    burst_face.create_pending_interest(&sdri);
-                                //println!("face pi : {:?}", burst_face.print_pi());
-                                    burst_face.send_interest_downstream(packet.clone());
+                                    burst_face.create_pending_request(&sdri);
+                                    burst_face.send_request_downstream(packet.clone());
                                 }
                             }
                         },
                     }
                 },
-                // Data Upstream
-                Packet::Response { sdri: sdri, data: data } => {
-                    if this_face.contains_pending_interest(&sdri) > 15 {
-                        this_face.delete_pending_interest(&sdri);
+                // Response Upstream
+                Packet::Response { sdri, data: _data } => {
+                    if this_face.contains_pending_request(&sdri) > 15 {
+                        this_face.delete_pending_request(&sdri);
                         //@Optimisation: check on every return? maybe periodically check the forwarding hint?
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hints();
                         }
                         this_face.create_forwarding_hint(&sdri);
+                        self.cs[0].put_data(packet.clone());
                         for that_face in other_faces {
-                            if that_face.contains_pending_interest(&sdri) > 50 {
-                                that_face.delete_pending_interest(&sdri);
-                                that_face.send_data_upstream(packet.clone());
+                            if that_face.contains_pending_request(&sdri) > 50 {
+                                that_face.delete_pending_request(&sdri);
+                                that_face.send_response_upstream(packet.clone());
                             }
                         }
                     }

@@ -1,7 +1,4 @@
-use base64::{encode, decode};
 use sha3::{Digest, Sha3_512};
-
-use crate::Packet;
 
 const HEX : [&'static str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
 

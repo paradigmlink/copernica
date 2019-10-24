@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate serde_derive;
-extern crate base64;
 extern crate sha3;
 
 #[cfg(test)]
@@ -20,14 +19,14 @@ pub enum Packet {
     Response    { sdri: Vec<Vec<u16>>, data: Vec<u8> },
 }
 
-pub fn mk_interest(name: String) -> Packet {
+pub fn request(name: String) -> Packet {
     Packet::Request {
         sdri: generate_sdr_index(name)
         // more to come
     }
 }
 
-pub fn mk_data(name: String, data: Vec<u8>) -> Packet {
+pub fn response(name: String, data: Vec<u8>) -> Packet {
     Packet::Response {
         sdri: generate_sdr_index(name),
         data: data,

@@ -1,5 +1,5 @@
 use crate::{ContentStore};
-use packets::{mk_data, Packet};
+use packets::{Packet};
 use lru::LruCache;
 use std::vec::Vec;
 use std::sync::Arc;
@@ -29,10 +29,10 @@ impl ContentStore for InMemory {
 
     fn put_data(&mut self, data: Packet) {
         match data.clone() {
-            Packet::Response { sdri: sdri, data: p_data } => {
+            Packet::Response { sdri, data: _p_data } => {
                 self.cache.lock().unwrap().put(sdri.clone(), data);
             },
-            Packet::Request { sdri: sdri } => {
+            Packet::Request { sdri } => {
                 assert_eq!(Packet::Request { sdri: sdri }, data);
             },
         };

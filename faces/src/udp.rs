@@ -4,10 +4,10 @@ use async_std::net::UdpSocket;
 use async_std::task;
 use crossbeam_channel::{Sender};
 
-use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
+use std::net::{SocketAddrV4};
 use bincode::{serialize, deserialize};
 
-use packets::{Packet, mk_data, mk_interest};
+use packets::{Packet};
 use crate::sparse_distributed_representation::{SparseDistributedRepresentation};
 
 use futures::executor::ThreadPool;
@@ -18,7 +18,7 @@ pub struct Udp {
     pub id: usize,
     listen_addr: SocketAddrV4,
     send_addr: SocketAddrV4,
-    pending_interest: SparseDistributedRepresentation,
+    pending_request: SparseDistributedRepresentation,
     forwarding_hint: SparseDistributedRepresentation,
 }
 
@@ -28,7 +28,7 @@ impl Udp {
             id: 0,
             listen_addr: listen_addr.parse().unwrap(),
             send_addr: send_addr.parse().unwrap(),
-            pending_interest: SparseDistributedRepresentation::new(),
+            pending_request: SparseDistributedRepresentation::new(),
             forwarding_hint: SparseDistributedRepresentation::new(),
         })
     }
@@ -42,37 +42,37 @@ impl Face for Udp {
 
     // Basic Send and Receive Operations
 
-    fn send_interest_downstream(&mut self, interest: Packet) {
-        send_interest_downstream_or_data_upstream(self.listen_addr, self.send_addr, interest);
+    fn send_request_downstream(&mut self, interest: Packet) {
+        send_request_downstream_or_response_upstream(self.send_addr, interest);
     }
-    fn send_data_upstream(&mut self, data: Packet) {
-        send_interest_downstream_or_data_upstream(self.listen_addr, self.send_addr, data);
+    fn send_response_upstream(&mut self, data: Packet) {
+        send_request_downstream_or_response_upstream(self.send_addr, data);
     }
 
     // Pending Interest Sparse Distributed Representation
 
-    fn create_pending_interest(&mut self, packet_sdri: &Vec<Vec<u16>>) {
-        self.pending_interest.insert(&packet_sdri);
+    fn create_pending_request(&mut self, packet_sdri: &Vec<Vec<u16>>) {
+        self.pending_request.insert(&packet_sdri);
     }
-    fn contains_pending_interest(&mut self, interest_sdri: &Vec<Vec<u16>>) -> u8 {
-        self.pending_interest.contains(interest_sdri)
+    fn contains_pending_request(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8 {
+        self.pending_request.contains(request_sdri)
     }
-    fn delete_pending_interest(&mut self, interest_sdri: &Vec<Vec<u16>>) {
-        self.pending_interest.delete(interest_sdri);
+    fn delete_pending_request(&mut self, request_sdri: &Vec<Vec<u16>>) {
+        self.pending_request.delete(request_sdri);
     }
-    fn pending_interest_decoherence(&mut self) -> u8 {
-        self.pending_interest.decoherence()
+    fn pending_request_decoherence(&mut self) -> u8 {
+        self.pending_request.decoherence()
     }
-    fn partially_forget_pending_interests(&mut self) {
-        self.pending_interest.partially_forget();
+    fn partially_forget_pending_requests(&mut self) {
+        self.pending_request.partially_forget();
     }
 
     // Forwarding Hint Sparse Distributed Representation
     fn create_forwarding_hint(&mut self, data_sdri: &Vec<Vec<u16>>) {
         self.forwarding_hint.insert(&data_sdri);
     }
-    fn contains_forwarding_hint(&mut self, interest_sdri: &Vec<Vec<u16>>) -> u8 {
-        self.forwarding_hint.contains(interest_sdri)
+    fn contains_forwarding_hint(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8 {
+        self.forwarding_hint.contains(request_sdri)
     }
     fn forwarding_hint_decoherence(&mut self) -> u8 {
         self.forwarding_hint.decoherence()
@@ -87,16 +87,15 @@ impl Face for Udp {
     }
 
     fn print_pi(&self) {
-        println!("pending interest on face {}:\n{:?}", self.id, self.pending_interest);
+        println!("pending request on face {}:\n{:?}", self.id, self.pending_request);
     }
 
     fn print_fh(&self) {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
 
-    fn receive_upstream_interest_or_downstream_data(&mut self, face_id: usize, spawner: ThreadPool , packet_sender: Sender<(usize, Packet)>) {
+    fn receive_upstream_request_or_downstream_response(&mut self, face_id: usize, spawner: ThreadPool , packet_sender: Sender<(usize, Packet)>) {
         let addr = self.listen_addr.clone();
-        let send_addr = self.send_addr.clone();
         self.set_id(face_id);
         spawner.spawn_ok(async move {
             loop {
@@ -105,21 +104,19 @@ impl Face for Udp {
                 let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
                 let packet: Packet = deserialize(&buf[..n]).unwrap();
                 println!("UDP RECV {}>{}:{:?}", peer, socket.local_addr().unwrap(), packet);
-                packet_sender.send((face_id, packet));
+                let _r = packet_sender.send((face_id, packet));
             }
         });
     }
 }
 
-fn send_interest_downstream_or_data_upstream(
-    listen_addr: SocketAddrV4,
+fn send_request_downstream_or_response_upstream(
     send_addr: SocketAddrV4,
     packet: Packet) {
     task::block_on( async move {
         let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
-        let mut buf = vec![0u8; 1024];
         let packet_ser = serialize(&packet).unwrap();
-        socket.send_to(&packet_ser, send_addr).await;
+        let _r = socket.send_to(&packet_ser, send_addr).await;
         println!("UDP SENT {}>{}:{:?}",socket.local_addr().unwrap(), send_addr, packet);
     });
 }

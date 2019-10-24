@@ -6,9 +6,7 @@ extern crate content_store;
 
 use faces::{Udp};
 use router::{Router};
-use content_store::{Fs, InMemory};
-use futures::executor::{block_on, ThreadPool};
-use futures::future::join;
+use futures::executor::{ThreadPool};
 use std::thread;
 
 fn main() {

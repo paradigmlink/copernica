@@ -2,7 +2,7 @@
 pub mod fs;
 pub mod in_memory;
 pub use crate::{fs::Fs, in_memory::InMemory};
-use packets::{mk_data, Packet};
+use packets::{Packet};
 use std::vec::Vec;
 
 pub trait ContentStore {
