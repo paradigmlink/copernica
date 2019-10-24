@@ -29,11 +29,11 @@ impl ContentStore for InMemory {
 
     fn put_data(&mut self, data: Packet) {
         match data.clone() {
-            Packet::Data { sdri: sdri, data: p_data } => {
+            Packet::Response { sdri: sdri, data: p_data } => {
                 self.cache.lock().unwrap().put(sdri.clone(), data);
             },
-            Packet::Interest { sdri: sdri } => {
-                assert_eq!(Packet::Interest { sdri: sdri }, data);
+            Packet::Request { sdri: sdri } => {
+                assert_eq!(Packet::Request { sdri: sdri }, data);
             },
         };
     }

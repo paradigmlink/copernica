@@ -45,7 +45,7 @@ impl Router {
             let (this_face, other_faces) = self.faces.split_one_mut(face_id);
             match packet.clone() {
                 // Interest Downstream
-                Packet::Interest { sdri: sdri } => {
+                Packet::Request { sdri: sdri } => {
                     let mut data: Option<Packet> = None;
                     for cs in self.cs.iter() {
                         data = cs.has_data(&sdri);
@@ -80,7 +80,7 @@ impl Router {
                     }
                 },
                 // Data Upstream
-                Packet::Data { sdri: sdri, data: data } => {
+                Packet::Response { sdri: sdri, data: data } => {
                     if this_face.contains_pending_interest(&sdri) > 15 {
                         this_face.delete_pending_interest(&sdri);
                         //@Optimisation: check on every return? maybe periodically check the forwarding hint?
