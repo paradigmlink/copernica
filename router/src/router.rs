@@ -1,8 +1,9 @@
 use {
     crossbeam_channel::{unbounded},
     packets::{Packet},
-    content_store::{ContentStore},
-    faces::{Face, Executor, Spawner, new_spawner_and_executor},
+    content_store::{ContentStore, InMemory},
+    faces::{Face},
+    futures::executor::ThreadPool,
 };
 
 #[derive(Clone)]
@@ -15,9 +16,10 @@ pub struct Router {
 
 impl Router {
     pub fn new() -> Self {
+        let im = InMemory::new();
         Router {
             faces: Vec::new(),
-            cs:  Vec::new(),
+            cs:  vec![im],
             is_running: false,
         }
     }
@@ -30,17 +32,14 @@ impl Router {
         self.faces.push(face);
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self, spawner: ThreadPool ) {
         self.is_running = true;
-
-        let (spawner, executor) = new_spawner_and_executor();
         let (packet_sender, packet_receiver) = unbounded();
         let mut face_id = 0;
         for face in self.faces.iter_mut() {
             face.receive_upstream_interest_or_downstream_data(face_id, spawner.clone(), packet_sender.clone());
             face_id += 1;
         }
-        std::thread::spawn(move || { executor.run() });
         loop {
             let (face_id, packet) = packet_receiver.recv().unwrap();
             let (this_face, other_faces) = self.faces.split_one_mut(face_id);

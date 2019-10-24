@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 
 bincode = "1"
-futures-preview = "0.3.0-alpha.17"
+futures-preview = "0.3.0-alpha.19"
 router = { path = "../router" }
 faces = { path = "../faces" }
 content-store = { path = "../content-store" }

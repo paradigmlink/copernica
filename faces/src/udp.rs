@@ -1,13 +1,7 @@
-#![cfg(unix)]
-#![warn(rust_2018_idioms)]
-use crate::{Face, Spawner};
-use std::collections::VecDeque;
+use crate::{Face};
 
-use async_std::io;
 use async_std::net::UdpSocket;
 use async_std::task;
-use async_task;
-use async_std::io::Error;
 use crossbeam_channel::{Sender};
 
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
@@ -16,12 +10,7 @@ use bincode::{serialize, deserialize};
 use packets::{Packet, mk_data, mk_interest};
 use crate::sparse_distributed_representation::{SparseDistributedRepresentation};
 
-use std::future::Future;
-use std::sync::Arc;
-use std::thread;
-
-use futures::executor;
-use std::pin::Pin;
+use futures::executor::ThreadPool;
 
 
 #[derive(Debug, Clone)]
@@ -105,11 +94,11 @@ impl Face for Udp {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
 
-    fn receive_upstream_interest_or_downstream_data(&mut self, face_id: usize, spawner: Spawner, packet_sender: Sender<(usize, Packet)>) {
+    fn receive_upstream_interest_or_downstream_data(&mut self, face_id: usize, spawner: ThreadPool , packet_sender: Sender<(usize, Packet)>) {
         let addr = self.listen_addr.clone();
         let send_addr = self.send_addr.clone();
         self.set_id(face_id);
-        spawner.spawn(async move {
+        spawner.spawn_ok(async move {
             loop {
                 let socket = UdpSocket::bind(addr).await.unwrap();
                 let mut buf = vec![0u8; 1024];
