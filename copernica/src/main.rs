@@ -3,13 +3,20 @@ extern crate faces;
 extern crate router;
 extern crate futures;
 extern crate content_store;
+extern crate log;
+extern crate env_logger;
 
-use faces::{Udp};
-use router::{Router};
-use futures::executor::{ThreadPool};
-use std::thread;
+use {
+    log::{trace},
+    faces::{Udp},
+    router::{Router},
+    futures::executor::{ThreadPool},
+    std::thread,
+};
 
 fn main() {
+    env_logger::init();
+    trace!("copernica started");
     thread::spawn( move || {
         let mut executor0 = ThreadPool::new().expect("Failed to create threadpool");
         let mut r0 = Router::new();

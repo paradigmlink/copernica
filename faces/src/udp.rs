@@ -10,6 +10,7 @@ use bincode::{serialize, deserialize};
 use packets::{Packet};
 use crate::sparse_distributed_representation::{SparseDistributedRepresentation};
 
+use log::{info};
 use futures::executor::ThreadPool;
 
 
@@ -103,7 +104,7 @@ impl Face for Udp {
                 let mut buf = vec![0u8; 1024];
                 let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
                 let packet: Packet = deserialize(&buf[..n]).unwrap();
-                println!("UDP RECV {}>{}:{:?}", peer, socket.local_addr().unwrap(), packet);
+                info!("RECV from {} => to {}", peer, socket.local_addr().unwrap());
                 let _r = packet_sender.send((face_id, packet));
             }
         });
@@ -117,7 +118,7 @@ fn send_request_downstream_or_response_upstream(
         let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let packet_ser = serialize(&packet).unwrap();
         let _r = socket.send_to(&packet_ser, send_addr).await;
-        println!("UDP SENT {}>{}:{:?}",socket.local_addr().unwrap(), send_addr, packet);
+        info!("SENT from {} => to {}",socket.local_addr().unwrap(), send_addr);
     });
 }
 
