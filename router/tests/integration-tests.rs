@@ -1,31 +1,29 @@
 extern crate packets;
 
-use async_std::io;
 use async_std::net::UdpSocket;
 use async_std::task;
 use async_std::future;
-use packets::{Packet, mk_interest};
+use packets::{Packet, request};
 use bincode::{serialize, deserialize};
-use std::{thread, time};
 
 fn main() {
     let send = async {
         let socket = UdpSocket::bind("127.0.0.1:8081").await.unwrap();
 
         let add0 = "127.0.0.1:8090";
-        let msg0 = mk_interest("oa".to_string());
+        let msg0 = request("oa".to_string());
         let msg0s = serialize(&msg0).unwrap();
         let add1 = "127.0.0.1:8092";
-        let msg1 = mk_interest("world".to_string());
+        let msg1 = request("world".to_string());
         let msg1s = serialize(&msg1).unwrap();
         let add2 = "127.0.0.1:8094";
-        let msg2 = mk_interest("hello world".to_string());
+        let msg2 = request("hello world".to_string());
         let msg2s = serialize(&msg2).unwrap();
         let add3 = "127.0.0.1:8096";
-        let msg3 = mk_interest("woah".to_string());
+        let msg3 = request("woah".to_string());
         let msg3s = serialize(&msg3).unwrap();
         let add4 = "127.0.0.1:8098";
-        let msg4 = mk_interest("woah2".to_string());
+        let msg4 = request("woah2".to_string());
         let msg4s = serialize(&msg4).unwrap();
         socket.send_to(&msg0s, &add0).await.unwrap();
         println!("UDP SENT {}>{}:{:?}",socket.local_addr().unwrap(), add0, &msg0);

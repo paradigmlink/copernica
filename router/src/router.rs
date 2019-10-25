@@ -4,6 +4,7 @@ use {
     content_store::{ContentStore, InMemory},
     faces::{Face},
     futures::executor::ThreadPool,
+    log::{trace},
 };
 
 #[derive(Clone)]
@@ -49,7 +50,10 @@ impl Router {
                     let mut data: Option<Packet> = None;
                     for cs in self.cs.iter() {
                         data = cs.has_data(&sdri);
-                        if data != None { break }
+                        if data != None {
+                            trace!("found data: {:?}", data);
+                            break
+                        }
                     }
                     match data {
                         Some(_data) => {
