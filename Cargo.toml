@@ -6,5 +6,5 @@ members = [
     "packets",
     "faces",
     "content-store",
-    "network-integration-tests",
+    "client",
 ]

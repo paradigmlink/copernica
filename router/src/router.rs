@@ -11,16 +11,17 @@ use {
 pub struct Router {
     faces: Vec<Box<dyn Face>>,
     cs:  Vec<Box<dyn ContentStore>>,
+    spawner: ThreadPool,
     is_running: bool,
 }
 
 
 impl Router {
-    pub fn new() -> Self {
-        let im = InMemory::new();
+    pub fn new(spawner: ThreadPool) -> Self {
         Router {
             faces: Vec::new(),
-            cs:  vec![im],
+            cs:  vec![InMemory::new()],
+            spawner: spawner,
             is_running: false,
         }
     }
@@ -33,12 +34,12 @@ impl Router {
         self.faces.push(face);
     }
 
-    pub async fn run(&mut self, spawner: ThreadPool ) {
+    pub async fn run(&mut self) {
         self.is_running = true;
         let (packet_sender, packet_receiver) = unbounded();
         let mut face_id = 0;
         for face in self.faces.iter_mut() {
-            face.receive_upstream_request_or_downstream_response(face_id, spawner.clone(), packet_sender.clone());
+            face.receive_upstream_request_or_downstream_response(face_id, self.spawner.clone(), packet_sender.clone());
             face_id += 1;
         }
         loop {
