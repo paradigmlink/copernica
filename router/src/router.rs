@@ -30,6 +30,10 @@ impl Router {
         self.cs.push(cs);
     }
 
+    pub fn insert_into_cs(&mut self, response: Packet) {
+        self.cs[0].put_data(response);
+    }
+
     pub fn add_face(&mut self, face: Box<dyn Face>) {
         self.faces.push(face);
     }
