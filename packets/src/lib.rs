@@ -11,7 +11,7 @@ extern crate bitvec;
 
 mod index;
 
-use crate::{index::generate_sdr_index};
+pub use crate::{index::generate_sdr_index};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Packet {

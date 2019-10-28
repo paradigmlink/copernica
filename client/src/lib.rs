@@ -1,40 +1,58 @@
-use packets::{Packet};
-use std::net::{SocketAddrV4};
-use futures::Future;
+use {
+    packets::{Packet, generate_sdr_index, response, request},
+    bincode::{serialize, deserialize},
+    std::net::{SocketAddrV4},
+    crossbeam_channel::{Sender, Receiver, unbounded},
+    async_std::{
+        net::UdpSocket,
+        task,
+    },
+};
 
-
-pub struct CopernicaRequest {
-    end_point: SocketAddrV4,
-    data_name: String,
+pub struct CopernicaRequestor {
+    listen_on: SocketAddrV4,
+    server_on: SocketAddrV4,
 }
-#[allow(dead_code)]
-impl CopernicaRequest {
-    fn new(data_name: String, server: String) -> Self {
-        CopernicaRequest { data_name: data_name, end_point: server.parse().unwrap() }
-    }
-    fn request(self) -> impl Future<Output = Packet> + 'static {
-        let end_point = self.end_point.clone();
-        let data_name = self.data_name.clone();
-        async move {
-            send(data_name, end_point).await
+
+impl CopernicaRequestor {
+    pub fn new(listen_on: String, server_on: String) -> CopernicaRequestor {
+        CopernicaRequestor {
+            listen_on: listen_on.parse().unwrap(),
+            server_on: server_on.parse().unwrap(),
         }
     }
-}
+    pub fn request(&self, name: String) -> Packet { // -> (String, Packet)
+        let server_on = self.server_on.clone();
+        let (s, r) = unbounded();
+        let name = name.clone();
+        task::block_on( async {
+            let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let packet_ser = serialize(&request(name.clone())).unwrap();
+            let _r = socket.send_to(&packet_ser, server_on).await;
+        });
+        let addr = self.listen_on.clone();
+        task::block_on( async move {
+            let socket = UdpSocket::bind(addr).await.unwrap();
+            let mut buf = vec![0u8; 1024];
+            let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
+            let packet: Packet = deserialize(&buf[..n]).unwrap();
+            let _r = s.send(packet);
+        });
+        r.recv().unwrap()
 
-async fn send(name: String, server: SocketAddrV4) -> Packet {
-    packets::response(name.clone(), name.as_bytes().to_vec())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use futures::executor::block_on;
+
     #[test]
-    fn simple_name_request() {
-        let hello = "hello".to_string();
-        let resp_future = CopernicaRequest::new(hello.clone(), "127.0.0.1:8090".to_string()).request();
-        let resp = block_on(resp_future);
-        let response_construct = packets::response(hello.clone(), hello.as_bytes().to_vec());
-        assert_eq!(response_construct, resp);
+    fn ideal_setup() {
+        let mut requestor = CopernicaRequestor::new("127.0.0.1:8091".into(), "127.0.0.1:8090".into());
+        let packet1 = requestor.request("hello1".into());
+        let packet2 = requestor.request("hello2".into());
+        assert_eq!(packet1, response("hello1".to_string(), "hello1".to_string().as_bytes().to_vec()));
     }
 }
