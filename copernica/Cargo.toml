@@ -9,6 +9,10 @@ name = "copernica"
 path = "src/copernica.rs"
 
 [[bin]]
+name = "network"
+path = "src/network.rs"
+
+[[bin]]
 name = "client"
 path = "src/client.rs"
 

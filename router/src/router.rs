@@ -56,17 +56,17 @@ impl Router {
                     for cs in self.cs.iter() {
                         data = cs.has_data(&sdri);
                         if data != None {
-                            trace!("found data: {:?}", data);
                             break
                         }
                     }
                     match data {
-                        Some(_data) => {
-                            this_face.send_response_upstream(packet);
+                        Some(data) => {
+                            this_face.send_response_upstream(data);
                         },
                         None => {
                             let mut is_forwarded = false;
                             let mut optimistic_burst_faces = Vec::new();
+                            this_face.create_pending_request(&sdri);
                             for that_face in other_faces {
                                 if that_face.contains_pending_request(&sdri) > 90 &&
                                    that_face.contains_forwarding_hint(&sdri) > 10 {
@@ -88,15 +88,21 @@ impl Router {
                 },
                 // Response Upstream
                 Packet::Response { sdri, data: _data } => {
+                    trace!("response upstreaming {:?}", packet);
                     if this_face.contains_pending_request(&sdri) > 15 {
+                        trace!("this face contains pi {}", this_face.contains_pending_request(&sdri));
                         this_face.delete_pending_request(&sdri);
                         //@Optimisation: check on every return? maybe periodically check the forwarding hint?
+                        trace!("this face forwarding hint decoherence {}", this_face.forwarding_hint_decoherence());
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hints();
                         }
+                        trace!("this face forwarding hint before {}", this_face.contains_forwarding_hint(&sdri));
                         this_face.create_forwarding_hint(&sdri);
+                        trace!("this face forwarding hint after {}", this_face.contains_forwarding_hint(&sdri));
                         self.cs[0].put_data(packet.clone());
                         for that_face in other_faces {
+                            trace!("that face contains pi {}", that_face.contains_pending_request(&sdri));
                             if that_face.contains_pending_request(&sdri) > 50 {
                                 that_face.delete_pending_request(&sdri);
                                 that_face.send_response_upstream(packet.clone());

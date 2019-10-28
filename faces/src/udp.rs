@@ -99,12 +99,12 @@ impl Face for Udp {
         let addr = self.listen_addr.clone();
         self.set_id(face_id);
         spawner.spawn_ok(async move {
+            let socket = UdpSocket::bind(addr).await.unwrap();
             loop {
-                let socket = UdpSocket::bind(addr).await.unwrap();
                 let mut buf = vec![0u8; 1024];
                 let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
                 let packet: Packet = deserialize(&buf[..n]).unwrap();
-                info!("RECV from {} => to {}", peer, socket.local_addr().unwrap());
+                info!("RECV from {} => to {}: {:?}", peer, socket.local_addr().unwrap(), packet);
                 let _r = packet_sender.send((face_id, packet));
             }
         });
@@ -118,7 +118,7 @@ fn send_request_downstream_or_response_upstream(
         let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let packet_ser = serialize(&packet).unwrap();
         let _r = socket.send_to(&packet_ser, send_addr).await;
-        info!("SENT from {} => to {}",socket.local_addr().unwrap(), send_addr);
+        info!("SENT from {} => to {}: {:?}",socket.local_addr().unwrap(), send_addr, packet);
     });
 }
 
