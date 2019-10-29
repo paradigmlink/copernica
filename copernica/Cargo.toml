@@ -9,10 +9,6 @@ name = "copernica"
 path = "src/copernica.rs"
 
 [[bin]]
-name = "network"
-path = "src/network.rs"
-
-[[bin]]
 name = "client"
 path = "src/client.rs"
 
@@ -25,11 +21,11 @@ faces = { path = "../faces" }
 content-store = { path = "../content-store" }
 client = { path = "../client" }
 log = "0.4"
-env_logger = "0.7.1"
+clap = "2.33.0"
+fern = "0.5.9"
+chrono = "0.4.9"
 
 #client.rs
 packets = { path = "../packets" }
 async-std = "0.99"
 
-[dev-dependencies]
-env_logger = "0.7.1"
