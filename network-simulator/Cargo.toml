@@ -1,0 +1,14 @@
+[package]
+name = "network-simulator"
+version = "0.1.0"
+authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+router = { path = "../router" }
+faces = { path = "../faces" }
+content-store = { path = "../content-store" }
+packets = { path = "../packets" }
+client = { path = "../client" }

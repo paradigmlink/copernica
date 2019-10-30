@@ -11,25 +11,26 @@ use {
 
 pub struct CopernicaRequestor {
     listen_on: SocketAddrV4,
-    server_on: SocketAddrV4,
+    remote_on: SocketAddrV4,
 }
 
 impl CopernicaRequestor {
-    pub fn new(listen_on: String, server_on: String) -> CopernicaRequestor {
+    pub fn new(listen_on: String, remote_on: String) -> CopernicaRequestor {
         CopernicaRequestor {
             listen_on: listen_on.parse().unwrap(),
-            server_on: server_on.parse().unwrap(),
+            remote_on: remote_on.parse().unwrap(),
         }
     }
     pub fn request(&self, name: String) -> Packet { // -> (String, Packet)
-        let server_on = self.server_on.clone();
+        let remote_on = self.remote_on.clone();
         let (s, r) = unbounded();
         let name = name.clone();
         task::block_on( async {
             let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
             let packet_ser = serialize(&request(name.clone())).unwrap();
-            let _r = socket.send_to(&packet_ser, server_on).await;
+            let _r = socket.send_to(&packet_ser, remote_on).await;
         });
+        println!("{} {} {}", self.listen_on, self.remote_on, name);
         let addr = self.listen_on.clone();
         task::block_on( async move {
             let socket = UdpSocket::bind(addr).await.unwrap();

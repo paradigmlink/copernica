@@ -7,4 +7,5 @@ members = [
     "faces",
     "content-store",
     "client",
+    "network-simulator",
 ]

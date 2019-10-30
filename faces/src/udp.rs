@@ -40,14 +40,17 @@ impl Face for Udp {
     fn set_id(&mut self, face_id: usize) {
         self.id = face_id;
     }
+    fn get_id(&self) -> usize {
+        self.id
+    }
 
     // Basic Send and Receive Operations
 
-    fn send_request_downstream(&mut self, interest: Packet) {
-        send_request_downstream_or_response_upstream(self.send_addr, interest);
+    fn send_request_downstream(&mut self, request: Packet) {
+        send_request_downstream_or_response_upstream(self.get_id(), self.send_addr, request);
     }
-    fn send_response_upstream(&mut self, data: Packet) {
-        send_request_downstream_or_response_upstream(self.send_addr, data);
+    fn send_response_upstream(&mut self, response: Packet) {
+        send_request_downstream_or_response_upstream(self.get_id(), self.send_addr, response);
     }
 
     // Pending Interest Sparse Distributed Representation
@@ -95,16 +98,16 @@ impl Face for Udp {
         println!("forwarding hint on face {}:\n{:?}",self.id, self.forwarding_hint);
     }
 
-    fn receive_upstream_request_or_downstream_response(&mut self, face_id: usize, spawner: ThreadPool , packet_sender: Sender<(usize, Packet)>) {
+    fn receive_upstream_request_or_downstream_response(&mut self, spawner: ThreadPool , packet_sender: Sender<(usize, Packet)>) {
         let addr = self.listen_addr.clone();
-        self.set_id(face_id);
+        let face_id = self.get_id().clone();
         spawner.spawn_ok(async move {
             let socket = UdpSocket::bind(addr).await.unwrap();
             loop {
                 let mut buf = vec![0u8; 1024];
                 let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
                 let packet: Packet = deserialize(&buf[..n]).unwrap();
-                info!("RECV from {} => to {}: {:?}", peer, socket.local_addr().unwrap(), packet);
+                info!("RECV {:?} on face {} with {}", packet, face_id, socket.local_addr().unwrap());
                 let _r = packet_sender.send((face_id, packet));
             }
         });
@@ -112,13 +115,14 @@ impl Face for Udp {
 }
 
 fn send_request_downstream_or_response_upstream(
+    face_id: usize,
     send_addr: SocketAddrV4,
     packet: Packet) {
     task::block_on( async move {
         let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         let packet_ser = serialize(&packet).unwrap();
         let _r = socket.send_to(&packet_ser, send_addr).await;
-        info!("SENT from {} => to {}: {:?}",socket.local_addr().unwrap(), send_addr, packet);
+        info!("SENT {:?} on face {} to {}", packet, face_id, send_addr);
     });
 }
 

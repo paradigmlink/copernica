@@ -101,7 +101,6 @@ fn main() {
                         .multiple(true)
                         .help("A face consisting of a listening ipaddress and port and remote ipaddress and port e.g. 127.0.0.1:8080-127.0.0.1:8081")
                         .takes_value(true)
-                        .required(true)
                         .validator(is_face_socket_pair_valid))
                     .arg(Arg::with_name("data")
                         .short("d")
@@ -109,7 +108,6 @@ fn main() {
                         .multiple(true)
                         .help("Initialize a router with named data. e.g. key-value or name_of_data-the_actual_data. Separate with a hyphen. For testing purposes")
                         .takes_value(true)
-                        .required(true)
                         .validator(is_data_valid))
                     .arg(Arg::with_name("verbosity")
                         .short("v")
@@ -127,14 +125,16 @@ fn main() {
     spawn( move || {
         let mut executor = ThreadPool::new().expect("Failed to create threadpool");
         let mut r = Router::new(executor.clone());
-        for face in values_t!(matches, "face", Face).unwrap_or_else(|e| e.exit()) {
-            trace!("adding face");
-            let f = Udp::new(face.listen, face.remote);
-            r.add_face(f);
+        if matches.is_present("face") {
+            for face in values_t!(matches, "face", Face).unwrap_or_else(|e| e.exit()) {
+                let f = Udp::new(face.listen, face.remote);
+                r.add_face(f);
+            }
         }
-        for named_data in values_t!(matches, "data", NamedData).unwrap_or_else(|e| e.exit()) {
-            trace!("adding named data");
-            r.insert_into_cs(response(named_data.name, named_data.data.as_bytes().to_vec()));
+        if matches.is_present("data") {
+            for named_data in values_t!(matches, "data", NamedData).unwrap_or_else(|e| e.exit()) {
+                r.insert_into_cs(response(named_data.name, named_data.data.as_bytes().to_vec()));
+            }
         }
         executor.run(r.run())
     });
@@ -150,6 +150,7 @@ fn setup_logging(verbosity: u64, logpath: Option<&str>) -> Result<(), fern::Init
         0 => {
             base_config
                 .level(log::LevelFilter::Info)
+                .level_for("async_std::task::block_on", log::LevelFilter::Warn)
                 .level_for("mio::poll", log::LevelFilter::Warn)
         }
         1 => base_config
@@ -158,15 +159,15 @@ fn setup_logging(verbosity: u64, logpath: Option<&str>) -> Result<(), fern::Init
         2 => base_config.level(log::LevelFilter::Debug),
         _3_or_more => base_config
             .level(log::LevelFilter::Trace)
-            .level_for("mio::poll", log::LevelFilter::Info),
+            .level_for("mio::poll", log::LevelFilter::Info)
+            .level_for("async_std::task::block_on", log::LevelFilter::Warn),
     };
 
     // Separate file config so we can include year, month and day in file logs
     let file_config = fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
-                "{}[{}][{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                "[{}][{}] {}",
                 record.target(),
                 record.level(),
                 message
@@ -185,8 +186,7 @@ fn setup_logging(verbosity: u64, logpath: Option<&str>) -> Result<(), fern::Init
                 ))
             } else {
                 out.finish(format_args!(
-                    "[{}][{}][{}] {}",
-                    chrono::Local::now().format("%H:%M"),
+                    "[{}][{}] {}",
                     record.target(),
                     record.level(),
                     message

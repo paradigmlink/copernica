@@ -255,6 +255,7 @@ dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "client 0.1.0",
  "content-store 0.1.0",
+ "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "faces 0.1.0",
  "fern 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-preview 0.3.0-alpha.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -650,6 +651,17 @@ dependencies = [
  "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.62 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "network-simulator"
+version = "0.1.0"
+dependencies = [
+ "client 0.1.0",
+ "content-store 0.1.0",
+ "faces 0.1.0",
+ "packets 0.1.0",
+ "router 0.1.0",
 ]
 
 [[package]]

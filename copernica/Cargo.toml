@@ -28,4 +28,4 @@ chrono = "0.4.9"
 #client.rs
 packets = { path = "../packets" }
 async-std = "0.99"
-
+env_logger = "0.7.1"

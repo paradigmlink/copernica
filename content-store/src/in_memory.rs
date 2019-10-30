@@ -26,11 +26,9 @@ impl ContentStore for InMemory {
     fn has_data(&self, sdri: &Vec<Vec<u16>>) -> Option<Packet> {
         match self.cache.lock().unwrap().get(sdri) {
             Some(packet) => {
-                info!("cs found : {:?}", packet.clone());
                 Some(packet.clone())
             },
             None => {
-                info!("cs has no response for request {:?}", sdri.clone());
                 None
             },
         }
