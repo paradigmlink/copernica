@@ -42,7 +42,6 @@ impl FromStr for Face {
         let remote: String = v[1].to_string();
         Ok( Face { listen: listen, remote: remote })
     }
-
 }
 
 impl FromStr for NamedData {
@@ -54,8 +53,8 @@ impl FromStr for NamedData {
         let data: String = v[1].to_string();
         Ok( NamedData { name: name, data: data })
     }
-
 }
+
 impl Face {
     fn is_ok(&self) -> bool {
         true

@@ -9,7 +9,7 @@ packets = { path = "../packets" }
 faces = { path = "../faces" }
 content-store = { path = "../content-store" }
 lru-cache = "0.1.2"
-crossbeam-channel = "0.3.9"
+crossbeam = "0.7.2"
 async-task = "1.0.0"
 async-std = "0.99"
 futures-preview = "0.3.0-alpha.19"

@@ -30,7 +30,6 @@ impl CopernicaRequestor {
             let packet_ser = serialize(&request(name.clone())).unwrap();
             let _r = socket.send_to(&packet_ser, remote_on).await;
         });
-        println!("{} {} {}", self.listen_on, self.remote_on, name);
         let addr = self.listen_on.clone();
         task::block_on( async move {
             let socket = UdpSocket::bind(addr).await.unwrap();
@@ -39,8 +38,8 @@ impl CopernicaRequestor {
             let packet: Packet = deserialize(&buf[..n]).unwrap();
             let _r = s.send(packet);
         });
+        println!("{} {} {}", self.listen_on, self.remote_on, name);
         r.recv().unwrap()
-
     }
 }
 
