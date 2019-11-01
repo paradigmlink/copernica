@@ -37,7 +37,7 @@ pub fn response(name: String, data: Vec<u8>) -> Packet {
 impl fmt::Debug for Packet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            Packet::Request{sdri: sdri} => write!(f, "REQ({:?})", sdri),
+            Packet::Request{sdri: sdri} => write!(f, "REQ{:?}", sdri),
             Packet::Response{sdri: sdri, data:_} => write!(f, "RES{:?}", sdri),
         }
     }

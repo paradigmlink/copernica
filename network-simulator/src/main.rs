@@ -13,6 +13,7 @@ use {
     },
     futures::executor::{ThreadPool},
     fern,
+    log::{trace},
 };
 
 
@@ -118,7 +119,7 @@ fn small_small_world_graph() -> packets::Packet {
                      Face::from_str("127.0.0.1:50038|127.0.0.1:50037").unwrap()];   // 5 -> 0
     router(node5, None, ctl_recv.clone());
     let node6 = vec![Face::from_str("127.0.0.1:50013|127.0.0.1:50012").unwrap(),    Face::from_str("127.0.0.1:50014|127.0.0.1:50015").unwrap(),
-                     Face::from_str("127.0.0.1:50027|127.0.0.1:50028").unwrap(),
+                     Face::from_str("127.0.0.1:50027|127.0.0.1:50028").unwrap(),    // 6 -> requestor1
                      Face::from_str("127.0.0.1:50041|127.0.0.1:50042").unwrap()];   // 6 -> 8
     router(node6, None, ctl_recv.clone());
     let node7 = vec![Face::from_str("127.0.0.1:50015|127.0.0.1:50014").unwrap(),    Face::from_str("127.0.0.1:50016|127.0.0.1:50017").unwrap(),
@@ -136,18 +137,21 @@ fn small_small_world_graph() -> packets::Packet {
     router(node9, None, ctl_recv.clone());
     let node10 = vec![Face::from_str("127.0.0.1:50021|127.0.0.1:50020").unwrap(),   Face::from_str("127.0.0.1:50022|127.0.0.1:50023").unwrap(),
                       Face::from_str("127.0.0.1:50048|127.0.0.1:50047").unwrap(),   // 10 -> 7
+                      Face::from_str("127.0.0.1:50051|127.0.0.1:50052").unwrap(),   // 10 -> requestor2
                       Face::from_str("127.0.0.1:50049|127.0.0.1:50050").unwrap()];  // 10 -> 0
     router(node10, None, ctl_recv.clone());
-    let node11 = vec![Face::from_str("127.0.0.1:50023|127.0.0.1:50022").unwrap(),   Face::from_str("127.0.0.1:50024|127.0.0.1:50025").unwrap()];
+    let node11 = vec![Face::from_str("127.0.0.1:50023|127.0.0.1:50022").unwrap(), Face::from_str("127.0.0.1:50001|127.0.0.1:50000").unwrap()];
     let data = vec![Data::from_str("hello|world").unwrap()];
     router(node11, Some(data), ctl_recv.clone());
-    let node12 = vec![Face::from_str("127.0.0.1:50025|127.0.0.1:50026").unwrap(), Face::from_str("127.0.0.1:50001|127.0.0.1:50000").unwrap()];
-    router(node12, None, ctl_recv.clone());
     sleep(time::Duration::from_millis(10));
-    let requestor = CopernicaRequestor::new("127.0.0.1:50028".into(), "127.0.0.1:50027".into());
-    let response = requestor.request("hello1".into());
-    //ctl_send.send(RouterControl::Exit).unwrap();
-    response
+    let requestor1 = CopernicaRequestor::new("127.0.0.1:50028".into(), "127.0.0.1:50027".into());
+    let response1 = requestor1.request("hello".into());
+    sleep(time::Duration::from_millis(1000));
+    trace!("----------------------------");
+    let requestor2 = CopernicaRequestor::new("127.0.0.1:50051".into(), "127.0.0.1:50051".into());
+    let response2 = requestor1.request("hello".into());
+    ctl_send.send(RouterControl::Exit).unwrap();
+    response1
 }
 
 fn main() {
@@ -220,8 +224,8 @@ mod network_regressions {
     use super::*;
 
     #[test]
-    fn a_humble_four_hop_hello_world_fetch() {
-        //setup_logging(3, None).unwrap();
+    fn a_simple_fetch() {
+        setup_logging(3, None).unwrap();
         let packet = simple_fetch();
         assert_eq!(response("hello".to_string(), "world".to_string().as_bytes().to_vec()), packet);
     }
