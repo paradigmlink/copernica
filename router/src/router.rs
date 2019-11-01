@@ -93,16 +93,16 @@ impl Router {
                                         // 2 stop us from forwarding a request on a face we have already forwarded a request on
                                         // We are now checking the latter now.
 
+                                        if that_face.contains_pending_request(&sdri) > 10 {
+                                            trace!("[REQDN {}] already forwarded on this face ", face_stats("OUT", that_face, &sdri));
+                                            // we won't set is_forwarded to true nor will we add this face to the burst faces. We will be good citizens and not spam someone who has already received this request.
+                                            trace!("[REQDN] not adding face to burst faces");
+                                            continue
+                                        }
                                         // If that_face forwarding hint is high it means a previous request has been satisfied and thus we are likely to get satisfied again so we should forward it on that_face
                                         if that_face.contains_forwarding_hint(&sdri) > 90 {
                                             trace!("[REQDN {}] is a good face to forward on",  face_stats("OUT", that_face, &sdri));
                                             // but even if we have the slightest hint (greater than 10%) we have already forwarded it on this face, we shouldn't forward it again. This system must be in flow balance.
-                                            if that_face.contains_pending_request(&sdri) > 10 {
-                                                trace!("[REQDN {}] already forwarded on this face ", face_stats("OUT", that_face, &sdri));
-                                                // we won't set is_forwarded to true nor will we add this face to the burst faces. We will be good citizens and not spam someone who has already received this request.
-                                                trace!("[REQDN] not adding face to burst faces");
-                                                continue
-                                            }
                                             // create a pending request indicating not to forward further requests on this face
                                             trace!("[REQDN] creating pending request and forwarding");
                                             trace!("[REQDN {}] creating pending request", face_stats("OUT", that_face, &sdri));
