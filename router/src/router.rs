@@ -87,25 +87,20 @@ impl Router {
                                     this_face.create_pending_request(&sdri); // <- 1 of 2 purposes of pending requests
                                     trace!("[REQDN {}] left breadcrumb ", face_stats("IN", this_face, &sdri));
                                     for that_face in other_faces {
-                                        trace!("[REQDN] checking which faces to forward request on");
                                         // Pending requests serve two purposes
                                         // 1 leave a breadcrumb trail to return responses along (see immediately above)
                                         // 2 stop us from forwarding a request on a face we have already forwarded a request on
                                         // We are now checking the latter now.
 
                                         if that_face.contains_pending_request(&sdri) > 10 {
-                                            trace!("[REQDN {}] already forwarded on this face ", face_stats("OUT", that_face, &sdri));
+                                            trace!("[REQDN {}] already forwarded on this face don't add burst face ", face_stats("OUT", that_face, &sdri));
                                             // we won't set is_forwarded to true nor will we add this face to the burst faces. We will be good citizens and not spam someone who has already received this request.
-                                            trace!("[REQDN] not adding face to burst faces");
                                             continue
                                         }
                                         // If that_face forwarding hint is high it means a previous request has been satisfied and thus we are likely to get satisfied again so we should forward it on that_face
                                         if that_face.contains_forwarding_hint(&sdri) > 90 {
-                                            trace!("[REQDN {}] is a good face to forward on",  face_stats("OUT", that_face, &sdri));
                                             // but even if we have the slightest hint (greater than 10%) we have already forwarded it on this face, we shouldn't forward it again. This system must be in flow balance.
                                             // create a pending request indicating not to forward further requests on this face
-                                            trace!("[REQDN] creating pending request and forwarding");
-                                            trace!("[REQDN {}] creating pending request", face_stats("OUT", that_face, &sdri));
                                             that_face.create_pending_request(&sdri);
                                             trace!("[REQDN {}] sending request downstream", face_stats("OUT", that_face, &sdri));
                                             // downstream the request
@@ -114,16 +109,13 @@ impl Router {
                                             is_forwarded = true;
                                         }
                                         if is_forwarded == false {
-                                            trace!("[REQDN {}] adding burst face", face_stats("OUT", that_face, &sdri));
                                             optimistic_burst_faces.push(that_face)
                                         };
                                     }
                                     if is_forwarded == false {
-                                            trace!("[REQDN] bursting");
                                         // we haven't forwarded on any face, so likely we haven't seen this request before, and have no idea where a response is. We will now flood each valid face with the request hoping that a face will be able to find it.
                                         for burst_face in optimistic_burst_faces {
                                             // again we set the pending request so that further requests are not forwarded on this face
-                                            trace!("[REQDN {}] creating pr", face_stats("BURST", burst_face, &sdri));
                                             burst_face.create_pending_request(&sdri);
                                             trace!("[REQDN {}] bursting on face", face_stats("BURST", burst_face, &sdri));
                                             burst_face.send_request_downstream(packet.clone());
@@ -135,9 +127,7 @@ impl Router {
                         // Response Upstream phase
                         Packet::Response { sdri, data: _data } => {
                             // should this face contain a small probability of a match (greater than 15%) then we can assume this face was interested in this request and was previously forwarded on it.
-                            trace!("[RESUP {}] received a resonse", face_stats("IN", this_face, &sdri));
                             if this_face.contains_pending_request(&sdri) > 15 {
-                                trace!("[RESUP {}] contains pr", face_stats("IN", this_face, &sdri));
                                 // we can delete this pending request to make room for other pending requests, note, there are over lapping bits with other requests that are being removed. This is how the decoherence happens.
                                 this_face.delete_pending_request(&sdri);
                                 //@Optimisation: check on every return? maybe periodically check the forwarding hint?
@@ -148,23 +138,19 @@ impl Router {
                                     trace!("[RESUP {}] cleaned fh decoherence", face_stats("IN", this_face, &sdri));
                                 }
                                 // we should now inform future upstreaming requests that this face is good as it successfully returns responses.
-                                trace!("[RESUP {}] about to create fh", face_stats("IN", this_face, &sdri));
                                 this_face.create_forwarding_hint(&sdri);
-                                trace!("[RESUP {}] created fh", face_stats("IN", this_face, &sdri));
+                                trace!("[RESUP {}] received a resonse that matches a pending request", face_stats("IN", this_face, &sdri));
                                 // let's insert this data into our in memory content store used for forwarding and returning responses.
                                 trace!("[RESUP] inserting response into content store");
                                 self.cs[0].put_data(packet.clone());
                                 // let us now go over the breadcrumb trail dropped and see which other faces are interested in forwarding a response on thier faces
-                                trace!("[RESUP] checking faces to forward response on");
                                 for that_face in other_faces {
-                                    trace!("[RESUP {}] trying face", face_stats("OUT", that_face, &sdri));
                                     // should a face express a medium level interest in a response then we should return a response on that face.
                                     if that_face.contains_pending_request(&sdri) > 50 {
-                                        trace!("[RESUP {}] contains pr", face_stats("OUT", that_face, &sdri));
                                         // we have satisfied the request and thus we can show it the door to oblivion
                                         that_face.delete_pending_request(&sdri);
                                         // send the RESUP
-                                        trace!("[RESUP {}] sending on that face", face_stats("OUT", that_face, &sdri));
+                                        trace!("[RESUP {}] sent response upstream", face_stats("OUT", that_face, &sdri));
                                         that_face.send_response_upstream(packet.clone());
                                     }
                                 }
