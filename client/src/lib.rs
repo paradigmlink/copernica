@@ -9,50 +9,59 @@ use {
     },
 };
 
-pub struct CopernicaRequestor {
-    listen_on: SocketAddrV4,
-    remote_on: SocketAddrV4,
+#[derive( Clone)]
+pub struct CopernicaClient {
+    listen_addr: SocketAddrV4,
+    remote_addr: SocketAddrV4,
+    inbound_sender: Sender<Packet>,
+    inbound_receiver: Receiver<Packet>,
 }
 
-impl CopernicaRequestor {
-    pub fn new(listen_on: String, remote_on: String) -> CopernicaRequestor {
-        CopernicaRequestor {
-            listen_on: listen_on.parse().unwrap(),
-            remote_on: remote_on.parse().unwrap(),
+impl CopernicaClient {
+    pub fn new(listen_addr: String, remote_addr: String) -> (CopernicaClient, Receiver<Packet>) {
+        let (inbound_sender, inbound_receiver) = unbounded();
+        (CopernicaClient {
+            listen_addr: listen_addr.parse().unwrap(),
+            remote_addr: remote_addr.parse().unwrap(),
+            inbound_sender: inbound_sender,
+            inbound_receiver: inbound_receiver.clone(),
+        }, inbound_receiver.clone())
+    }
+
+    pub async fn inbound(&self) {
+        let socket = UdpSocket::bind(self.listen_addr).await.unwrap();
+        loop {
+            let mut buf = vec![0u8; 1024];
+            let (n, _peer) = socket.recv_from(&mut buf).await.unwrap();
+            let packet: Packet = deserialize(&buf[..n]).unwrap();
+            let _r = self.inbound_sender.send(packet);
         }
     }
-    pub fn request(&self, name: String) -> Packet { // -> (String, Packet)
-        let remote_on = self.remote_on.clone();
-        let (s, r) = unbounded();
-        let name = name.clone();
-        task::block_on( async {
+    pub fn outbound(&self, packet: Packet) {
+        task::block_on(async {
             let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
-            let packet_ser = serialize(&request(name.clone())).unwrap();
-            let _r = socket.send_to(&packet_ser, remote_on).await;
-        });
-        let addr = self.listen_on.clone();
-        task::block_on( async move {
-            let socket = UdpSocket::bind(addr).await.unwrap();
-            let mut buf = vec![0u8; 1024];
-            let (n, peer) = socket.recv_from(&mut buf).await.unwrap();
-            let packet: Packet = deserialize(&buf[..n]).unwrap();
-            let _r = s.send(packet);
-        });
-        println!("{} {} {}", self.listen_on, self.remote_on, name);
-        r.recv().unwrap()
+            let packet_ser = serialize(&packet).unwrap();
+            let _r = socket.send_to(&packet_ser, self.remote_addr.clone()).await;
+        })
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use futures::executor::block_on;
+mod client {
+    use {
+        super::*,
+        futures::executor::ThreadPool,
+    };
 
     #[test]
-    fn ideal_setup() {
-        let mut requestor = CopernicaRequestor::new("127.0.0.1:8091".into(), "127.0.0.1:8090".into());
-        let packet1 = requestor.request("hello1".into());
-        let packet2 = requestor.request("hello2".into());
-        assert_eq!(packet1, response("hello1".to_string(), "hello1".to_string().as_bytes().to_vec()));
+    fn basic_setup() {
+        let mut executor = ThreadPool::new().unwrap();
+        let (cc, inbound) = CopernicaClient::new("127.0.0.1:8091".into(), "127.0.0.1:8091".into());
+        let ccc = cc.clone();
+        std::thread::spawn(move || { executor.run(ccc.inbound()) });
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        cc.outbound(request("hello1".into()));
+        let packet = inbound.recv().unwrap();
+        assert_eq!(packet, request("hello1".to_string()));
     }
 }

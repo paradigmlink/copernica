@@ -102,7 +102,7 @@ impl Router {
                                         if that_face.contains_forwarding_hint(&sdri) > 90 {
                                             // create a forwarded request indicating not to forward further requests on this face
                                             that_face.create_forwarded_request(&sdri);
-                                            trace!("[REQDN {}] sending request downstream", face_stats("OUT", that_face, &sdri));
+                                            trace!("[REQDN {}] sending request downstream based on forwarding hint", face_stats("OUT", that_face, &sdri));
                                             // downstream the request
                                             that_face.send_request_downstream(packet.clone());
                                             // is_forwarded is set to true meaning we don't need to flood the request on all that_faces
@@ -138,7 +138,7 @@ impl Router {
                                 }
                                 // we should now inform future upstreaming requests that this face is good as it successfully returns responses.
                                 this_face.create_forwarding_hint(&sdri);
-                                trace!("[RESUP {}] resonse matched pending request", face_stats("IN", this_face, &sdri));
+                                trace!("[RESUP {}] response matched pending request", face_stats("IN", this_face, &sdri));
                                 // let's insert this data into our in memory content store used for forwarding and returning responses.
                                 trace!("[RESUP] inserting response into content store");
                                 self.cs[0].put_data(packet.clone());
