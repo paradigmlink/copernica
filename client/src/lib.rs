@@ -112,8 +112,8 @@ impl CopernicaClient {
             Ok(_) => unreachable!(),
         }
     }
-    pub fn request_many(&self, names: Vec<String>) -> Vec<Packet> {
-        vec![response("hello".into(), "world".to_string().as_bytes().to_vec())]
+    pub fn request_many(&mut self, mut names: Vec<String>) -> Vec<(String, Option<Packet>)> {
+        names.iter_mut().map(| name | (name.clone().to_string(), self.request_one(name.to_string()))).collect::<Vec<(String, Option<Packet>)>>()
     }
 }
 

@@ -146,13 +146,14 @@ fn small_small_world_graph() -> Option<packets::Packet> {
                       Face::from_str("127.0.0.1:50049|127.0.0.1:50050").unwrap()];  // 10 -> 0
     router(node10, None, ctl_recv.clone());
     let node11 = vec![Face::from_str("127.0.0.1:50023|127.0.0.1:50022").unwrap(), Face::from_str("127.0.0.1:50001|127.0.0.1:50000").unwrap()];
-    //let data11 = vec![Data::from_str("hello11|world").unwrap()];
-    router(node11, None, ctl_recv.clone());
+    let data11 = vec![Data::from_str("hello11|world").unwrap()];
+    router(node11, Some(data11), ctl_recv.clone());
     sleep(time::Duration::from_millis(10));
     let mut cc = CopernicaClient::new("127.0.0.1:50028".into(), "127.0.0.1:50027".into());
     let mut ccc = cc.clone();
     std::thread::spawn( move || { executor.run(ccc.run()) });
-    //cc.outbound(request("hello1".into()));
+    let responses = cc.request_many(vec!["hello1".to_string(), "hello11".to_string()]);
+    trace!("RESPONSES {:?}", responses);
     let response = cc.request_one("hello1".into());
     ctl_send.send(RouterControl::Exit).unwrap();
     response

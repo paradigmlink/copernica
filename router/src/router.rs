@@ -78,7 +78,6 @@ impl Router {
                                     this_face.send_response_upstream(data);
                                 },
                                 None => {
-                                    trace!("[REQDN] no response in content stores");
                                     // there is no matched response so we need to forward the request
                                     let mut is_forwarded = false;
                                     // optimistic_burst_faces are in case we have no forwarding hints to use.
