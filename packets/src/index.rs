@@ -1,4 +1,5 @@
 use sha3::{Digest, Sha3_512};
+use crate::Sdri;
 
 const HEX : [&'static str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
 
@@ -31,10 +32,10 @@ fn name_sparsity(s: &str) -> Vec<(u16)> {
     gen_2048_sparsity(index_of_lowest_occuring_char_in_hash(&hash_name(s)))
 }
 
-pub fn generate_sdr_index(s: String) -> Vec<Vec<u16>> {
+pub fn generate_sdr_index(s: String) -> Sdri {
     let names = s.split("/");
     let names: Vec<&str> = names.collect();
-    let mut fh: Vec<Vec<u16>> = Vec::new();
+    let mut fh: Sdri = Vec::new();
     for name in names {
         fh.push(name_sparsity(name));
     }

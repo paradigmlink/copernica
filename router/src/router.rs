@@ -140,7 +140,6 @@ impl Router {
                                 this_face.create_forwarding_hint(&sdri);
                                 trace!("[RESUP {}] response matched pending request", face_stats("IN", this_face, &sdri));
                                 // let's insert this data into our in memory content store used for forwarding and returning responses.
-                                trace!("[RESUP] inserting response into content store");
                                 self.cs[0].put_data(packet.clone());
                                 // let us now go over the breadcrumb trail dropped and see which other faces are interested in forwarding a response on thier faces
                                 for that_face in other_faces {

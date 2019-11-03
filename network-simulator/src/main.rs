@@ -73,7 +73,7 @@ fn router(faces: Vec<Face>, data: Option<Vec<Data>>, ctl_recv: Receiver<RouterCo
     router
 }
 
-fn simple_fetch() -> packets::Packet {
+fn simple_fetch() -> Option<packets::Packet> {
     let mut executor: ThreadPool = ThreadPool::new().unwrap();
     let (ctl_send, ctl_recv) = unbounded();
     let node0 = vec![Face::from_str("127.0.0.1:8070|127.0.0.1:8071").unwrap(), Face::from_str("127.0.0.1:8072|127.0.0.1:8073").unwrap()];
@@ -86,17 +86,15 @@ fn simple_fetch() -> packets::Packet {
     let node3_d = vec![Data::from_str("hello|world").unwrap()];
     router(node3_f, Some(node3_d), ctl_recv.clone());
     sleep(time::Duration::from_millis(10));
-    let (cc, inbound) = CopernicaClient::new("127.0.0.1:8071".into(), "127.0.0.1:8070".into());
-    let ccc = cc.clone();
-    std::thread::spawn( move || { executor.run(ccc.inbound()) });
-    cc.outbound(request("hello".into()));
-    sleep(time::Duration::from_millis(10));
-    let response = inbound.recv().unwrap();
+    let mut cc = CopernicaClient::new("127.0.0.1:8071".into(), "127.0.0.1:8070".into());
+    let mut ccc = cc.clone();
+    std::thread::spawn( move || { executor.run(ccc.run()) });
+    let response = cc.request_one("hello".into());
     ctl_send.send(RouterControl::Exit).unwrap();
     response
 }
 
-fn small_small_world_graph() -> packets::Packet {
+fn small_small_world_graph() -> Option<packets::Packet> {
     // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
     let mut executor: ThreadPool = ThreadPool::new().unwrap();
     let (ctl_send, ctl_recv) = unbounded(); // node 0 is the top node in the diagram, node 1 is clockwise one in the diagram
@@ -151,12 +149,11 @@ fn small_small_world_graph() -> packets::Packet {
     //let data11 = vec![Data::from_str("hello11|world").unwrap()];
     router(node11, None, ctl_recv.clone());
     sleep(time::Duration::from_millis(10));
-    let (cc, inbound) = CopernicaClient::new("127.0.0.1:50028".into(), "127.0.0.1:50027".into());
-    let ccc = cc.clone();
-    std::thread::spawn( move || { executor.run(ccc.inbound()) });
+    let mut cc = CopernicaClient::new("127.0.0.1:50028".into(), "127.0.0.1:50027".into());
+    let mut ccc = cc.clone();
+    std::thread::spawn( move || { executor.run(ccc.run()) });
     //cc.outbound(request("hello1".into()));
-    cc.outbound(request("hello1".into()));
-    let response = inbound.recv().unwrap();
+    let response = cc.request_one("hello1".into());
     ctl_send.send(RouterControl::Exit).unwrap();
     response
 }
@@ -234,13 +231,13 @@ mod network_regressions {
     fn a_simple_fetch() {
         setup_logging(3, None).unwrap();
         let packet = simple_fetch();
-        assert_eq!(response("hello".to_string(), "world".to_string().as_bytes().to_vec()), packet);
+        assert_eq!(Some(response("hello".to_string(), "world".to_string().as_bytes().to_vec())), packet);
     }
 
     #[test]
     fn a_small_small_world_graph() {
         setup_logging(3, None).unwrap();
         let packet = small_small_world_graph();
-        assert_eq!(response("hello1".to_string(), "world".to_string().as_bytes().to_vec()), packet);
+        assert_eq!(Some(response("hello1".to_string(), "world".to_string().as_bytes().to_vec())), packet);
     }
 }
