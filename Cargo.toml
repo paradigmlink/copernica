@@ -8,4 +8,5 @@ members = [
     "content-store",
     "client",
     "network-simulator",
+    "logger",
 ]

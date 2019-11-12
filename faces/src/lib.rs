@@ -1,44 +1,80 @@
 mod sparse_distributed_representation;
-pub mod udp;
-pub use crate::{udp::Udp};
-
 use {
-    packets::{Packet},
-    futures::executor::ThreadPool,
-    crossbeam_channel::{Sender},
+    sparse_distributed_representation::{SparseDistributedRepresentation},
+    std::{
+        sync::{Arc, Mutex},
+        cell::{RefCell},
+    },
+    log::{info},
 };
 
-pub trait Face {
-    fn set_id(&mut self, face_id: usize);
-    fn get_id(&self) -> usize;
-    fn send_request_downstream(&mut self, interest: Packet);
-    fn send_response_upstream(&mut self, data: Packet);
-    fn receive_upstream_request_or_downstream_response(&mut self, spawner: ThreadPool, packet_sender: Sender<(usize, Packet)>);
+#[derive(Debug, Clone)]
+pub struct Face {
+    pending_request:   SparseDistributedRepresentation,
+    forwarding_hint:   SparseDistributedRepresentation,
+    forwarded_request: SparseDistributedRepresentation,
 
-    fn create_pending_request(&mut self, sdri: &Vec<Vec<u16>>);
-    fn contains_pending_request(&mut self, sdri: &Vec<Vec<u16>>) -> u8;
-    fn delete_pending_request(&mut self, sdri: &Vec<Vec<u16>>);
-    fn pending_request_decoherence(&mut self) -> u8;
-    fn partially_forget_pending_request(&mut self);
-
-    fn create_forwarded_request(&mut self, packet_sdri: &Vec<Vec<u16>>);
-    fn contains_forwarded_request(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8;
-    fn delete_forwarded_request(&mut self, request_sdri: &Vec<Vec<u16>>);
-    fn forwarded_request_decoherence(&mut self) -> u8;
-    fn partially_forget_forwarded_request(&mut self);
-
-    fn create_forwarding_hint(&mut self, sdri: &Vec<Vec<u16>>);
-    fn contains_forwarding_hint(&mut self, sdri: &Vec<Vec<u16>>) -> u8;
-    fn forwarding_hint_decoherence(&mut self) -> u8;
-    fn partially_forget_forwarding_hint(&mut self);
-
-    fn box_clone(&self) -> Box::<dyn Face>;
-    fn print_pi(&self);
-    fn print_fh(&self);
 }
 
-impl Clone for Box<dyn Face> {
-    fn clone(&self) -> Box<dyn Face> {
-        self.box_clone()
+impl Face {
+    pub fn new() -> Face {
+        Face {
+            pending_request:    SparseDistributedRepresentation::new(),
+            forwarding_hint:    SparseDistributedRepresentation::new(),
+            forwarded_request:  SparseDistributedRepresentation::new(),
+        }
     }
+    // Pending Request Sparse Distributed Representation
+
+    pub fn create_pending_request(&mut self, packet_sdri: &Vec<Vec<u16>>) {
+        self.pending_request.insert(&packet_sdri);
+    }
+    pub fn contains_pending_request(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8 {
+        self.pending_request.contains(request_sdri)
+    }
+    pub fn delete_pending_request(&mut self, request_sdri: &Vec<Vec<u16>>) {
+        self.pending_request.delete(request_sdri);
+    }
+    pub fn pending_request_decoherence(&mut self) -> u8 {
+        self.pending_request.decoherence()
+    }
+    pub fn partially_forget_pending_request(&mut self) {
+        self.pending_request.partially_forget();
+    }
+
+
+    // Forwarded Request Sparse Distributed Representation
+
+    pub fn create_forwarded_request(&mut self, packet_sdri: &Vec<Vec<u16>>) {
+        self.forwarded_request.insert(&packet_sdri);
+    }
+    pub fn contains_forwarded_request(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8 {
+        self.forwarded_request.contains(request_sdri)
+    }
+    pub fn delete_forwarded_request(&mut self, request_sdri: &Vec<Vec<u16>>) {
+        self.forwarded_request.delete(request_sdri);
+    }
+    pub fn forwarded_request_decoherence(&mut self) -> u8 {
+        self.forwarded_request.decoherence()
+    }
+    pub fn partially_forget_forwarded_request(&mut self) {
+        self.forwarded_request.partially_forget();
+    }
+
+
+    // Forwarding Hint Sparse Distributed Representation
+    pub fn create_forwarding_hint(&mut self, data_sdri: &Vec<Vec<u16>>) {
+        self.forwarding_hint.insert(&data_sdri);
+    }
+    pub fn contains_forwarding_hint(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8 {
+        self.forwarding_hint.contains(request_sdri)
+    }
+    pub fn forwarding_hint_decoherence(&mut self) -> u8 {
+        self.forwarding_hint.decoherence()
+    }
+    pub fn partially_forget_forwarding_hint(&mut self) {
+        self.forwarding_hint.partially_forget();
+    }
+
+
 }

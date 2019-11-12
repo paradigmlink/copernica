@@ -15,17 +15,20 @@ path = "src/client.rs"
 [dependencies]
 
 bincode = "1"
-futures-preview = "0.3.0-alpha.19"
 router = { path = "../router" }
 faces = { path = "../faces" }
 content-store = { path = "../content-store" }
+logger = { path = "../logger" }
 client = { path = "../client" }
 log = "0.4"
 clap = "2.33.0"
 fern = "0.5.9"
 chrono = "0.4.9"
 
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+
 #client.rs
 packets = { path = "../packets" }
-async-std = "0.99"
 env_logger = "0.7.1"

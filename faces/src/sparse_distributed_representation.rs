@@ -1,5 +1,7 @@
-use bitvec::prelude::*;
-use rand::Rng;
+use {
+    rand::Rng,
+    bitvec::prelude::*,
+};
 
 #[derive(Debug, Clone)]
 pub struct SparseDistributedRepresentation {
@@ -75,25 +77,3 @@ impl PartialEq for SparseDistributedRepresentation {
     }
 }
 
-
-#[cfg(test)]
-mod sdr {
-    use super::*;
-    use packets::{mk_interest};
-
-    #[test]
-    fn interest_100_percent_present() {
-        let interest = mk_interest("interested/in/world/affairs".to_string());
-        let mut sdr = SparseDistributedRepresentation::new();
-        sdr.insert(interest.clone());
-        assert_eq!(sdr.contains(interest), 100);
-    }
-
-    #[test]
-    fn decoherence_restoration() {
-        let mut sdr = SparseDistributedRepresentation::new();
-        sdr.fill_1s();
-        sdr.restore();
-        assert!(sdr.decoherence() < 40);
-    }
-}
