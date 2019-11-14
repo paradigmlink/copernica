@@ -1,6 +1,6 @@
 use {
     crossbeam_channel::{unbounded, Sender, Receiver},
-    packets::{Packet as CopernicaPacket},
+    packets::{Packet as CopernicaPacket, response},
     content_store::{ContentStore},
     faces::{Face},
     logger,
@@ -18,11 +18,18 @@ use {
     serde_derive::Deserialize,
 };
 
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct NamedData {
+    pub name: String,
+    pub data: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub listen_addr: String,
     pub content_store_size: u64,
     pub peers: Option<Vec<String>>,
+    pub data: Option<Vec<NamedData>>,
 }
 
 #[derive(Clone)]
@@ -52,11 +59,18 @@ impl Router {
                 faces.insert(socket_addr, Face::new(socket_addr.port()));
             }
         }
+        let mut cs = ContentStore::new(config.content_store_size);
+        if let Some(data) = config.data {
+            for named_data in data {
+                trace!("[SETUP] adding data: name: {} data: {}", named_data.name.to_string(), named_data.data.to_string());
+                cs.put_data(response(named_data.name.to_string(), named_data.data.to_string().as_bytes().to_vec()));
+            }
+        }
         Router {
             listen_addr: config.listen_addr.parse().unwrap(),
             faces: faces,
             id: rand::thread_rng().gen_range(0,255),
-            cs: ContentStore::new(config.content_store_size),
+            cs: cs,
         }
     }
 

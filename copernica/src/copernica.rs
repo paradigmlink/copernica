@@ -1,6 +1,5 @@
 extern crate bincode;
 extern crate router;
-extern crate futures;
 extern crate content_store;
 extern crate log;
 extern crate serde_derive;
@@ -13,7 +12,6 @@ use {
     router::{Router, Config},
     logger::setup_logging,
     packets::{response},
-    futures::executor::{ThreadPool},
     clap::{Arg, App},
     std::{
         str::FromStr,
@@ -26,44 +24,6 @@ use {
     },
     fern,
 };
-
-#[derive(Debug, PartialEq)]
-struct Face {
-    listen: String,
-    remote: String,
-}
-
-#[derive(Debug, PartialEq)]
-struct NamedData {
-    name: String,
-    data: String,
-}
-
-impl FromStr for Face {
-    type Err = std::net::AddrParseError;
-
-    fn from_str(socket_pair: &str) -> Result<Self, Self::Err> {
-        let v: Vec<&str> = socket_pair.split('-').collect();
-        let listen: String = v[0].to_string();
-        let remote: String = v[1].to_string();
-        Ok( Face { listen: listen, remote: remote })
-    }
-}
-
-impl Face {
-    fn is_ok(&self) -> bool {
-        true
-    }
-}
-
-fn is_valid_socket(val: String) -> Result<(), String> {
-    let face = Face::from_str(&val).unwrap();
-    if face.is_ok() {
-        Ok(())
-    } else {
-        Err(String::from("face ip address didn't cut it"))
-    }
-}
 
 fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error>> {
     let file = File::open(path)?;
@@ -87,8 +47,7 @@ fn main() {
                         .long("listen")
                         .multiple(false)
                         .help("Udp port to listen on")
-                        .takes_value(true)
-                        .validator(is_valid_socket))
+                        .takes_value(true))
                     .arg(Arg::with_name("verbosity")
                         .short("v")
                         .long("verbosity")
@@ -104,14 +63,6 @@ fn main() {
     trace!("copernica node started");
 
     let mut r = Router::new_with_config(config);
-    r.add_peer("127.0.0.1:8090".into());
-    r.insert_into_cs(response("hello0".into(), "hello0".as_bytes().to_vec()));
-    r.insert_into_cs(response("hello1".into(), "hello1".as_bytes().to_vec()));
-    r.insert_into_cs(response("hello2".into(), "hello2".as_bytes().to_vec()));
-    r.insert_into_cs(response("hello3".into(), "hello3".as_bytes().to_vec()));
-    r.insert_into_cs(response("hello4".into(), "hello4".as_bytes().to_vec()));
     r.run();
-
-
 }
 

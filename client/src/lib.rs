@@ -45,7 +45,7 @@ impl CopernicaRequestor {
         self.inbound_request_receiver.clone()
     }
     */
-    pub fn request(&mut self, names: Vec<String>) -> StdHashMap<String, Option<CopernicaPacket>> {
+    pub fn request(&mut self, names: Vec<String>, timeout: u64) -> StdHashMap<String, Option<CopernicaPacket>> {
         let mut look_for_these: Arc<RwLock<HashMap<Sdri, String>>> = Arc::new(RwLock::new(HashMap::new()));
         let mut results : StdHashMap<String, Option<CopernicaPacket>> = StdHashMap::new();
         let mut found: Arc<RwLock<StdHashMap<String, Option<CopernicaPacket>>>> = Arc::new(RwLock::new(StdHashMap::new()));
@@ -113,7 +113,7 @@ impl CopernicaRequestor {
                 }
             } // end loop
         });
-        let duration = Some(Duration::from_millis(500));
+        let duration = Some(Duration::from_millis(timeout));
         let timeout = duration.map(|d| after(d)).unwrap_or(never());
         select! {
             recv(completed_r) -> msg => {trace!("COMPLETED") },

@@ -8,5 +8,6 @@ pub use crate::{
     router::{
         Router,
         Config,
+        NamedData,
     },
 };
