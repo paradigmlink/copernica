@@ -37,20 +37,17 @@ impl FromStr for Data {
 
 }
 
-fn router(config: Config) -> JoinHandle<()> {
-    let router = spawn( move || {
+fn router(config: Config) {
+    spawn( move || {
         let mut r = Router::new_with_config(config);
         r.run()
     });
-    router
 }
 
-fn setup_network(network: Vec<Config>) -> Vec<JoinHandle<()>> {
-    let mut threads: Vec<JoinHandle<()>> = vec![];
+fn setup_network(network: Vec<Config>) {
     for node in network {
-        threads.push(router(node));
+        router(node);
     }
-    threads
 }
 
 fn main() {
