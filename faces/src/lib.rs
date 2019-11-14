@@ -10,6 +10,7 @@ use {
 
 #[derive(Debug, Clone)]
 pub struct Face {
+    id:                u16,
     pending_request:   SparseDistributedRepresentation,
     forwarding_hint:   SparseDistributedRepresentation,
     forwarded_request: SparseDistributedRepresentation,
@@ -17,12 +18,17 @@ pub struct Face {
 }
 
 impl Face {
-    pub fn new() -> Face {
+    pub fn new(id: u16) -> Face {
         Face {
+            id:                 id,
             pending_request:    SparseDistributedRepresentation::new(),
             forwarding_hint:    SparseDistributedRepresentation::new(),
             forwarded_request:  SparseDistributedRepresentation::new(),
         }
+    }
+
+    pub fn get_id(&self) -> u16 {
+        self.id.clone()
     }
     // Pending Request Sparse Distributed Representation
 

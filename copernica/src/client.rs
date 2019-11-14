@@ -8,7 +8,7 @@ use {
 };
 
 fn main() {
-    env_logger::init();
+//    env_logger::init();
     let args: Vec<String> = env::args().collect();
     let listen: String = args[1].clone().to_string();
     let remote: String = args[2].clone().to_string();
