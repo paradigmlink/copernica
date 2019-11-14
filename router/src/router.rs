@@ -49,7 +49,7 @@ impl Router {
             for address in peer_addresses {
                 trace!("[SETUP] adding peer: {:?}", address);
                 let socket_addr: SocketAddr = address.parse().unwrap();
-                faces.insert(socket_addr, Face::new());
+                faces.insert(socket_addr, Face::new(socket_addr.port()));
             }
         }
         Router {
@@ -67,7 +67,8 @@ impl Router {
 
     pub fn add_peer(&mut self, address: String) {
         trace!("[SETUP] adding peer: {}", address);
-        self.faces.insert(address.parse().unwrap(), Face::new());
+        let socket_addr: SocketAddr = address.parse().unwrap();
+        self.faces.insert(socket_addr, Face::new(socket_addr.port()));
     }
 
     pub fn run(&mut self) {
@@ -92,8 +93,10 @@ impl Router {
                     }
                     SocketEvent::Connect(address) => {
                         trace!("Adding {:?} to faces", address);
-                        active_connections.insert(address.clone());
-                        self.faces.insert(address, Face::new());
+                        if active_connections.contains(&address) == false {
+                            active_connections.insert(address.clone());
+                            self.faces.insert(address, Face::new(address.port()));
+                        }
                     }
                     _ => {trace!("silence...");}
                 }
@@ -183,8 +186,9 @@ fn mk_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPac
 
 fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Vec<Vec<u16>>) -> String {
     format!(
-    "r{0:<3} {1: <5} pr{2: <3}d{3: <3}fr{4: <3}d{5: <3}fh{6: <3}d{7: <0}",
+    "r{0:<3}f{1: <5} {2: <5} pr{3: <3}d{4: <3}fr{5: <3}d{6: <3}fh{7: <3}d{8: <0}",
         router_id,
+        face.get_id(),
         direction,
         face.contains_pending_request(&sdri),
         face.pending_request_decoherence(),
