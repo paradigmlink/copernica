@@ -7,12 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-router = { path = "../router" }
-faces = { path = "../faces" }
-content-store = { path = "../content-store" }
+copernica-lib = { path = "../copernica-lib" }
 logger = { path = "../logger" }
 packets = { path = "../packets" }
-client = { path = "../client" }
 crossbeam = "0.7"
 crossbeam-channel = "0.3"
 log = "0.4"

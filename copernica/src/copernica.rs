@@ -1,6 +1,5 @@
 extern crate bincode;
-extern crate router;
-extern crate content_store;
+extern crate copernica_lib;
 extern crate log;
 extern crate serde_derive;
 extern crate serde_json;
@@ -8,7 +7,7 @@ extern crate clap;
 
 use {
     log::{trace},
-    router::{Router, Config},
+    copernica_lib::{Router, Config},
     logger::setup_logging,
     clap::{Arg, App},
     std::{

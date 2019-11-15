@@ -1,7 +1,9 @@
 use {
     packets::{Packet as CopernicaPacket, response},
-    content_store::{ContentStore},
-    faces::{Face},
+    crate::{
+        node::content_store::{ContentStore},
+        node::faces::{Face},
+    },
     bincode::{serialize, deserialize},
     laminar::{Packet as LaminarPacket, Socket, SocketEvent},
     log::{trace},

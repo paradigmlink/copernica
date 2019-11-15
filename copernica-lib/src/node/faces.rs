@@ -1,7 +1,4 @@
-mod sparse_distributed_representation;
-use {
-    sparse_distributed_representation::{SparseDistributedRepresentation},
-};
+use crate::node::sparse_distributed_representation::{SparseDistributedRepresentation};
 
 #[derive(Debug, Clone)]
 pub struct Face {
@@ -39,6 +36,7 @@ impl Face {
     pub fn pending_request_decoherence(&mut self) -> u8 {
         self.pending_request.decoherence()
     }
+    #[allow(dead_code)]
     pub fn partially_forget_pending_request(&mut self) {
         self.pending_request.partially_forget();
     }
@@ -58,6 +56,7 @@ impl Face {
     pub fn forwarded_request_decoherence(&mut self) -> u8 {
         self.forwarded_request.decoherence()
     }
+    #[allow(dead_code)]
     pub fn partially_forget_forwarded_request(&mut self) {
         self.forwarded_request.partially_forget();
     }

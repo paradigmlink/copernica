@@ -1,18 +1,20 @@
 [package]
-name = "faces"
+name = "ccli"
 version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"
 
+[[bin]]
+name = "ccli"
+path = "src/main.rs"
+
 [dependencies]
-rand = "0.7.2"
-bitvec = "0.15.2"
-bincode = "1"
 packets = { path = "../packets" }
-async-task = "1.0.0"
+copernica-lib = { path = "../copernica-lib" }
+crossbeam = "0.7.3"
+crossbeam-channel = "0.3"
+bincode = "1"
 log = "0.4"
 env_logger = "0.7.1"
 laminar = "0.3.2"
-
-[dev-dependencies]
-env_logger = "0.7.1"
+im = "13.0.0"

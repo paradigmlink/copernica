@@ -8,18 +8,11 @@ edition = "2018"
 name = "copernica"
 path = "src/copernica.rs"
 
-[[bin]]
-name = "client"
-path = "src/client.rs"
-
 [dependencies]
 
 bincode = "1"
-router = { path = "../router" }
-faces = { path = "../faces" }
-content-store = { path = "../content-store" }
+copernica-lib = { path = "../copernica-lib" }
 logger = { path = "../logger" }
-client = { path = "../client" }
 log = "0.4"
 clap = "2.33.0"
 fern = "0.5.9"

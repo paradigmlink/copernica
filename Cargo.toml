@@ -2,11 +2,9 @@
 
 members = [
     "copernica",
-    "router",
+    "copernica-lib",
     "packets",
-    "faces",
-    "content-store",
-    "client",
+    "ccli",
     "network-simulator",
     "logger",
 ]

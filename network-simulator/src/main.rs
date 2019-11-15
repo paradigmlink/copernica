@@ -1,12 +1,9 @@
 use {
-    client::{CopernicaRequestor},
-    packets::{Packet, response},
-    router::{Router, Config, NamedData},
+    copernica_lib::{Router, Config},
     std::{
         str::FromStr,
         str,
         thread::{spawn},
-        collections::HashMap,
     },
     log::{trace},
 };
@@ -29,14 +26,14 @@ impl FromStr for Data {
     }
 
 }
-
+#[allow(dead_code)]
 fn router(config: Config) {
     spawn( move || {
         let mut r = Router::new_with_config(config);
         r.run()
     });
 }
-
+#[allow(dead_code)]
 fn setup_network(network: Vec<Config>) {
     for node in network {
         router(node);
@@ -52,6 +49,14 @@ fn main() {
 #[cfg(test)]
 mod network_regressions {
     use super::*;
+
+    use {
+        packets::{Packet, response},
+        copernica_lib::{Config, NamedData, CopernicaRequestor},
+        std::{
+            collections::HashMap,
+        },
+    };
 
     #[test]
     fn small_world_graph() {
