@@ -71,17 +71,6 @@ impl Router {
         }
     }
 
-    pub fn insert_into_cs(&mut self, response: CopernicaPacket) {
-        trace!("[SETUP] adding named data");
-        self.cs.put_data(response);
-    }
-
-    pub fn add_peer(&mut self, address: String) {
-        trace!("[SETUP] adding peer: {}", address);
-        let socket_addr: SocketAddr = address.parse().unwrap();
-        self.faces.insert(socket_addr, Face::new(socket_addr.port()));
-    }
-
     pub fn run(&mut self) {
         let mut socket = Socket::bind(self.listen_addr).unwrap();
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
