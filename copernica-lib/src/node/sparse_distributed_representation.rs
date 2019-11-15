@@ -1,6 +1,7 @@
 use {
     rand::Rng,
     bitvec::prelude::*,
+    packets::{Sdri},
 };
 
 #[derive(Debug, Clone)]
@@ -15,7 +16,7 @@ impl SparseDistributedRepresentation {
         }
     }
 
-    pub fn insert(&mut self, packet: &Vec<Vec<u16>>) {
+    pub fn insert(&mut self, packet: &Sdri) {
         for row in packet {
             for elem in row {
                 self.sdr.set(*elem as usize, true);
@@ -23,7 +24,7 @@ impl SparseDistributedRepresentation {
         }
     }
 
-    pub fn contains(&mut self, packet: &Vec<Vec<u16>>) -> u8 {
+    pub fn contains(&mut self, packet: &Sdri) -> u8 {
         let mut sdr_vals: Vec<u32> = Vec::new();
         for row in packet {
             for elem in row {
@@ -36,7 +37,7 @@ impl SparseDistributedRepresentation {
         percentage as u8
     }
 
-    pub fn delete(&mut self, packet: &Vec<Vec<u16>>) {
+    pub fn delete(&mut self, packet: &Sdri) {
         for row in packet {
             for elem in row {
                 self.sdr.set(*elem as usize, false);

@@ -1,7 +1,7 @@
 use sha3::{Digest, Sha3_512};
 use crate::Sdri;
 
-const HEX : [&'static str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
+const HEX : [&str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
 
 fn hash_name(s: &str) -> String {
     let mut hasher = Sha3_512::new();
@@ -9,7 +9,7 @@ fn hash_name(s: &str) -> String {
     format!("{:x}", hasher.result())
 }
 
-fn index_of_lowest_occuring_char_in_hash<'a>( hash: &'a String) -> Vec<(u16, &'a str)> {
+fn index_of_lowest_occuring_char_in_hash<'a>( hash: &'a str) -> Vec<(u16, &'a str)> {
     let mut old: Vec<(usize, &str)> = vec![(0,""); 15];
     for c in HEX[0..].iter() {
         let new: Vec<(usize, &str)> = hash.match_indices(c).collect();
@@ -25,7 +25,7 @@ fn index_of_lowest_occuring_char_in_hash<'a>( hash: &'a String) -> Vec<(u16, &'a
 }
 
 fn gen_2048_sparsity(u: Vec<(u16, &str)>) -> Vec<u16> {
-    u.iter().map(|(x, y)| (x * 16 + ((u16::from_str_radix(y, 16).unwrap())))).collect::<Vec<u16>>()
+    u.iter().map(|(x, y)| (x * 16 + (u16::from_str_radix(y, 16).unwrap()))).collect::<Vec<u16>>()
 }
 
 fn name_sparsity(s: &str) -> Vec<(u16)> {
@@ -33,7 +33,7 @@ fn name_sparsity(s: &str) -> Vec<(u16)> {
 }
 
 pub fn generate_sdr_index(s: String) -> Sdri {
-    let names = s.split("/");
+    let names = s.split('/');
     let names: Vec<&str> = names.collect();
     let mut fh: Sdri = Vec::new();
     for name in names {

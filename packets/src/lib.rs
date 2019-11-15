@@ -33,7 +33,7 @@ pub fn request(name: String) -> Packet {
 pub fn response(name: String, data: Data) -> Packet {
     Packet::Response {
         sdri: generate_sdr_index(name),
-        data: data,
+        data,
     }
 }
 
@@ -41,7 +41,7 @@ impl fmt::Debug for Packet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
             Packet::Request{sdri} => write!(f, "REQ{:?}", sdri),
-            Packet::Response{sdri, data: _} => write!(f, "RES{:?}", sdri),
+            Packet::Response{sdri, ..} => write!(f, "RES{:?}", sdri),
         }
     }
 }

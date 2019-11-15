@@ -52,9 +52,9 @@ impl CopernicaRequestor {
         let sdri_binding_to_name_phase2_ref = self.sdri_binding_to_name.clone();
         let look_for_these_phase1_ref = look_for_these.clone();
         let look_for_these_phase2_ref = look_for_these.clone();
-        let look_for_these_phase3_ref = look_for_these.clone();
+        let look_for_these_phase3_ref = look_for_these;
         let found_phase2_ref = found.clone();
-        let found_phase3_ref = found.clone();
+        let found_phase3_ref = found;
         let mut socket = Socket::bind_any().unwrap();
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         thread::spawn(move || socket.start_polling());
@@ -87,7 +87,7 @@ impl CopernicaRequestor {
                                 trace!("REQUEST ARRIVED: {:?}", sdri);
                                 continue
                             },
-                            CopernicaPacket::Response { sdri, data: _ } => {
+                            CopernicaPacket::Response { sdri, .. } => {
                                 trace!("RESPONSE ARRIVED: {:?}", sdri);
                                 if let Some(name)= look_for_these_guard.get(&sdri) {
                                     sdri_binding_to_packet_guard.insert(sdri.clone(), packet.clone());
@@ -112,7 +112,7 @@ impl CopernicaRequestor {
             } // end loop
         });
         let duration = Some(Duration::from_millis(timeout));
-        let timeout = duration.map(|d| after(d)).unwrap_or(never());
+        let timeout = duration.map(|d| after(d)).unwrap_or_else(never);
         select! {
             recv(completed_r) -> _msg => {trace!("COMPLETED") },
             recv(timeout) -> _ => { trace!("TIME OUT") },

@@ -1,4 +1,9 @@
-use crate::node::sparse_distributed_representation::{SparseDistributedRepresentation};
+use {
+    crate::node::sparse_distributed_representation::{
+        SparseDistributedRepresentation
+    },
+    packets::{Sdri},
+};
 
 #[derive(Debug, Clone)]
 pub struct Face {
@@ -12,7 +17,7 @@ pub struct Face {
 impl Face {
     pub fn new(id: u16) -> Face {
         Face {
-            id:                 id,
+            id,
             pending_request:    SparseDistributedRepresentation::new(),
             forwarding_hint:    SparseDistributedRepresentation::new(),
             forwarded_request:  SparseDistributedRepresentation::new(),
@@ -20,17 +25,17 @@ impl Face {
     }
 
     pub fn get_id(&self) -> u16 {
-        self.id.clone()
+        self.id
     }
     // Pending Request Sparse Distributed Representation
 
-    pub fn create_pending_request(&mut self, packet_sdri: &Vec<Vec<u16>>) {
+    pub fn create_pending_request(&mut self, packet_sdri: &Sdri) {
         self.pending_request.insert(&packet_sdri);
     }
-    pub fn contains_pending_request(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8 {
+    pub fn contains_pending_request(&mut self, request_sdri: &Sdri) -> u8 {
         self.pending_request.contains(request_sdri)
     }
-    pub fn delete_pending_request(&mut self, request_sdri: &Vec<Vec<u16>>) {
+    pub fn delete_pending_request(&mut self, request_sdri: &Sdri) {
         self.pending_request.delete(request_sdri);
     }
     pub fn pending_request_decoherence(&mut self) -> u8 {
@@ -44,13 +49,13 @@ impl Face {
 
     // Forwarded Request Sparse Distributed Representation
 
-    pub fn create_forwarded_request(&mut self, packet_sdri: &Vec<Vec<u16>>) {
+    pub fn create_forwarded_request(&mut self, packet_sdri: &Sdri) {
         self.forwarded_request.insert(&packet_sdri);
     }
-    pub fn contains_forwarded_request(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8 {
+    pub fn contains_forwarded_request(&mut self, request_sdri: &Sdri) -> u8 {
         self.forwarded_request.contains(request_sdri)
     }
-    pub fn delete_forwarded_request(&mut self, request_sdri: &Vec<Vec<u16>>) {
+    pub fn delete_forwarded_request(&mut self, request_sdri: &Sdri) {
         self.forwarded_request.delete(request_sdri);
     }
     pub fn forwarded_request_decoherence(&mut self) -> u8 {
@@ -63,10 +68,10 @@ impl Face {
 
 
     // Forwarding Hint Sparse Distributed Representation
-    pub fn create_forwarding_hint(&mut self, data_sdri: &Vec<Vec<u16>>) {
+    pub fn create_forwarding_hint(&mut self, data_sdri: &Sdri) {
         self.forwarding_hint.insert(&data_sdri);
     }
-    pub fn contains_forwarding_hint(&mut self, request_sdri: &Vec<Vec<u16>>) -> u8 {
+    pub fn contains_forwarding_hint(&mut self, request_sdri: &Sdri) -> u8 {
         self.forwarding_hint.contains(request_sdri)
     }
     pub fn forwarding_hint_decoherence(&mut self) -> u8 {

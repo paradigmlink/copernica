@@ -1,5 +1,5 @@
 use {
-    packets::{Packet as CopernicaPacket, response},
+    packets::{Packet as CopernicaPacket, response, Sdri},
     crate::{
         node::content_store::{ContentStore},
         node::faces::{Face},
@@ -65,9 +65,9 @@ impl Router {
         }
         Router {
             listen_addr: config.listen_addr.parse().unwrap(),
-            faces: faces,
+            faces,
             id: rand::thread_rng().gen_range(0,255),
-            cs: cs,
+            cs,
         }
     }
 
@@ -93,7 +93,7 @@ impl Router {
                     }
                     SocketEvent::Connect(address) => {
                         trace!("Adding {:?} to faces", address);
-                        if active_connections.contains(&address) == false {
+                        if !active_connections.contains(&address) {
                             active_connections.insert(address.clone());
                             self.faces.insert(address, Face::new(address.port()));
                         }
@@ -142,7 +142,7 @@ impl Router {
                                 broadcast.push(address.clone())
 
                             }
-                            if is_forwarded == false {
+                            if !is_forwarded {
                                 for address in broadcast {
                                     if let Some(face) = self.faces.get_mut(&address) {
                                         face.create_forwarded_request(&sdri);
@@ -154,7 +154,7 @@ impl Router {
                         },
                     }
                 },
-                CopernicaPacket::Response { sdri, data: _ } => {
+                CopernicaPacket::Response { sdri, .. } => {
                     if this_face.contains_forwarded_request(&sdri) > 15 {
                         this_face.delete_forwarded_request(&sdri);
                         if this_face.forwarding_hint_decoherence() > 80 {
@@ -183,7 +183,7 @@ fn mk_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPac
     LaminarPacket::reliable_unordered(address, serialize(&packet).unwrap().to_vec())
 }
 
-fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Vec<Vec<u16>>) -> String {
+fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Sdri) -> String {
     format!(
     "r{0:<3}f{1: <5} {2: <5} pr{3: <3}d{4: <3}fr{5: <3}d{6: <3}fh{7: <3}d{8: <0}",
         router_id,
@@ -197,3 +197,8 @@ fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Vec<Vec<u1
         face.forwarding_hint_decoherence())
 }
 
+impl Default for Router {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -1,12 +1,11 @@
-use packets::{Packet};
+use packets::{Packet, Sdri};
 use lru::LruCache;
-use std::vec::Vec;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct ContentStore{
-    cache: Arc<Mutex<LruCache<Vec<Vec<u16>>, Packet>>>,
+    cache: Arc<Mutex<LruCache<Sdri, Packet>>>,
 }
 
 impl ContentStore {
@@ -19,7 +18,7 @@ impl ContentStore {
 }
 
 impl ContentStore {
-    pub fn has_data(&self, sdri: &Vec<Vec<u16>>) -> Option<Packet> {
+    pub fn has_data(&self, sdri: &Sdri) -> Option<Packet> {
         match self.cache.lock().unwrap().get(sdri) {
             Some(packet) => {
                 Some(packet.clone())
@@ -33,7 +32,7 @@ impl ContentStore {
     pub fn put_data(&mut self, data: Packet) {
         match data.clone() {
             Packet::Response { sdri, data: _p_data } => {
-                self.cache.lock().unwrap().put(sdri.clone(), data);
+                self.cache.lock().unwrap().put(sdri, data);
             },
             Packet::Request { sdri } => {
                 assert_eq!(Packet::Request { sdri: sdri }, data);
