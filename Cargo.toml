@@ -5,6 +5,6 @@ members = [
     "copernica-lib",
     "packets",
     "ccli",
-    "network-simulator",
+    "network-regressions",
     "logger",
 ]

@@ -5,7 +5,6 @@ use {
         str,
         thread::{spawn},
     },
-    log::{trace},
 };
 
 
@@ -38,12 +37,6 @@ fn setup_network(network: Vec<Config>) {
     for node in network {
         router(node);
     }
-}
-
-fn main() {
-    //logger::setup_logging(3, None).unwrap();
-    //small_world_graph();
-    trace!("finished small world");
 }
 
 #[cfg(test)]

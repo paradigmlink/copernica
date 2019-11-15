@@ -520,7 +520,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "network-simulator"
+name = "network-regressions"
 version = "0.1.0"
 dependencies = [
  "copernica-lib 0.1.0",
