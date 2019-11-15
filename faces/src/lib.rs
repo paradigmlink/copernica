@@ -1,11 +1,6 @@
 mod sparse_distributed_representation;
 use {
     sparse_distributed_representation::{SparseDistributedRepresentation},
-    std::{
-        sync::{Arc, Mutex},
-        cell::{RefCell},
-    },
-    log::{info},
 };
 
 #[derive(Debug, Clone)]

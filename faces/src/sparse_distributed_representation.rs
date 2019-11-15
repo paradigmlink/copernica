@@ -58,17 +58,6 @@ impl SparseDistributedRepresentation {
         percentage as u8
     }
 
-    #[cfg(test)]
-    pub fn print(&self) {
-        println!("{:?}", self.sdr);
-    }
-
-    #[cfg(test)]
-    pub fn fill_1s(&mut self) {
-        for i in 0 .. 2048 {
-            self.sdr.set(i, true);
-        }
-    }
 }
 
 impl PartialEq for SparseDistributedRepresentation {

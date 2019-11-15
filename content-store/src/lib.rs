@@ -4,10 +4,6 @@ use std::vec::Vec;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use {
-    log::{info},
-};
-
 #[derive(Debug, Clone)]
 pub struct ContentStore{
     cache: Arc<Mutex<LruCache<Vec<Vec<u16>>, Packet>>>,

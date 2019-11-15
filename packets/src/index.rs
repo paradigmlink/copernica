@@ -54,7 +54,7 @@ mod tests {
     use tar::Archive;
     use std::io::{BufRead, BufReader};
     use bitvec::prelude::*;
-    use crate::{mk_interest};
+    use crate::{Packet, request};
 
     #[test]
     fn load_test_sdr() {
@@ -109,9 +109,9 @@ mod tests {
 
     #[test]
     fn test_interest_creation() {
-        let interest = mk_interest("mozart/topology/data".to_string());
+        let interest = request("mozart/topology/data".to_string());
         assert_eq!(
-            Packet::Interest {
+            Packet::Request {
                 sdri: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
             , interest);
     }
@@ -163,13 +163,6 @@ mod tests {
         assert_eq!(hash_name("2"), "564e1971233e098c26d412f2d4e652742355e616fed8ba88fc9750f869aac1c29cb944175c374a7b6769989aa7a4216198ee12f53bf7827850dfe28540587a97");
 
 }
-
-    #[test]
-    fn base64_encode() {
-        let b64 = encode(b"domain/app/data");
-        let txt = decode(&b64);
-        assert_eq!(b"domain/app/data", &txt.unwrap()[..]);
-    }
 
     #[test]
     fn struct_encode_decode() {

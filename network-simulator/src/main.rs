@@ -1,18 +1,11 @@
 use {
     client::{CopernicaRequestor},
-    crossbeam_channel::{
-        Receiver,
-        unbounded,
-    },
-    packets::{Packet, response, request},
-    logger,
+    packets::{Packet, response},
     router::{Router, Config, NamedData},
     std::{
         str::FromStr,
         str,
-        thread::{spawn, sleep, JoinHandle},
-        time,
-        io,
+        thread::{spawn},
         collections::HashMap,
     },
     log::{trace},
@@ -65,7 +58,7 @@ mod network_regressions {
         // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
         // node0 is 12 o'clock, node1 is 1 o'clock, etc.
         //logger::setup_logging(3, None).unwrap();
-        let mut network: Vec<Config> = vec![
+        let network: Vec<Config> = vec![
             Config { listen_addr: "127.0.0.1:50000".into(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50001".into(),
                                       "127.0.0.1:50002".into(),
@@ -163,7 +156,7 @@ mod network_regressions {
             "hello9".to_string(),
             "hello10".to_string(),
             "hello11".to_string(),
-            ], 500);
+            ], 1500);
         let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
             expected.insert("hello0".to_string(), Some(response("hello0".to_string(),"world".to_string().as_bytes().to_vec())));
             expected.insert("hello1".to_string(), Some(response("hello1".to_string(),"world".to_string().as_bytes().to_vec())));
@@ -218,7 +211,7 @@ mod network_regressions {
     #[test]
     fn timeout() {
         //logger::setup_logging(3, None).unwrap();
-        let mut network: Vec<Config> = vec![
+        let network: Vec<Config> = vec![
             Config {
                 listen_addr: "127.0.0.1:50104".into(),
                 content_store_size: 50,

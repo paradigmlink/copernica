@@ -4,25 +4,19 @@ extern crate content_store;
 extern crate log;
 extern crate serde_derive;
 extern crate serde_json;
-#[macro_use]
 extern crate clap;
 
 use {
     log::{trace},
     router::{Router, Config},
     logger::setup_logging,
-    packets::{response},
     clap::{Arg, App},
     std::{
-        str::FromStr,
-        io,
-        thread::{spawn, park},
         error::Error,
         io::BufReader,
         path::Path,
         fs::File,
     },
-    fern,
 };
 
 fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error>> {

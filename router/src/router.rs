@@ -1,17 +1,12 @@
 use {
-    crossbeam_channel::{unbounded, Sender, Receiver},
     packets::{Packet as CopernicaPacket, response},
     content_store::{ContentStore},
     faces::{Face},
-    logger,
     bincode::{serialize, deserialize},
-    laminar::{ErrorKind, Packet as LaminarPacket, Socket, SocketEvent},
+    laminar::{Packet as LaminarPacket, Socket, SocketEvent},
     log::{trace},
     rand::Rng,
     std::{
-        sync::{Arc, Mutex},
-        rc::Rc,
-        cell::RefCell,
         net::SocketAddr,
         collections::{HashMap, HashSet},
     },
@@ -88,7 +83,7 @@ impl Router {
     pub fn run(&mut self) {
         let mut socket = Socket::bind(self.listen_addr).unwrap();
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
-        let thread = std::thread::spawn(move || socket.start_polling());
+        let _thread = std::thread::spawn(move || socket.start_polling());
         let mut active_connections: HashSet<SocketAddr> = HashSet::new();
         loop {
             if let Ok(event) = receiver.recv() {
@@ -96,7 +91,7 @@ impl Router {
                 match event {
                     SocketEvent::Packet(packet) => {
                         if self.faces.contains_key(&packet.clone().addr()) {
-                            self.handle_packet(packet.clone(), &active_connections, &mut handled_packets);
+                            self.handle_packet(packet.clone(), &mut handled_packets);
                             for p in handled_packets {
                                 sender.send(p).expect("Failed to send");
                             }
@@ -112,13 +107,12 @@ impl Router {
                             self.faces.insert(address, Face::new(address.port()));
                         }
                     }
-                    _ => {trace!("silence...");}
                 }
             }
         };
     }
 
-    fn handle_packet(&mut self,  laminar_packet: LaminarPacket, active_connections: &HashSet<SocketAddr>, handle_packets: &mut Vec<LaminarPacket>) {
+    fn handle_packet(&mut self,  laminar_packet: LaminarPacket, handle_packets: &mut Vec<LaminarPacket>) {
         let payload = laminar_packet.payload();
         let copernica_packet: CopernicaPacket = deserialize(&payload).unwrap();
         let packet_from: SocketAddr = laminar_packet.addr();
@@ -137,7 +131,7 @@ impl Router {
                             let mut broadcast = Vec::new();
                             this_face.create_pending_request(&sdri);
                             trace!("[REQDN {}] left breadcrumb pending request", face_stats(self.id, "IN",  this_face, &sdri));
-                            for (address, mut that_face) in self.faces.iter_mut() {
+                            for (address, that_face) in self.faces.iter_mut() {
                                 if *address == packet_from { continue }
                                 if that_face.contains_forwarded_request(&sdri) > 10 {
                                     trace!("[REQDN {}] don't send request downstream again", face_stats(self.id, "OUT",  that_face, &sdri));
@@ -169,7 +163,7 @@ impl Router {
                         },
                     }
                 },
-                CopernicaPacket::Response { sdri, data } => {
+                CopernicaPacket::Response { sdri, data: _ } => {
                     if this_face.contains_forwarded_request(&sdri) > 15 {
                         this_face.delete_forwarded_request(&sdri);
                         if this_face.forwarding_hint_decoherence() > 80 {
@@ -178,7 +172,7 @@ impl Router {
                         this_face.create_forwarding_hint(&sdri);
                         trace!("[RESUP {}] response matched pending request", face_stats(self.id, "IN",  this_face, &sdri));
                         self.cs.put_data(copernica_packet.clone());
-                        for (address, mut that_face) in self.faces.iter_mut() {
+                        for (address, that_face) in self.faces.iter_mut() {
                             if *address == packet_from { continue }
                             that_face.delete_forwarded_request(&sdri);
                             if that_face.contains_pending_request(&sdri) > 50 {
