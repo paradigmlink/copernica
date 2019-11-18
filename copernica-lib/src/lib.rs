@@ -1,15 +1,14 @@
 extern crate lru;
-
+extern crate rand_chacha;
+extern crate chain_addr;
 mod node;
-mod client;
+pub mod client;
+pub mod crypto;
 
 pub use crate::{
     node::router::{
         Router,
         Config,
         NamedData,
-    },
-    client::{
-        CopernicaRequestor,
     },
 };

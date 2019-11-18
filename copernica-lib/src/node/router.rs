@@ -4,13 +4,16 @@ use {
         node::content_store::{ContentStore},
         node::faces::{Face},
     },
-    bincode::{serialize, deserialize},
+    bincode,
     laminar::{Packet as LaminarPacket, Socket, SocketEvent},
     log::{trace},
     rand::Rng,
     std::{
+        path::Path,
         net::SocketAddr,
         collections::{HashMap, HashSet},
+        fs::File,
+        io::{Read},
     },
     serde_derive::Deserialize,
 };
@@ -27,6 +30,7 @@ pub struct Config {
     pub content_store_size: u64,
     pub peers: Option<Vec<String>>,
     pub data: Option<Vec<NamedData>>,
+    pub identity: Option<Vec<String>>,
 }
 
 #[derive(Clone)]
@@ -63,6 +67,28 @@ impl Router {
                 cs.put_data(response(named_data.name.to_string(), named_data.data.to_string().as_bytes().to_vec()));
             }
         }
+        if let Some(directory) = config.identity {
+            for dir in directory {
+                let dir = Path::new(&dir);
+                if dir.is_dir() {
+                    for entry in std::fs::read_dir(dir).unwrap() {
+                        let entry = entry.unwrap();
+                        let path = entry.path();
+                        //let path = Path::new(&path);
+                        if path.is_dir() {
+                            continue
+                        } else {
+                            let contents = std::fs::read(path.clone()).unwrap();
+                            let contents_deser: CopernicaPacket = bincode::deserialize(&contents).unwrap();
+                            let file_name = &path.file_stem().unwrap();
+                            cs.put_data(contents_deser.clone());
+                            trace!("[SETUP] adding identity {:?}", file_name);
+                        }
+                    }
+                }
+                //cs.put_data();
+            }
+        }
         Router {
             listen_addr: config.listen_addr.parse().unwrap(),
             faces,
@@ -72,6 +98,7 @@ impl Router {
     }
 
     pub fn run(&mut self) {
+        trace!("listening on {:?}", self.listen_addr);
         let mut socket = Socket::bind(self.listen_addr).unwrap();
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         let _thread = std::thread::spawn(move || socket.start_polling());
@@ -105,7 +132,7 @@ impl Router {
 
     fn handle_packet(&mut self,  laminar_packet: LaminarPacket, handle_packets: &mut Vec<LaminarPacket>) {
         let payload = laminar_packet.payload();
-        let copernica_packet: CopernicaPacket = deserialize(&payload).unwrap();
+        let copernica_packet: CopernicaPacket = bincode::deserialize(&payload).unwrap();
         let packet_from: SocketAddr = laminar_packet.addr();
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
             match copernica_packet.clone() {
@@ -180,7 +207,7 @@ impl Router {
 }
 
 fn mk_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPacket {
-    LaminarPacket::reliable_unordered(address, serialize(&packet).unwrap().to_vec())
+    LaminarPacket::reliable_unordered(address, bincode::serialize(&packet).unwrap().to_vec())
 }
 
 fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Sdri) -> String {

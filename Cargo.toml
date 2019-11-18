@@ -8,3 +8,7 @@ members = [
     "network-regressions",
     "logger",
 ]
+
+exclude = [
+    "chain-libs",
+]
