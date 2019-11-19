@@ -4,10 +4,6 @@ version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"
 
-[[bin]]
-name = "copernica"
-path = "src/copernica.rs"
-
 [dependencies]
 
 bincode = "1"

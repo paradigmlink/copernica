@@ -10,6 +10,7 @@ use {
     rand::Rng,
     std::{
         path::Path,
+        path::PathBuf,
         net::SocketAddr,
         collections::{HashMap, HashSet},
         fs::File,
@@ -67,26 +68,22 @@ impl Router {
                 cs.put_data(response(named_data.name.to_string(), named_data.data.to_string().as_bytes().to_vec()));
             }
         }
-        if let Some(directory) = config.identity {
-            for dir in directory {
-                let dir = Path::new(&dir);
-                if dir.is_dir() {
-                    for entry in std::fs::read_dir(dir).unwrap() {
-                        let entry = entry.unwrap();
-                        let path = entry.path();
-                        //let path = Path::new(&path);
-                        if path.is_dir() {
-                            continue
-                        } else {
-                            let contents = std::fs::read(path.clone()).unwrap();
-                            let contents_deser: CopernicaPacket = bincode::deserialize(&contents).unwrap();
-                            let file_name = &path.file_stem().unwrap();
-                            cs.put_data(contents_deser.clone());
-                            trace!("[SETUP] adding identity {:?}", file_name);
-                        }
+        if let Some(directories) = config.identity {
+            for directory in directories {
+                let directory = std::path::PathBuf::from(&directory);
+                for entry in std::fs::read_dir(directory).expect("directory not found") {
+                    let entry = entry.unwrap();
+                    let path = entry.path();
+                    if path.is_dir() {
+                        continue
+                    } else {
+                        let contents = std::fs::read(path.clone()).expect("file not found");
+                        let packet: CopernicaPacket = bincode::deserialize(&contents).unwrap();
+                        let name = &path.file_stem().unwrap();
+                        cs.put_data(packet);
+                        trace!("[SETUP] adding identity: {:?}", name);
                     }
                 }
-                //cs.put_data();
             }
         }
         Router {

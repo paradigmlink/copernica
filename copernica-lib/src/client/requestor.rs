@@ -8,6 +8,7 @@ use {
         time::{Duration},
         collections::{HashMap as StdHashMap},
         thread,
+        path::Path,
     },
     crossbeam_channel::{
             unbounded,
@@ -129,3 +130,21 @@ impl CopernicaRequestor {
         results
     }
 }
+
+pub fn load_named_responses(dir: &Path) -> HashMap<String, CopernicaPacket> {
+    let mut resps: HashMap<String, CopernicaPacket> = HashMap::new();
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.is_dir() {
+            continue
+        } else {
+            let contents = std::fs::read(path.clone()).unwrap();
+            let packet: CopernicaPacket = bincode::deserialize(&contents).unwrap();
+            let name = &path.file_stem().unwrap();
+            resps.insert(name.to_os_string().into_string().unwrap(), packet);
+        }
+    }
+    resps
+}
+
