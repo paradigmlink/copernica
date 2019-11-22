@@ -7,23 +7,10 @@ extern crate clap;
 
 use {
     log::{trace},
-    copernica_lib::{Router, Config},
+    copernica_lib::{Router, read_config_file},
     logger::setup_logging,
     clap::{Arg, App},
-    std::{
-        error::Error,
-        io::BufReader,
-        path::Path,
-        fs::File,
-    },
 };
-
-fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error>> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    let confs= serde_json::from_reader(reader)?;
-    Ok(confs)
-}
 
 fn main() {
     let matches = App::new("Copernica")

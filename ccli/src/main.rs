@@ -1,19 +1,18 @@
 extern crate packets;
-use std::env;
+extern crate serde_derive;
+extern crate serde_json;
 
 use {
     copernica_lib::{
         client::{CopernicaRequestor, load_named_responses},
-        crypto::key::generate_identity,
+        identity::{generate_identity},
+        web_of_trust::{add_trusted_identity},
+        Config, read_config_file,
     },
-    packets::{response},
     rpassword::prompt_password_stdout,
-    bincode::{serialize, deserialize},
-    log::{trace},
     structopt::StructOpt,
     std::{
         io,
-        io::*,
     },
 };
 
@@ -29,37 +28,47 @@ struct Options {
     #[structopt(short = "u", long = "use-id", help = "Load up the private key associated with this identity")]
     use_id: bool,
 
+    #[structopt(short = "t", long = "trust-id", help = "Trust someone else's identity -t <your-id> <their-id> <another-id> <etc>")]
+    trust_id: Option<Vec<String>>,
+
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbose: u8,
+
+    #[structopt(short = "c", long = "config", help = "Location of your config file")]
+    config: Option<String>,
 }
 
 fn main() {
     let options = Options::from_args();
-    let mut home = std::env::home_dir().unwrap();
-    home.push(".copernica");
-    home.push("identity");
-    println!("{:?}", options);
+    let mut config = Config::new();
+    if let Some(config_path) = options.config {
+        config = read_config_file(config_path).unwrap();
+    }
+    let mut cr = CopernicaRequestor::new("127.0.0.1:8089".into());
+    // stick in the config to the above
 
     if options.generate_id {
         let password = prompt_password_stdout("enter your new copernica password: ").unwrap();
-        let (addr, material) = generate_identity(password);
-        let path = std::path::PathBuf::from(home.clone()).join(addr.clone());
-        let material_ser = serialize(&material).unwrap();
-        std::fs::write(path, material_ser);
-        println!("created identity: {} in {:?}", addr, home);
+        generate_identity(password, &config);
     }
 
     if options.list_ids {
-        let ids = load_named_responses(home.as_path());
-        for (id, res) in ids {
+        let mut identity_dir = std::path::PathBuf::from(&config.data_dir);
+        identity_dir.push(".copernica");
+        identity_dir.push("identity");
+        let ids = load_named_responses(&identity_dir);
+        for (id, _res) in ids {
             println!("{}", id);
         }
     }
 
     if options.use_id {
-        let ids = load_named_responses(home.as_path());
+        let mut identity_dir = std::path::PathBuf::from(&config.data_dir);
+        identity_dir.push(".copernica");
+        identity_dir.push("identity");
+        let ids = load_named_responses(&identity_dir);
         println!("available identities:");
-        for (id, res) in ids {
+        for (id, _res) in ids {
             println!("{}", id);
         }
         let mut chosen_id = String::new();
@@ -67,14 +76,22 @@ fn main() {
         io::stdin().read_line(&mut chosen_id).expect("error: unable to read chosen id");
         let id_password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
         println!("chosen_id: {:?}, id_password: {:?}", chosen_id, id_password);
+    }
 
+    if let Some(ids) = options.trust_id {
+        let password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
 
+        if let Some((id_name, rest)) = ids.split_first() {
+            let id = cr.request(vec![id_name.to_string()], 100);
+
+            if let Some(Some(id_packet)) = id.get(id_name) {
+                let _id = add_trusted_identity(password, id_packet.clone(), rest.to_vec());
+            }
+        }
     }
 
 
     //let config = matches.value_of("config").unwrap_or("copernica.json");
 
 
-    let mut cr = CopernicaRequestor::new("127.0.0.1:8089".into());
-    let response = cr.request(vec!["hello".to_string()], 50);
 }
