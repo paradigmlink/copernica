@@ -49,6 +49,7 @@ mod network_regressions {
         std::{
             collections::HashMap,
         },
+        dirs,
     };
 
     #[test]
@@ -56,8 +57,11 @@ mod network_regressions {
         // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
         // node0 is 12 o'clock, node1 is 1 o'clock, etc.
         //logger::setup_logging(3, None).unwrap();
+        let mut data_dir = dirs::home_dir().unwrap();
+        data_dir.push(".copernica");
+        let data_dir = data_dir.into_os_string().into_string().unwrap();
         let network: Vec<Config> = vec![
-            Config { listen_addr: "127.0.0.1:50000".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50000".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50001".into(),
                                       "127.0.0.1:50002".into(),
                                       "127.0.0.1:50003".into(),
@@ -66,78 +70,78 @@ mod network_regressions {
                                       "127.0.0.1:50009".into(),
                                       "127.0.0.1:50010".into(),
                                       "127.0.0.1:50011".into()]),
-                     data: Some(vec![NamedData{ name: "hello0".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello0".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50001".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50001".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50000".into(),
                                       "127.0.0.1:50002".into()]),
-                     data: Some(vec![NamedData{ name: "hello1".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello1".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50002".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50002".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50000".into(),
                                       "127.0.0.1:50001".into(),
                                       "127.0.0.1:50003".into(),
                                       "127.0.0.1:50004".into()]),
-                     data: Some(vec![NamedData{ name: "hello2".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello2".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50003".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50003".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50000".into(),
                                       "127.0.0.1:50002".into(),
                                       "127.0.0.1:50004".into(),
                                       "127.0.0.1:50007".into()]),
-                     data: Some(vec![NamedData{ name: "hello3".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello3".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50004".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50004".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50002".into(),
                                       "127.0.0.1:50003".into(),
                                       "127.0.0.1:50005".into()]),
-                     data: Some(vec![NamedData{ name: "hello4".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello4".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50005".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50005".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50000".into(),
                                       "127.0.0.1:50004".into(),
                                       "127.0.0.1:50006".into()]),
-                     data: Some(vec![NamedData{ name: "hello5".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello5".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50006".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50006".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50005".into(),
                                       "127.0.0.1:50007".into(),
                                       "127.0.0.1:50008".into()]),
-                     data: Some(vec![NamedData{ name: "hello6".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello6".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50007".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50007".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50000".into(),
                                       "127.0.0.1:50003".into(),
                                       "127.0.0.1:50006".into(),
                                       "127.0.0.1:50008".into(),
                                       "127.0.0.1:50009".into(),
                                       "127.0.0.1:50010".into()]),
-                     data: Some(vec![NamedData{ name: "hello7".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello7".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50008".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50008".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50006".into(),
                                       "127.0.0.1:50007".into(),
                                       "127.0.0.1:50009".into()]),
-                     data: Some(vec![NamedData{ name: "hello8".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello8".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50009".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50009".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50007".into(),
                                       "127.0.0.1:50008".into(),
                                       "127.0.0.1:50010".into(),
                                       "127.0.0.1:50000".into()]),
-                     data: Some(vec![NamedData{ name: "hello9".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello9".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50010".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50010".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50007".into(),
                                       "127.0.0.1:50009".into(),
                                       "127.0.0.1:50011".into(),
                                       "127.0.0.1:50000".into()]),
-                     data: Some(vec![NamedData{ name: "hello10".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello10".into(), data: "world".into()}]), data_dir: data_dir.clone(),
             },
-            Config { listen_addr: "127.0.0.1:50011".into(), content_store_size: 50,
+            Config { listen_addr: "127.0.0.1:50011".parse().unwrap(), content_store_size: 50,
                      peers: Some(vec!["127.0.0.1:50010".into(),
                                       "127.0.0.1:50000".into()]),
-                     data: Some(vec![NamedData{ name: "hello11".into(), data: "world".into()}]),
+                     data: Some(vec![NamedData{ name: "hello11".into(), data: "world".into()}]), data_dir: data_dir.clone(),
         }];
         setup_network(network);
         let mut cc = CopernicaRequestor::new("127.0.0.1:50004".into());
@@ -173,30 +177,37 @@ mod network_regressions {
     #[test]
     fn a_simple_single_fetch() {
 //            logger::setup_logging(3, None).unwrap();
+            let mut data_dir = dirs::home_dir().unwrap();
+            data_dir.push(".copernica");
+            let data_dir = data_dir.into_os_string().into_string().unwrap();
             let mut network: Vec<Config> = vec![];
             network.push(Config {
-                listen_addr: "127.0.0.1:50100".into(),
+                listen_addr: "127.0.0.1:50100".parse().unwrap(),
                 content_store_size: 50,
                 peers: Some(vec!["127.0.0.1:50101".into()]),
                 data: Some(vec![NamedData{ name: "hello0".into(), data: "world".into()}]),
+                data_dir: data_dir.clone(),
             });
             network.push(Config {
-                listen_addr: "127.0.0.1:50101".into(),
+                listen_addr: "127.0.0.1:50101".parse().unwrap(),
                 content_store_size: 50,
                 peers: Some(vec!["127.0.0.1:50102".into()]),
                 data: Some(vec![NamedData{ name: "hello1".into(), data: "world".into()}]),
+                data_dir: data_dir.clone(),
             });
             network.push(Config {
-                listen_addr: "127.0.0.1:50102".into(),
+                listen_addr: "127.0.0.1:50102".parse().unwrap(),
                 content_store_size: 50,
                 peers: Some(vec!["127.0.0.1:50103".into()]),
                 data: Some(vec![NamedData{ name: "hello2".into(), data: "world".into()}]),
+                data_dir: data_dir.clone(),
             });
             network.push(Config {
-                listen_addr: "127.0.0.1:50103".into(),
+                listen_addr: "127.0.0.1:50103".parse().unwrap(),
                 content_store_size: 50,
                 peers: None,
                 data: Some(vec![NamedData{ name: "hello3".into(), data: "world".into()}]),
+                data_dir: data_dir.clone(),
             });
             setup_network(network);
             let mut cc = CopernicaRequestor::new("127.0.0.1:50100".into());
@@ -209,12 +220,16 @@ mod network_regressions {
     #[test]
     fn timeout() {
         //logger::setup_logging(3, None).unwrap();
+        let mut data_dir = dirs::home_dir().unwrap();
+        data_dir.push(".copernica");
+        let data_dir = data_dir.into_os_string().into_string().unwrap();
         let network: Vec<Config> = vec![
             Config {
-                listen_addr: "127.0.0.1:50104".into(),
+                listen_addr: "127.0.0.1:50104".parse().unwrap(),
                 content_store_size: 50,
                 peers: None,
                 data: Some(vec![NamedData{ name: "hello0".into(), data: "world".into()}]),
+                data_dir: data_dir.clone(),
             }
         ];
         setup_network(network);

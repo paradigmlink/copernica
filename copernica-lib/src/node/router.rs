@@ -1,5 +1,5 @@
 use {
-    packets::{Packet as CopernicaPacket, Sdri},
+    packets::{Packet as CopernicaPacket, response, Sdri},
     crate::{
         node::content_store::{ContentStore},
         node::faces::{Face},
@@ -20,11 +20,18 @@ use {
     serde_derive::Deserialize,
 };
 
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct NamedData {
+    pub name: String,
+    pub data: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub listen_addr: SocketAddr,
     pub content_store_size: u64,
     pub peers: Option<Vec<String>>,
+    pub data: Option<Vec<NamedData>>,
     pub data_dir: String,
 }
 
@@ -34,6 +41,7 @@ impl Config {
         Config {
             listen_addr: "127.0.0.1:8089".parse().unwrap(),
             content_store_size: 500,
+            data: None,
             peers: Some(vec!["127.0.0.1:8090".into()]),
             data_dir: data_dir.to_string_lossy().to_string(),
         }
@@ -77,6 +85,12 @@ impl Router {
             }
         }
         let mut cs = ContentStore::new(config.content_store_size);
+        if let Some(data) = config.data {
+            for named_data in data {
+                trace!("[SETUP] adding data: name: {} data: {}", named_data.name.to_string(), named_data.data.to_string());
+                cs.put_data(response(named_data.name.to_string(), named_data.data.to_string().as_bytes().to_vec()));
+            }
+        }
         if let data_dir = config.data_dir {
             let mut id = std::path::PathBuf::from(&data_dir);
             id.push("identity");
