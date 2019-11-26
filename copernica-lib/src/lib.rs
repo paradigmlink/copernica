@@ -11,7 +11,6 @@ pub use crate::{
     node::router::{
         Router,
         Config,
-        NamedData,
         read_config_file,
     },
     client::{

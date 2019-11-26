@@ -9,39 +9,34 @@ use {
     log::{trace},
     rand::Rng,
     std::{
-        path::Path,
+        path::{
+            Path,
+            PathBuf,
+        },
         net::SocketAddr,
         collections::{HashMap, HashSet},
-        fs::File,
-
+        fs,
         error::Error,
         io::BufReader,
     },
     serde_derive::Deserialize,
 };
 
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct NamedData {
-    pub name: String,
-    pub data: String,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub listen_addr: SocketAddr,
     pub content_store_size: u64,
     pub peers: Option<Vec<String>>,
-    pub data: Option<Vec<NamedData>>,
     pub data_dir: String,
 }
 
 impl Config {
     pub fn new() -> Config {
-        let data_dir = dirs::home_dir().unwrap();
+        let mut data_dir = dirs::home_dir().unwrap();
+        data_dir.push(".copernica");
         Config {
             listen_addr: "127.0.0.1:8089".parse().unwrap(),
             content_store_size: 500,
-            data: None,
             peers: Some(vec!["127.0.0.1:8090".into()]),
             data_dir: data_dir.to_string_lossy().to_string(),
         }
@@ -50,7 +45,7 @@ impl Config {
 
 
 pub fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error>> {
-    let file = File::open(path)?;
+    let file = fs::File::open(path)?;
     let reader = BufReader::new(file);
     let confs= serde_json::from_reader(reader)?;
     Ok(confs)
@@ -76,57 +71,43 @@ impl Router {
     }
 
     pub fn new_with_config(config: Config) -> Router {
+        let id = rand::thread_rng().gen_range(0,255);
         let mut faces: HashMap<SocketAddr, Face> = HashMap::new();
         if let Some(peer_addresses) = config.peers {
             for address in peer_addresses {
-                trace!("[SETUP] adding peer: {:?}", address);
+                trace!("[SETUP] router {}: adding peer: {:?}", id, address);
                 let socket_addr: SocketAddr = address.parse().unwrap();
                 faces.insert(socket_addr, Face::new(socket_addr.port()));
             }
         }
         let mut cs = ContentStore::new(config.content_store_size);
-        if let Some(data) = config.data {
-            for named_data in data {
-                trace!("[SETUP] adding data: name: {} data: {}", named_data.name.to_string(), named_data.data.to_string());
-                cs.put_data(response(named_data.name.to_string(), named_data.data.to_string().as_bytes().to_vec()));
-            }
-        }
         if let data_dir = config.data_dir {
-            let mut id = std::path::PathBuf::from(&data_dir);
-            id.push("identity");
-            let mut tc = std::path::PathBuf::from(&data_dir);
-            tc.push("trusted_connections");
-            for entry in std::fs::read_dir(id).expect("directory not found") {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_dir() {
-                    continue
-                } else {
-                    let contents = std::fs::read(path.clone()).expect("file not found");
-                    let packet: CopernicaPacket = bincode::deserialize(&contents).unwrap();
-                    let name = &path.file_stem().unwrap();
-                    cs.put_data(packet);
-                    trace!("[SETUP] adding identity: {:?}", name);
-                }
-            }
-            for entry in std::fs::read_dir(tc).expect("directory not found") {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_dir() {
-                    continue
-                } else {
-                    let contents = std::fs::read(path.clone()).expect("file not found");
-                    let packet: CopernicaPacket = bincode::deserialize(&contents).unwrap();
-                    let name = &path.file_stem().unwrap();
-                    cs.put_data(packet);
-                    trace!("[SETUP] loading trusted connection {:?}", name);
+            let content_store: PathBuf = [data_dir.clone()].iter().collect();
+            let identity: PathBuf = [data_dir.clone(), "identity".to_string()].iter().collect();
+            let trusted_connections: PathBuf = [data_dir.clone(), "trusted_connections".to_string()].iter().collect();
+
+            let cs_dirs: Vec<PathBuf> = vec![content_store, identity, trusted_connections];
+            for dir in cs_dirs {
+                fs::create_dir_all(dir.clone());
+                for entry in std::fs::read_dir(dir.clone()).expect("directory not found") {
+                    let entry = entry.unwrap();
+                    let path = entry.path();
+                    if path.is_dir() {
+                        continue
+                    } else {
+                        let contents = std::fs::read(path.clone()).expect("file not found");
+                        let packet: CopernicaPacket = bincode::deserialize(&contents).unwrap();
+                        let name = &path.file_stem().unwrap();
+                        cs.put_data(packet.clone());
+                        trace!("[SETUP] router {} using {:?}: adding to content store: {:?}", id, dir, name);
+                    }
                 }
             }
         }
         Router {
             listen_addr: config.listen_addr,
             faces,
-            id: rand::thread_rng().gen_range(0,255),
+            id,
             cs,
         }
     }
@@ -246,7 +227,7 @@ fn mk_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPac
 
 fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Sdri) -> String {
     format!(
-    "r{0:<3}f{1: <5} {2: <5} pr{3: <3}d{4: <3}fr{5: <3}d{6: <3}fh{7: <3}d{8: <0}",
+    "r{0:<3} f{1: <5} {2: <5} pr{3: <3}d{4: <3}fr{5: <3}d{6: <3}fh{7: <3}d{8: <0}",
         router_id,
         face.get_id(),
         direction,

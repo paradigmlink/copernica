@@ -35,7 +35,7 @@ impl ContentStore {
                 self.cache.lock().unwrap().put(sdri, data);
             },
             Packet::Request { sdri } => {
-                assert_eq!(Packet::Request { sdri: sdri }, data);
+                panic!("Content Store should not contain Requests");
             },
         };
     }

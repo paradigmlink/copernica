@@ -33,7 +33,7 @@ fn name_sparsity(s: &str) -> Vec<(u16)> {
 }
 
 pub fn generate_sdr_index(s: String) -> Sdri {
-    let names = s.split('/');
+    let names = s.split('-');
     let names: Vec<&str> = names.collect();
     let mut fh: Sdri = Vec::new();
     for name in names {
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_interest_creation() {
-        let interest = request("mozart/topology/data".to_string());
+        let interest = request("mozart-topology-data".to_string());
         assert_eq!(
             Packet::Request {
                 sdri: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn gen_sdr_index() {
-        let s = "domain/app/data/stewart/calculus/topology/mozart/Johann Sebastian Bach/abracadabra/abc";
+        let s = "domain-app-data-stewart-calculus-topology-mozart-Johann Sebastian Bach-abracadabra-abc";
         assert_eq!(
         vec![
             vec![898, 978, 1074, 1394],
