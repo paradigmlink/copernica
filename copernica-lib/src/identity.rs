@@ -19,7 +19,7 @@ use {
         iter::repeat,
     },
     chain_addr,
-    packets::{response},
+    packets::{response, Data},
     crate::{
         web_of_trust::{new_trusted_identity},
         node::router::{Config},
@@ -89,7 +89,8 @@ pub fn generate_identity(password: String, config: &Config) {
     let crypto_material = format!("{}{}", sk.to_bech32_str(), tc_hash);
     let encrypted_identity = encrypt_identity(password.clone(), pk.to_bech32_str(), &crypto_material);
     let id_name = format!("{}-{}",addr.clone().to_string(), 0);
-    let id = response(id_name.clone().to_string(), encrypted_identity.as_bytes().to_vec());
+    let data: Data = Data::Content { bytes: encrypted_identity.as_bytes().to_vec() };
+    let id = response(id_name.clone().to_string(), data);
     let mut identity_path = std::path::PathBuf::from(config.data_dir.clone());
     identity_path.push(".copernica");
     identity_path.push("identity");

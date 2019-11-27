@@ -9,18 +9,19 @@ use {
         },
         digest::Digest,
     },
-    packets::{Packet, response},
+    packets::{Packet, Data, response},
     chain_crypto::{Ed25519, PublicKey, SecretKey},
     bincode::{serialize},
     std::{
         collections::HashSet,
     },
 };
-
+/*
 pub fn add_trusted_identity(password: String, identity: Packet, addresses: Vec<String>)  {
     match identity {
-        Packet::Request { sdri: _ } => {},
-        Packet::Response { sdri: _, data } => {
+        Packet::Request {..} => {},
+        Packet::Response {.., data} => {
+            match Data::Manifest
             let data = String::from_utf8(data).unwrap();
             if let Some((sk, pk, tc)) = decrypt_identity(password, data.to_string()) {
                 println!("sk {:?}, pk {:?}, hash {:?}", sk, pk, tc);
@@ -28,7 +29,7 @@ pub fn add_trusted_identity(password: String, identity: Packet, addresses: Vec<S
         },
     };
 }
-
+*/
 pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &PublicKey<Ed25519>) -> String {
     let mut hasher = Sha256::new();
     let tcs: HashSet<String> = HashSet::new();
@@ -42,7 +43,8 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     //hasher.input_str("[]");
     let tc_hash = hasher.result_str();
     println!("tc_hash = {:?}", tc_hash.clone());
-    let tc_packet = response(tc_hash.clone(), tcs_ser.to_vec());
+    let data: Data = Data::Content { bytes: tcs_ser.to_vec() };
+    let tc_packet = response(tc_hash.clone(), data);
 
     let mut tc_path = std::path::PathBuf::from(config.data_dir.clone());
     tc_path.push(".copernica");
@@ -53,3 +55,4 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     std::fs::write(tc_path, tc_ser).unwrap();
     tc_hash
 }
+

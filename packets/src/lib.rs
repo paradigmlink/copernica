@@ -16,7 +16,13 @@ use std::fmt;
 use std::collections::HashMap;
 
 pub type Sdri = Vec<Vec<u16>>;
-pub type Data = Vec<u8>;
+pub type ResponseBytes = Vec<u8>;
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub enum Data {
+    Manifest { chunk_count: u64 },
+    Content  { bytes: ResponseBytes },
+}
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum Packet {
@@ -38,19 +44,22 @@ pub fn response(name: String, data: Data) -> Packet {
     }
 }
 
-pub fn mk_response(name: String, data: Data) -> HashMap<String, Packet> {
+pub fn mk_response(name: String, data: ResponseBytes) -> HashMap<String, Packet> {
     let safe_mtu: usize = 1024;
     let mut out: HashMap<String, Packet> = HashMap::new();
     if data.len() <= safe_mtu {
+        let data = Data::Content { bytes: data };
         out.insert(name.clone(), response(name, data));
     } else {
         let chunks = data.chunks(safe_mtu);
         let sequence: String = format!("{}\n{}", name.clone(), chunks.len() - 1);
+        let manifest: Data = Data::Manifest { chunk_count: (chunks.len() as u64) - 1 };
         let mut count: usize = 0;
-        out.insert(name.clone(), response(name.clone(), sequence.as_bytes().to_vec()));
+        out.insert(name.clone(), response(name.clone(), manifest));
         for chunk in chunks {
+            let data = Data::Content { bytes: chunk.to_vec() };
             let chunk_name: String = format!("{}-{}", name.clone(), count);
-            out.insert(chunk_name.clone(), response(chunk_name, chunk.to_vec()));
+            out.insert(chunk_name.clone(), response(chunk_name, data));
             count += 1;
         }
     }
@@ -62,6 +71,15 @@ impl fmt::Debug for Packet {
         match &*self {
             Packet::Request{sdri} => write!(f, "REQ{:?}", sdri),
             Packet::Response{sdri, data} => write!(f, "RES name: {:?} data: {:?}", sdri, data),
+        }
+    }
+}
+
+impl fmt::Debug for Data {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &*self {
+            Data::Manifest{chunk_count} => write!(f, "MNFT{}", chunk_count),
+            Data::Content{bytes} => write!(f, "CONT{:?}", bytes),
         }
     }
 }

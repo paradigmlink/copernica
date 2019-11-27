@@ -1,6 +1,6 @@
 // @implement: listen_for_requests
 use {
-    packets::{Packet as CopernicaPacket, Sdri, generate_sdr_index, request},
+    packets::{Packet as CopernicaPacket, Sdri, Data, generate_sdr_index, request},
     bincode::{serialize, deserialize},
     std::{
         net::{SocketAddr},
@@ -129,6 +129,16 @@ impl CopernicaRequestor {
         }
         results
     }
+
+/*    pub fn resolve(name: String, timeout: u64) -> Data {
+        let actual = self.request(vec![name]);
+        match bincode::deserialize(&actual.1) {
+            Packet::Response { sdri, data } => {
+            }
+        }
+        let out
+    }
+*/
 }
 
 pub fn load_named_responses(dir: &Path) -> HashMap<String, CopernicaPacket> {

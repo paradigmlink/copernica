@@ -6,7 +6,7 @@ use {
     copernica_lib::{
         client::{CopernicaRequestor, load_named_responses},
         identity::{generate_identity},
-        web_of_trust::{add_trusted_identity},
+        //web_of_trust::{add_trusted_identity},
         Config, read_config_file,
     },
     rpassword::prompt_password_stdout,
@@ -85,7 +85,8 @@ fn main() {
             let id = cr.request(vec![id_name.to_string()], 100);
 
             if let Some(Some(id_packet)) = id.get(id_name) {
-                let _id = add_trusted_identity(password, id_packet.clone(), rest.to_vec());
+
+                //let _id = add_trusted_identity(password, id_packet.clone(), rest.to_vec());
             }
         }
     }

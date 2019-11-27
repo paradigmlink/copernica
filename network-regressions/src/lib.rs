@@ -1,6 +1,6 @@
 use {
     copernica_lib::{Router, Config},
-    packets::{mk_response, Data},
+    packets::{mk_response, Data, ResponseBytes},
     std::{
         str::FromStr,
         str,
@@ -37,7 +37,7 @@ fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
             .map(|()| rng.sample(Alphanumeric))
             .take(7)
             .collect();
-    let value: Data = vec![data; size];
+    let value: ResponseBytes = vec![data; size];
     let packets = mk_response(name.clone().to_string(), value);
     let mut dir = env::temp_dir();
     dir.push("copernica");
@@ -172,29 +172,29 @@ mod network_regressions {
             "hello11".to_string(),
             ], 5000);
         let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
-            let value0: Data = vec![0; 1024];
+            let value0: Data = Data::Content{bytes: vec![0; 1024]};
             expected.insert("hello0".to_string(), Some(response("hello0".to_string(),value0)));
-            let value1: Data = vec![1; 1024];
+            let value1: Data = Data::Content{bytes: vec![1; 1024]};
             expected.insert("hello1".to_string(), Some(response("hello1".to_string(),value1)));
-            let value2: Data = vec![2; 1024];
+            let value2: Data = Data::Content{bytes: vec![2; 1024]};
             expected.insert("hello2".to_string(), Some(response("hello2".to_string(),value2)));
-            let value3: Data = vec![3; 1024];
+            let value3: Data = Data::Content{bytes: vec![3; 1024]};
             expected.insert("hello3".to_string(), Some(response("hello3".to_string(),value3)));
-            let value4: Data = vec![4; 1024];
+            let value4: Data = Data::Content{bytes: vec![4; 1024]};
             expected.insert("hello4".to_string(), Some(response("hello4".to_string(),value4)));
-            let value5: Data = vec![5; 1024];
+            let value5: Data = Data::Content{bytes: vec![5; 1024]};
             expected.insert("hello5".to_string(), Some(response("hello5".to_string(),value5)));
-            let value6: Data = vec![6; 1024];
+            let value6: Data = Data::Content{bytes: vec![6; 1024]};
             expected.insert("hello6".to_string(), Some(response("hello6".to_string(),value6)));
-            let value7: Data = vec![7; 1024];
+            let value7: Data = Data::Content{bytes: vec![7; 1024]};
             expected.insert("hello7".to_string(), Some(response("hello7".to_string(),value7)));
-            let value8: Data = vec![8; 1024];
+            let value8: Data = Data::Content{bytes: vec![8; 1024]};
             expected.insert("hello8".to_string(), Some(response("hello8".to_string(),value8)));
-            let value9: Data = vec![9; 1024];
+            let value9: Data = Data::Content{bytes: vec![9; 1024]};
             expected.insert("hello9".to_string(), Some(response("hello9".to_string(),value9)));
-            let value10: Data = vec![10; 1024];
+            let value10: Data = Data::Content{bytes: vec![10; 1024]};
             expected.insert("hello10".to_string(), Some(response("hello10".to_string(),value10)));
-            let value11: Data = vec![11; 1024];
+            let value11: Data = Data::Content{bytes: vec![11; 1024]};
             expected.insert("hello11".to_string(), Some(response("hello11".to_string(),value11)));
         assert_eq!(actual, expected);
     }
@@ -230,8 +230,8 @@ mod network_regressions {
             let mut cc = CopernicaRequestor::new("127.0.0.1:50100".into());
             let actual = cc.request(vec![ "hello3".to_string(), "hello0".to_string()], 200);
             let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
-            let value0: Data = vec![0; 1024];
-            let value3: Data = vec![3; 1024];
+            let value0: Data = Data::Content{bytes: vec![0; 1024]};
+            let value3: Data = Data::Content{bytes: vec![3; 1024]};
             expected.insert("hello3".to_string(), Some(response("hello3".to_string(),value3)));
             expected.insert("hello0".to_string(), Some(response("hello0".to_string(),value0)));
             assert_eq!(actual, expected);
@@ -275,13 +275,36 @@ mod network_regressions {
             "hello-1".to_string(),
         ], 500);
         let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
-        let value0: Data = "hello\n1".as_bytes().to_vec();
+        let value0: Data = Data::Manifest{chunk_count:1};
         expected.insert("hello".to_string(), Some(response("hello".to_string(),value0)));
-        let value1: Data = vec![0; 1024];
+        let value1: Data = Data::Content{bytes:vec![0; 1024]};
         expected.insert("hello-0".to_string(), Some(response("hello-0".to_string(),value1)));
-        let value2: Data = vec![0; 1];
+        let value2: Data = Data::Content{bytes:vec![0; 1]};
         expected.insert("hello-1".to_string(), Some(response("hello-1".to_string(),value2)));
         assert_eq!(actual, expected);
 
     }
+    /*#[test]
+    fn resolve() {
+        //logger::setup_logging(3, None).unwrap();
+        let network: Vec<Config> = vec![
+            Config {
+                listen_addr: "127.0.0.1:50105".parse().unwrap(),
+                content_store_size: 50,
+                peers: None,
+                data_dir: populate_tmp_dir("hello".to_string(), 0, 1025),
+            },
+        ];
+        setup_network(network);
+        let mut cc = CopernicaRequestor::new("127.0.0.1:50105".into());
+        let actual = cc.resolve(vec![
+            "hello".to_string(),
+        ], 500);
+        let mut expected: HashMap<String, ResponseBytes> = HashMap::new();
+        let value: Data = Data::Content vec![0; 1025];
+        expected.insert("hello".to_string(), Some(response("hello".to_string(),value)));
+        assert_eq!(actual, expected);
+
+    }
+    */
 }
