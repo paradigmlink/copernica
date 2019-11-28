@@ -1,6 +1,6 @@
 // @implement: listen_for_requests
 use {
-    packets::{Packet as CopernicaPacket, Sdri, Data, generate_sdr_index, request},
+    packets::{Packet as CopernicaPacket, Sdri, ChunkBytes, Data, generate_sdr_index, request},
     bincode::{serialize, deserialize},
     std::{
         net::{SocketAddr},
@@ -130,15 +130,66 @@ impl CopernicaRequestor {
         results
     }
 
-/*    pub fn resolve(name: String, timeout: u64) -> Data {
-        let actual = self.request(vec![name]);
-        match bincode::deserialize(&actual.1) {
-            Packet::Response { sdri, data } => {
+    pub fn resolve(&mut self, name: String, timeout: u64) -> ChunkBytes {
+        let actual = self.request(vec![name.clone()], timeout);
+        let mut out: ChunkBytes = Vec::new();
+        if actual.len() == 1 {
+            match actual.get(&name).unwrap() {
+                Some(packet) => {
+                    match packet {
+                        CopernicaPacket::Response { sdri, data } => {
+                            match data {
+                                Data::Manifest { chunk_count } => {
+                                    trace!("GOT MULTI PACKET RESPONES with CHUNK COUNT = {}", chunk_count);
+                                    let mut names: Vec<String> = Vec::new();
+                                    for n in 0..*chunk_count + 1{
+                                        let fmt_name = format!("{}-{}", name.clone(), n);
+                                        names.push(fmt_name);
+                                    }
+                                    let chunks = self.request(names, timeout);
+                                    out = stitch_packets(chunks);
+                                },
+                                Data::Content { bytes } => {
+                                    trace!("GOT SINGLE PACKET RESPONSE {:?}", bytes);
+                                    out = bytes.to_vec();
+                                },
+                            };
+                        },
+                        _ => unreachable!(),
+                    }
+                },
+                None => unreachable!(),
             }
         }
-        let out
+        out
     }
-*/
+}
+
+fn stitch_packets(chunks: StdHashMap<String, Option<CopernicaPacket>>) -> ChunkBytes {
+    let mut prepare: StdHashMap<u64, ChunkBytes> = StdHashMap::new();
+    for (name, packet) in chunks.clone() {
+        if let Some(packet) = packet {
+            let v: Vec<&str> = name.rsplit("-").collect();
+            let number = v[0].parse::<u64>();
+            match packet {
+                CopernicaPacket::Response { data, ..} => {
+                    match data {
+                        Data::Content { bytes } => {
+                            prepare.insert(number.unwrap(), bytes);
+                        },
+                        _ => {},
+                    }
+                },
+                _ => {},
+            }
+        }
+    }
+    let mut entire: ChunkBytes = Vec::new();
+    for n in 0..chunks.len() {
+        let chunk = prepare.get(&(n as u64)).unwrap();
+        entire.extend(chunk);
+    }
+    entire
 }
 
 pub fn load_named_responses(dir: &Path) -> HashMap<String, CopernicaPacket> {

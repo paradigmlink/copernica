@@ -1,6 +1,6 @@
 use {
     copernica_lib::{Router, Config},
-    packets::{mk_response, Data, ResponseBytes},
+    packets::{mk_response, Data, ChunkBytes},
     std::{
         str::FromStr,
         str,
@@ -37,7 +37,7 @@ fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
             .map(|()| rng.sample(Alphanumeric))
             .take(7)
             .collect();
-    let value: ResponseBytes = vec![data; size];
+    let value: ChunkBytes = vec![data; size];
     let packets = mk_response(name.clone().to_string(), value);
     let mut dir = env::temp_dir();
     dir.push("copernica");
@@ -170,7 +170,7 @@ mod network_regressions {
             "hello9".to_string(),
             "hello10".to_string(),
             "hello11".to_string(),
-            ], 5000);
+            ], 3000);
         let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
             let value0: Data = Data::Content{bytes: vec![0; 1024]};
             expected.insert("hello0".to_string(), Some(response("hello0".to_string(),value0)));
@@ -284,27 +284,40 @@ mod network_regressions {
         assert_eq!(actual, expected);
 
     }
-    /*#[test]
-    fn resolve() {
+
+    #[test]
+    fn resolve_gt_mtu() {
         //logger::setup_logging(3, None).unwrap();
         let network: Vec<Config> = vec![
             Config {
-                listen_addr: "127.0.0.1:50105".parse().unwrap(),
+                listen_addr: "127.0.0.1:50106".parse().unwrap(),
                 content_store_size: 50,
                 peers: None,
                 data_dir: populate_tmp_dir("hello".to_string(), 0, 1025),
             },
         ];
         setup_network(network);
-        let mut cc = CopernicaRequestor::new("127.0.0.1:50105".into());
-        let actual = cc.resolve(vec![
-            "hello".to_string(),
-        ], 500);
-        let mut expected: HashMap<String, ResponseBytes> = HashMap::new();
-        let value: Data = Data::Content vec![0; 1025];
-        expected.insert("hello".to_string(), Some(response("hello".to_string(),value)));
+        let mut cc = CopernicaRequestor::new("127.0.0.1:50106".into());
+        let actual = cc.resolve("hello".to_string(), 500);
+        let mut expected: ChunkBytes = vec![0; 1025];
         assert_eq!(actual, expected);
-
     }
-    */
+
+    #[test]
+    fn resolve_lt_mtu() {
+        //logger::setup_logging(3, None).unwrap();
+        let network: Vec<Config> = vec![
+            Config {
+                listen_addr: "127.0.0.1:50107".parse().unwrap(),
+                content_store_size: 50,
+                peers: None,
+                data_dir: populate_tmp_dir("hello".to_string(), 0, 1023),
+            },
+        ];
+        setup_network(network);
+        let mut cc = CopernicaRequestor::new("127.0.0.1:50107".into());
+        let actual = cc.resolve("hello".to_string(), 500);
+        let mut expected: ChunkBytes = vec![0; 1023];
+        assert_eq!(actual, expected);
+    }
 }

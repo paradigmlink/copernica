@@ -16,12 +16,12 @@ use std::fmt;
 use std::collections::HashMap;
 
 pub type Sdri = Vec<Vec<u16>>;
-pub type ResponseBytes = Vec<u8>;
+pub type ChunkBytes = Vec<u8>;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum Data {
     Manifest { chunk_count: u64 },
-    Content  { bytes: ResponseBytes },
+    Content  { bytes: ChunkBytes },
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ pub fn response(name: String, data: Data) -> Packet {
     }
 }
 
-pub fn mk_response(name: String, data: ResponseBytes) -> HashMap<String, Packet> {
+pub fn mk_response(name: String, data: ChunkBytes) -> HashMap<String, Packet> {
     let safe_mtu: usize = 1024;
     let mut out: HashMap<String, Packet> = HashMap::new();
     if data.len() <= safe_mtu {
