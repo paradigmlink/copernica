@@ -133,40 +133,45 @@ impl CopernicaRequestor {
     pub fn resolve(&mut self, name: String, timeout: u64) -> ChunkBytes {
         let actual = self.request(vec![name.clone()], timeout);
         let mut out: ChunkBytes = Vec::new();
-        if actual.len() == 1 {
-            match actual.get(&name).unwrap() {
-                Some(packet) => {
-                    match packet {
-                        CopernicaPacket::Response { sdri, data } => {
-                            match data {
-                                Data::Manifest { chunk_count } => {
-                                    trace!("GOT MULTI PACKET RESPONES with CHUNK COUNT = {}", chunk_count);
-                                    let mut names: Vec<String> = Vec::new();
-                                    for n in 0..*chunk_count + 1{
-                                        let fmt_name = format!("{}-{}", name.clone(), n);
-                                        names.push(fmt_name);
-                                    }
-                                    let chunks = self.request(names, timeout);
-                                    out = stitch_packets(chunks);
-                                },
-                                Data::Content { bytes } => {
-                                    trace!("GOT SINGLE PACKET RESPONSE {:?}", bytes);
-                                    out = bytes.to_vec();
-                                },
-                            };
-                        },
-                        _ => unreachable!(),
-                    }
-                },
-                None => unreachable!(),
-            }
+        match actual.get(&name) {
+            Some(packet) => {
+                match packet {
+                    Some(packet) => {
+                        match packet {
+                            CopernicaPacket::Response { sdri, data } => {
+                                match data {
+                                    Data::Manifest { chunk_count } => {
+                                        trace!("GOT MULTI PACKET RESPONES with CHUNK COUNT = {}", chunk_count);
+                                        let mut names: Vec<String> = Vec::new();
+                                        for n in 0..*chunk_count + 1{
+                                            let fmt_name = format!("{}-{}", name.clone(), n);
+                                            names.push(fmt_name);
+                                        }
+                                        let chunks = self.request(names, timeout);
+                                        out = stitch_packets(chunks);
+                                    },
+                                    Data::Content { bytes } => {
+                                        trace!("GOT SINGLE PACKET RESPONSE {:?}", bytes);
+                                        out = bytes.to_vec();
+                                    },
+                                };
+                            },
+                            CopernicaPacket::Request {..} => eprintln!("Request found, when it shouldn't be found"),
+                        };
+                    },
+                    None => eprintln!("Network returned None"),
+                }
+            },
+            None => eprintln!("Response not in resolve hashmap"),
         }
         out
     }
 }
 
 fn stitch_packets(chunks: StdHashMap<String, Option<CopernicaPacket>>) -> ChunkBytes {
+    use std::num::ParseIntError;
     let mut prepare: StdHashMap<u64, ChunkBytes> = StdHashMap::new();
+    //println!("chunks hm = {:?}", chunks);
     for (name, packet) in chunks.clone() {
         if let Some(packet) = packet {
             let v: Vec<&str> = name.rsplit("-").collect();
@@ -185,7 +190,9 @@ fn stitch_packets(chunks: StdHashMap<String, Option<CopernicaPacket>>) -> ChunkB
         }
     }
     let mut entire: ChunkBytes = Vec::new();
+    //println!("prepare hm = {:?}", prepare);
     for n in 0..chunks.len() {
+        println!("chunk number: {:?}", n);
         let chunk = prepare.get(&(n as u64)).unwrap();
         entire.extend(chunk);
     }

@@ -1,13 +1,15 @@
 use {
     copernica_lib::{Router, Config},
-    packets::{mk_response, Data, ChunkBytes},
+    packets::{mk_response, Data, ChunkBytes, Packet},
     std::{
         str::FromStr,
         str,
         env,
         fs,
+        path::PathBuf,
         io::Write,
         thread::{spawn},
+        collections::HashMap,
     },
     bincode,
     log::{trace},
@@ -26,8 +28,7 @@ fn setup_network(network: Vec<Config>) {
         router(node);
     }
 }
-
-fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
+fn generate_random_dir_name() -> PathBuf {
     use std::iter;
     use rand::{Rng, thread_rng};
     use rand::distributions::Alphanumeric;
@@ -37,13 +38,47 @@ fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
             .map(|()| rng.sample(Alphanumeric))
             .take(7)
             .collect();
-    let value: ChunkBytes = vec![data; size];
-    let packets = mk_response(name.clone().to_string(), value);
+
     let mut dir = env::temp_dir();
     dir.push("copernica");
     dir.push(unique_dir);
-    let out = dir.clone().to_string_lossy().to_string();
     fs::create_dir_all(dir.clone());
+    dir
+}
+fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize) -> Vec<String> {
+    let mut tmp_dirs: Vec<PathBuf> = Vec::with_capacity(node_count);
+    for n in 0..node_count {
+        tmp_dirs.push(generate_random_dir_name());
+    }
+    println!("{:?}", tmp_dirs);
+    let mut all_packets: HashMap<String, Packet> = HashMap::new();
+    for n in 0..node_count {
+        let name = format!("hello{}", n.clone());
+        let value: ChunkBytes = vec![n.clone() as u8; 1024 * node_count ];
+        let packets = mk_response(name, value);
+        for (name, packet) in packets {
+            all_packets.insert(name, packet);
+        }
+    }
+    let mut current_tmp_dir = 0;
+    for (name, packet) in &all_packets {
+        let file = tmp_dirs[current_tmp_dir].join(name.clone());
+        let mut f = fs::File::create(file).unwrap();
+        let packet_ser = bincode::serialize(&packet).unwrap();
+        f.write_all(&packet_ser).unwrap();
+        f.sync_all().unwrap();
+        if current_tmp_dir == node_count - 1 {
+            current_tmp_dir = 0;
+        } else {
+            current_tmp_dir += 1;
+        }
+    }
+    tmp_dirs.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<String>>()
+}
+fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
+    let value: ChunkBytes = vec![data; size];
+    let packets = mk_response(name.clone().to_string(), value);
+    let dir = generate_random_dir_name();
     for (name, packet) in packets {
         let dir = dir.join(name.clone());
         let mut f = fs::File::create(dir).unwrap();
@@ -51,7 +86,7 @@ fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
         f.write_all(&packet_ser).unwrap();
         f.sync_all().unwrap();
     }
-    out
+    dir.clone().to_string_lossy().to_string()
 }
 
 #[cfg(test)]
@@ -68,7 +103,7 @@ mod network_regressions {
     };
 
     #[test]
-    fn small_world_graph() {
+    fn small_world_graph_lt_mtu() {
         // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
         // node0 is 12 o'clock, node1 is 1 o'clock, etc.
         //logger::setup_logging(3, None).unwrap();
@@ -198,8 +233,112 @@ mod network_regressions {
             expected.insert("hello11".to_string(), Some(response("hello11".to_string(),value11)));
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn small_world_graph_gt_mtu() {
+        // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
+        // node0 is 12 o'clock, node1 is 1 o'clock, etc.
+        logger::setup_logging(3, None).unwrap();
+        let tmp_dirs = populate_tmp_dir_dispersed_gt_mtu(12);
+        let network: Vec<Config> = vec![
+            Config { listen_addr: "127.0.0.1:50020".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50021".into(),
+                                      "127.0.0.1:50022".into(),
+                                      "127.0.0.1:50023".into(),
+                                      "127.0.0.1:50025".into(),
+                                      "127.0.0.1:50027".into(),
+                                      "127.0.0.1:50029".into(),
+                                      "127.0.0.1:50030".into(),
+                                      "127.0.0.1:50031".into()]),
+                     data_dir: tmp_dirs[0].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50021".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50020".into(),
+                                      "127.0.0.1:50022".into()]),
+                     data_dir: tmp_dirs[1].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50022".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50020".into(),
+                                      "127.0.0.1:50021".into(),
+                                      "127.0.0.1:50023".into(),
+                                      "127.0.0.1:50024".into()]),
+                     data_dir: tmp_dirs[2].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50023".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50020".into(),
+                                      "127.0.0.1:50022".into(),
+                                      "127.0.0.1:50024".into(),
+                                      "127.0.0.1:50027".into()]),
+                     data_dir: tmp_dirs[3].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50024".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50022".into(),
+                                      "127.0.0.1:50023".into(),
+                                      "127.0.0.1:50025".into()]),
+                     data_dir: tmp_dirs[4].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50025".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50020".into(),
+                                      "127.0.0.1:50024".into(),
+                                      "127.0.0.1:50026".into()]),
+                     data_dir: tmp_dirs[5].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50026".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50025".into(),
+                                      "127.0.0.1:50027".into(),
+                                      "127.0.0.1:50028".into()]),
+                     data_dir: tmp_dirs[6].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50027".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50020".into(),
+                                      "127.0.0.1:50023".into(),
+                                      "127.0.0.1:50026".into(),
+                                      "127.0.0.1:50028".into(),
+                                      "127.0.0.1:50029".into(),
+                                      "127.0.0.1:50030".into()]),
+                     data_dir: tmp_dirs[7].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50028".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50026".into(),
+                                      "127.0.0.1:50027".into(),
+                                      "127.0.0.1:50029".into()]),
+                     data_dir: tmp_dirs[8].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50029".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50027".into(),
+                                      "127.0.0.1:50028".into(),
+                                      "127.0.0.1:50030".into(),
+                                      "127.0.0.1:50020".into()]),
+                     data_dir: tmp_dirs[9].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50030".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50027".into(),
+                                      "127.0.0.1:50029".into(),
+                                      "127.0.0.1:50031".into(),
+                                      "127.0.0.1:50020".into()]),
+                     data_dir: tmp_dirs[10].clone(),
+            },
+            Config { listen_addr: "127.0.0.1:50031".parse().unwrap(), content_store_size: 150,
+                     peers: Some(vec!["127.0.0.1:50030".into(),
+                                      "127.0.0.1:50020".into()]),
+                     data_dir: tmp_dirs[11].clone(),
+        }];
+        setup_network(network);
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        let mut cc = CopernicaRequestor::new("127.0.0.1:50024".into());
+//        let expected: ChunkBytes = vec![2; 1024 * 12];
+//        let actual = cc.resolve("hello2".to_string(), 6000);
+//        assert_eq!(actual, expected);
+        for n in 0..11 {
+            let expected: ChunkBytes = vec![n; 1024 * 12];
+            let actual = cc.resolve(format!("hello{}", n), 6000);
+            assert_eq!(actual, expected);
+        }
+
+    }
     #[test]
     fn single_fetch() {
+            //populate_tmp_dir_dispersed_gt_mtu(3);
             //logger::setup_logging(3, None).unwrap();
             let mut network: Vec<Config> = vec![];
             network.push(Config {
@@ -228,7 +367,7 @@ mod network_regressions {
             });
             setup_network(network);
             let mut cc = CopernicaRequestor::new("127.0.0.1:50100".into());
-            let actual = cc.request(vec![ "hello3".to_string(), "hello0".to_string()], 200);
+            let actual = cc.request(vec![ "hello3".to_string(), "hello0".to_string()], 300);
             let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
             let value0: Data = Data::Content{bytes: vec![0; 1024]};
             let value3: Data = Data::Content{bytes: vec![3; 1024]};
@@ -291,14 +430,15 @@ mod network_regressions {
         let network: Vec<Config> = vec![
             Config {
                 listen_addr: "127.0.0.1:50106".parse().unwrap(),
-                content_store_size: 50,
+                content_store_size: 5000,
                 peers: None,
                 data_dir: populate_tmp_dir("hello".to_string(), 0, 1025),
             },
         ];
         setup_network(network);
+        std::thread::sleep(std::time::Duration::from_millis(1000));
         let mut cc = CopernicaRequestor::new("127.0.0.1:50106".into());
-        let actual = cc.resolve("hello".to_string(), 500);
+        let actual = cc.resolve("hello".to_string(), 2000);
         let mut expected: ChunkBytes = vec![0; 1025];
         assert_eq!(actual, expected);
     }

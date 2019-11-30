@@ -52,7 +52,6 @@ pub fn mk_response(name: String, data: ChunkBytes) -> HashMap<String, Packet> {
         out.insert(name.clone(), response(name, data));
     } else {
         let chunks = data.chunks(safe_mtu);
-        let sequence: String = format!("{}\n{}", name.clone(), chunks.len() - 1);
         let manifest: Data = Data::Manifest { chunk_count: (chunks.len() as u64) - 1 };
         let mut count: usize = 0;
         out.insert(name.clone(), response(name.clone(), manifest));
@@ -70,7 +69,7 @@ impl fmt::Debug for Packet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
             Packet::Request{sdri} => write!(f, "REQ{:?}", sdri),
-            Packet::Response{sdri, data} => write!(f, "RES name: {:?} data: {:?}", sdri, data),
+            Packet::Response{sdri, data} => write!(f, "RES name: {:?}", sdri)
         }
     }
 }
