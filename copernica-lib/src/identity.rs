@@ -34,12 +34,11 @@ const ADDRESS_PREFIX: &str = "ceo";
 const PASSWORD_DERIVATION_ITERATIONS: u32 = 20_000;
 const SK_SIZE: usize = 69;
 const PK_SIZE: usize = SK_SIZE;
-const TRUSTED_CONNECTIONS_HASH_SIZE: usize = 64;
 const SALT_SIZE: usize = 16;
 const NONCE_SIZE: usize = 12;
 const TAG_SIZE: usize = 16;
 const KEY_SIZE: usize = 32;
-const CLEARTEXT_SIZE: usize = SK_SIZE + TRUSTED_CONNECTIONS_HASH_SIZE;
+const CLEARTEXT_SIZE: usize = SK_SIZE;
 const CIPHERTEXT_SIZE: usize = CLEARTEXT_SIZE;
 const DIGEST_SIZE: usize = PK_SIZE + SALT_SIZE + NONCE_SIZE + CIPHERTEXT_SIZE + TAG_SIZE;
 
@@ -50,7 +49,6 @@ type Nonce = [u8; NONCE_SIZE];
 type Tag = [u8; TAG_SIZE];
 type SK = [u8; SK_SIZE];
 type PK = [u8; PK_SIZE];
-type TC = [u8; TRUSTED_CONNECTIONS_HASH_SIZE];
 
 fn generate_nonce() -> Nonce {
     let mut buf: Nonce = [0u8; NONCE_SIZE];
@@ -85,15 +83,15 @@ pub fn generate_identity(password: String, config: &Config) {
     let sk: SecretKey<Ed25519> = SecretKey::generate(&mut rng);
     let pk: PublicKey<Ed25519> = sk.to_public();
     let addr = Address(chain_addr::Address(DISCRIMINATION, chain_addr::Kind::Single(pk.clone())));
-    let tc_hash: String = new_trusted_identity(config, &sk, &pk);
-    let crypto_material = format!("{}{}", sk.to_bech32_str(), tc_hash);
+    //let tc_hash: String = new_trusted_identity(config, &sk, &pk);
+    let crypto_material = format!("{}", sk.to_bech32_str());
     let encrypted_identity = encrypt_identity(password.clone(), pk.to_bech32_str(), &crypto_material);
-    let id_name = format!("{}-{}",addr.clone().to_string(), 0);
+    let id_name = format!("{}",addr.clone().to_string());
     let data: Data = Data::Content { bytes: encrypted_identity.as_bytes().to_vec() };
     let id = response(id_name.clone().to_string(), data);
     let mut identity_path = std::path::PathBuf::from(config.data_dir.clone());
-    identity_path.push(".copernica");
     identity_path.push("identity");
+    println!("DATA_DIR: {:?}", identity_path);
     let identity_path = identity_path.join(id_name);
     let id_ser = serialize(&id).unwrap();
     std::fs::write(identity_path, id_ser).unwrap();
@@ -118,14 +116,13 @@ pub fn encrypt_identity(password: String, pk: String, cleartext: &String) -> Str
     base64::encode(&digest)
 }
 
-pub fn decrypt_identity( password: String, digest : String) -> Option<(String, String, String)> {
+pub fn decrypt_identity( password: String, digest : String) -> Option<(String, String)> {
     let digest = base64::decode(&digest).unwrap();
     let mut digest = &digest[..];
     let mut salt: Salt = [0; SALT_SIZE];
     let mut nonce: Nonce = [0; NONCE_SIZE];
     let mut key: Key = [0; KEY_SIZE];
     let mut sk: SK = [0; SK_SIZE];
-    let mut tc: TC = [0; TRUSTED_CONNECTIONS_HASH_SIZE];
     let mut pk: PK = [0; PK_SIZE];
     let len = digest.len() - TAG_SIZE - SALT_SIZE - NONCE_SIZE - PK_SIZE;
     let mut cleartext: Vec<u8> = repeat(0).take(len).collect();
@@ -137,11 +134,9 @@ pub fn decrypt_identity( password: String, digest : String) -> Option<(String, S
     if decipher.decrypt(&digest[0..len], &mut cleartext[..], &digest[len..]) {
         let mut cleartext = &cleartext[..];
         cleartext.read_exact(&mut sk[..]).unwrap();
-        cleartext.read_exact(&mut tc[..]).unwrap();
         let sk = String::from_utf8(sk.to_vec()).unwrap();
         let pk = String::from_utf8(pk.to_vec()).unwrap();
-        let tc = String::from_utf8(tc.to_vec()).unwrap();
-        Some((sk, pk, tc))
+        Some((sk, pk))
     } else {
         None
     }

@@ -5,7 +5,7 @@ extern crate serde_json;
 use {
     copernica_lib::{
         client::{CopernicaRequestor, load_named_responses},
-        identity::{generate_identity},
+        identity::{generate_identity, decrypt_identity},
         //web_of_trust::{add_trusted_identity},
         Config, read_config_file,
     },
@@ -21,6 +21,9 @@ use {
 struct Options {
     #[structopt(short = "g", long = "generate-id", help = "Generate a new Ed25519 identity keypair")]
     generate_id: bool,
+
+    #[structopt(short = "d", long = "decrypt-id", help = "Generate a new Ed25519 identity keypair")]
+    decrypt_id: Option<String>,
 
     #[structopt(short = "l", long = "list-ids", help = "List identities")]
     list_ids: bool,
@@ -76,6 +79,14 @@ fn main() {
         io::stdin().read_line(&mut chosen_id).expect("error: unable to read chosen id");
         let id_password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
         println!("chosen_id: {:?}, id_password: {:?}", chosen_id, id_password);
+    }
+
+    if let Some(id) = options.decrypt_id {
+        let password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
+
+        let id = cr.resolve(id.to_string(), 100);
+        let digest = String::from_utf8(id.to_vec()).unwrap();
+        println!("{:?}", decrypt_identity(password, digest).unwrap());
     }
 
     if let Some(ids) = options.trust_id {

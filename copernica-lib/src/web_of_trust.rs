@@ -30,7 +30,7 @@ pub fn add_trusted_identity(password: String, identity: Packet, addresses: Vec<S
     };
 }
 */
-pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &PublicKey<Ed25519>) -> String {
+pub fn new_trusted_connections(config: &Config, sk: &SecretKey<Ed25519>, pk: &PublicKey<Ed25519>) -> String {
     let mut hasher = Sha256::new();
     let tcs: HashSet<String> = HashSet::new();
     let tcs_ser = &bincode::serialize(&tcs).unwrap();

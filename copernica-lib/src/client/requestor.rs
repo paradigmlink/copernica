@@ -170,12 +170,12 @@ impl CopernicaRequestor {
 
 fn stitch_packets(chunks: StdHashMap<String, Option<CopernicaPacket>>) -> ChunkBytes {
     use std::num::ParseIntError;
-    let mut prepare: StdHashMap<u64, ChunkBytes> = StdHashMap::new();
+    let mut prepare: StdHashMap<usize, ChunkBytes> = StdHashMap::new();
     //println!("chunks hm = {:?}", chunks);
     for (name, packet) in chunks.clone() {
         if let Some(packet) = packet {
             let v: Vec<&str> = name.rsplit("-").collect();
-            let number = v[0].parse::<u64>();
+            let number = v[0].parse::<usize>();
             match packet {
                 CopernicaPacket::Response { data, ..} => {
                     match data {
@@ -191,9 +191,16 @@ fn stitch_packets(chunks: StdHashMap<String, Option<CopernicaPacket>>) -> ChunkB
     }
     let mut entire: ChunkBytes = Vec::new();
     //println!("prepare hm = {:?}", prepare);
+    let mut nones = 0;
+    for n in 0..chunks.len() {
+        if prepare.get(&n).is_none() {
+            nones += 1;
+        }
+        println!("{}/{} Nones", nones, chunks.len());
+    }
     for n in 0..chunks.len() {
         println!("chunk number: {:?}", n);
-        let chunk = prepare.get(&(n as u64)).unwrap();
+        let chunk = prepare.get(&n).unwrap();
         entire.extend(chunk);
     }
     entire
