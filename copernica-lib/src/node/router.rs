@@ -1,8 +1,10 @@
 use {
-    packets::{Packet as CopernicaPacket, response, Sdri},
     crate::{
-        node::content_store::{ContentStore},
-        node::faces::{Face},
+        node::{
+            content_store::{ContentStore},
+            faces::{Face},
+        },
+        packets::{Packet as CopernicaPacket, response, Sdri},
     },
     bincode,
     laminar::{Packet as LaminarPacket, Socket, SocketEvent},
@@ -127,6 +129,7 @@ impl Router {
                             self.handle_packet(packet.clone(), &mut handled_packets);
                             for p in handled_packets {
                                 sender.send(p).expect("Failed to send");
+                                std::thread::sleep(std::time::Duration::from_millis(1));
                             }
                         }
                     }
@@ -134,8 +137,8 @@ impl Router {
                         trace!("Client timed out: {}", address);
                     }
                     SocketEvent::Connect(address) => {
-                        trace!("Adding {:?} to faces", address);
                         if !active_connections.contains(&address) {
+                            trace!("Adding {:?} to faces", address);
                             active_connections.insert(address.clone());
                             self.faces.insert(address, Face::new(address.port()));
                         }
@@ -166,11 +169,11 @@ impl Router {
                             trace!("[REQDN {}] left breadcrumb pending request", face_stats(self.id, "IN",  this_face, &sdri));
                             for (address, that_face) in self.faces.iter_mut() {
                                 if *address == packet_from { continue }
-                                if that_face.contains_forwarded_request(&sdri) > 10 {
+                                if that_face.contains_forwarded_request(&sdri) > 51 {
                                     trace!("[REQDN {}] don't send request downstream again", face_stats(self.id, "OUT",  that_face, &sdri));
                                     continue
                                 }
-                                if that_face.contains_pending_request(&sdri)   > 10 {
+                                if that_face.contains_pending_request(&sdri)   > 51 {
                                     trace!("[REQDN {}] don't send request upstream", face_stats(self.id, "OUT",  that_face, &sdri));
                                     continue
                                 }

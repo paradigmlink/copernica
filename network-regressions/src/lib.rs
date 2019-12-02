@@ -1,6 +1,9 @@
 use {
-    copernica_lib::{Router, Config},
-    packets::{mk_response, Data, ChunkBytes, Packet},
+    copernica_lib::{
+        Router,
+        Config,
+        packets::{mk_response, Data, ChunkBytes, Packet},
+    },
     std::{
         str::FromStr,
         str,
@@ -47,19 +50,21 @@ fn generate_random_dir_name() -> PathBuf {
 }
 fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize) -> Vec<String> {
     let mut tmp_dirs: Vec<PathBuf> = Vec::with_capacity(node_count);
-    const DATA_COUNT: usize = 1;
+    const DATA_COUNT: usize = 12;
     for n in 0..node_count {
         tmp_dirs.push(generate_random_dir_name());
     }
     println!("{:?}", tmp_dirs);
     let mut all_packets: HashMap<String, Packet> = HashMap::new();
-    for n in 0..DATA_COUNT{
+    for n in 0..DATA_COUNT {
         let name = format!("hello{}", n.clone());
-        let value: ChunkBytes = vec![n.clone() as u8; 1024 * DATA_COUNT];
+        let value: ChunkBytes = vec![n.clone() as u8; 1024];
         let packets = mk_response(name, value);
+        println!("PACKETS = {:?}", packets);
         for (name, packet) in packets {
             all_packets.insert(name, packet);
         }
+        println!("ALL_PACKETS = {:?}", all_packets);
     }
     let mut current_tmp_dir = 0;
     for (name, packet) in &all_packets {
@@ -95,8 +100,10 @@ mod network_regressions {
     use super::*;
 
     use {
-        packets::{Packet, response},
-        copernica_lib::{Config, CopernicaRequestor},
+        copernica_lib::{
+            Config, CopernicaRequestor,
+            packets::{Packet, response},
+        },
         std::{
             collections::HashMap,
         },
@@ -234,12 +241,11 @@ mod network_regressions {
             expected.insert("hello11".to_string(), Some(response("hello11".to_string(),value11)));
         assert_eq!(actual, expected);
     }
-/*
     #[test]
     fn small_world_graph_gt_mtu() {
         // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
         // node0 is 12 o'clock, node1 is 1 o'clock, etc.
-        //logger::setup_logging(3, None).unwrap();
+        logger::setup_logging(3, None).unwrap();
         let tmp_dirs = populate_tmp_dir_dispersed_gt_mtu(12);
         let network: Vec<Config> = vec![
             Config { listen_addr: "127.0.0.1:50020".parse().unwrap(), content_store_size: 150,
@@ -325,10 +331,10 @@ mod network_regressions {
                      data_dir: tmp_dirs[11].clone(),
         }];
         setup_network(network);
-        std::thread::sleep(std::time::Duration::from_secs(5));
+        std::thread::sleep(std::time::Duration::from_secs(1));
         let mut cc = CopernicaRequestor::new("127.0.0.1:50024".into());
-        let expected: ChunkBytes = vec![1; 1024 * 1];
-        let actual = cc.resolve("hello1".to_string(), 6000);
+        let expected: ChunkBytes = vec![0; 1024];
+        let actual = cc.resolve("hello0".to_string(), 1000);
         assert_eq!(actual, expected);
 /*        for n in 0..11 {
             let expected: ChunkBytes = vec![n; 1024 * 12];
@@ -337,7 +343,6 @@ mod network_regressions {
         }
 */
     }
-*/
     #[test]
     fn single_fetch() {
             //populate_tmp_dir_dispersed_gt_mtu(3);
@@ -428,20 +433,20 @@ mod network_regressions {
 
     #[test]
     fn resolve_gt_mtu() {
-        //logger::setup_logging(3, None).unwrap();
+        logger::setup_logging(3, None).unwrap();
         let network: Vec<Config> = vec![
             Config {
                 listen_addr: "127.0.0.1:50106".parse().unwrap(),
                 content_store_size: 5000,
                 peers: None,
-                data_dir: populate_tmp_dir("hello".to_string(), 0, 1025),
+                data_dir: populate_tmp_dir("hello".to_string(), 0, 10025),
             },
         ];
         setup_network(network);
         std::thread::sleep(std::time::Duration::from_millis(1000));
         let mut cc = CopernicaRequestor::new("127.0.0.1:50106".into());
         let actual = cc.resolve("hello".to_string(), 2000);
-        let mut expected: ChunkBytes = vec![0; 1025];
+        let mut expected: ChunkBytes = vec![0; 10025];
         assert_eq!(actual, expected);
     }
 
@@ -462,4 +467,30 @@ mod network_regressions {
         let mut expected: ChunkBytes = vec![0; 1023];
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn resolve_gt_mtu_two_nodes() {
+        logger::setup_logging(3, None).unwrap();
+        let network: Vec<Config> = vec![
+            Config {
+                listen_addr: "127.0.0.1:50108".parse().unwrap(),
+                content_store_size: 5000,
+                peers: None,
+                data_dir: populate_tmp_dir("hello0".to_string(), 0, 10025),
+            },
+            Config {
+                listen_addr: "127.0.0.1:50109".parse().unwrap(),
+                content_store_size: 5000,
+                peers: Some(vec!["127.0.0.1:50108".into()]),
+                data_dir: generate_random_dir_name().into_os_string().into_string().unwrap(),// populate_tmp_dir("hello1".to_string(), 1, 10025),
+            },
+        ];
+        setup_network(network);
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        let mut cc = CopernicaRequestor::new("127.0.0.1:50109".into());
+        let actual = cc.resolve("hello0".to_string(), 2000);
+        let mut expected: ChunkBytes = vec![0; 10025];
+        assert_eq!(actual, expected);
+    }
+
 }

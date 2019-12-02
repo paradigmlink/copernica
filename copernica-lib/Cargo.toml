@@ -8,7 +8,6 @@ edition = "2018"
 rand = "0.7.2"
 bitvec = "0.15.2"
 bincode = "1"
-packets = { path = "../packets" }
 logger = { path = "../logger" }
 async-task = "1.0.0"
 log = "0.4"
@@ -29,3 +28,4 @@ rand_core = "0.3"
 cryptoxide = "0.1.2"
 base64 = "0.11.0"
 dirs = "2.0.2"
+sha3 = "0.8.2"

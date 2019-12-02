@@ -1,6 +1,6 @@
 // @implement: listen_for_requests
 use {
-    packets::{Packet as CopernicaPacket, Sdri, ChunkBytes, Data, generate_sdr_index, request},
+    crate::packets::{Packet as CopernicaPacket, Sdri, ChunkBytes, Data, generate_sdr_index, request},
     bincode::{serialize, deserialize},
     std::{
         net::{SocketAddr},
@@ -141,13 +141,14 @@ impl CopernicaRequestor {
                             CopernicaPacket::Response { sdri, data } => {
                                 match data {
                                     Data::Manifest { chunk_count } => {
-                                        trace!("GOT MULTI PACKET RESPONES with CHUNK COUNT = {}", chunk_count);
+                                        trace!("GOT MULTI PACKET RESPONSE with CHUNK COUNT = {}", chunk_count);
                                         let mut names: Vec<String> = Vec::new();
-                                        for n in 0..*chunk_count + 1{
+                                        for n in 0..*chunk_count + 1 {
                                             let fmt_name = format!("{}-{}", name.clone(), n);
                                             names.push(fmt_name);
                                         }
-                                        let chunks = self.request(names, timeout);
+                                        let chunks = self.request(names, timeout + 1000);
+                                        println!("RETURNED CHUNKS = {:?}", chunks);
                                         out = stitch_packets(chunks);
                                     },
                                     Data::Content { bytes } => {

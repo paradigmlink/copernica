@@ -9,7 +9,6 @@ name = "ccli"
 path = "src/main.rs"
 
 [dependencies]
-packets = { path = "../packets" }
 copernica-lib = { path = "../copernica-lib" }
 crossbeam = "0.7.3"
 structopt = "0.3.4"

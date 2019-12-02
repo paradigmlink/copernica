@@ -19,17 +19,14 @@ use {
         iter::repeat,
     },
     chain_addr,
-    packets::{response, Data},
     crate::{
         web_of_trust::{new_trusted_identity},
         node::router::{Config},
+        packets::{response, Data},
+        constants,
     },
 };
 
-
-
-const DISCRIMINATION: chain_addr::Discrimination = chain_addr::Discrimination::Production;
-const ADDRESS_PREFIX: &str = "ceo";
 
 const PASSWORD_DERIVATION_ITERATIONS: u32 = 20_000;
 const SK_SIZE: usize = 69;
@@ -82,7 +79,7 @@ pub fn generate_identity(password: String, config: &Config) {
     let mut rng = ChaChaRng::from_seed(buf);
     let sk: SecretKey<Ed25519> = SecretKey::generate(&mut rng);
     let pk: PublicKey<Ed25519> = sk.to_public();
-    let addr = Address(chain_addr::Address(DISCRIMINATION, chain_addr::Kind::Single(pk.clone())));
+    let addr = Address(chain_addr::Address(constants::DISCRIMINATION, chain_addr::Kind::Single(pk.clone())));
     //let tc_hash: String = new_trusted_identity(config, &sk, &pk);
     let crypto_material = format!("{}", sk.to_bech32_str());
     let encrypted_identity = encrypt_identity(password.clone(), pk.to_bech32_str(), &crypto_material);
@@ -147,6 +144,6 @@ pub struct Address(chain_addr::Address);
 
 impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        chain_addr::AddressReadable::from_address(ADDRESS_PREFIX, &self.0).fmt(f)
+        chain_addr::AddressReadable::from_address(constants::ADDRESS_PREFIX, &self.0).fmt(f)
     }
 }

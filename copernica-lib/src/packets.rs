@@ -1,7 +1,88 @@
-use sha3::{Digest, Sha3_512};
-use crate::Sdri;
+use {
+    std::{
+        fmt,
+        collections::HashMap,
+    },
+    sha3::{
+        Digest,
+        Sha3_512,
+    },
+    chain_addr,
+};
 
 const HEX : [&str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
+pub type Sdri = Vec<Vec<u16>>;
+pub struct Sdri2 {
+    pubid: Vec<u16>,
+    name: Option<Vec<u16>>,
+    seq: Option<Vec<u16>>,
+}
+pub type ChunkBytes = Vec<u8>;
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub enum Data {
+    Manifest { chunk_count: u64 },
+    Content  { bytes: ChunkBytes },
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub enum Packet {
+    Request     { sdri: Sdri },
+    Response    { sdri: Sdri, data: Data },
+}
+
+pub fn request(name: String) -> Packet {
+    Packet::Request {
+        sdri: generate_sdr_index(name)
+        // more to come
+    }
+}
+
+pub fn response(name: String, data: Data) -> Packet {
+    Packet::Response {
+        sdri: generate_sdr_index(name),
+        data,
+    }
+}
+
+pub fn mk_response(name: String, data: ChunkBytes) -> HashMap<String, Packet> {
+    let safe_mtu: usize = 1024;
+    let mut out: HashMap<String, Packet> = HashMap::new();
+    if data.len() <= safe_mtu {
+        let data = Data::Content { bytes: data };
+        out.insert(name.clone(), response(name, data));
+    } else {
+        let chunks = data.chunks(safe_mtu);
+        let manifest: Data = Data::Manifest { chunk_count: (chunks.len() as u64) - 1 };
+        let mut count: usize = 0;
+        out.insert(name.clone(), response(name.clone(), manifest));
+        for chunk in chunks {
+            let data = Data::Content { bytes: chunk.to_vec() };
+            let chunk_name: String = format!("{}-{}", name.clone(), count);
+            out.insert(chunk_name.clone(), response(chunk_name, data));
+            count += 1;
+        }
+    }
+    out
+}
+
+impl fmt::Debug for Packet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &*self {
+            Packet::Request{sdri} => write!(f, "REQ{:?}", sdri),
+            Packet::Response{sdri, data} => write!(f, "RES name: {:?}", sdri)
+        }
+    }
+}
+
+impl fmt::Debug for Data {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &*self {
+            Data::Manifest{chunk_count} => write!(f, "MNFT{}", chunk_count),
+            Data::Content{bytes} => write!(f, "CONT{:?}", bytes),
+        }
+    }
+}
 
 fn hash_name(s: &str) -> String {
     let mut hasher = Sha3_512::new();
@@ -42,20 +123,25 @@ pub fn generate_sdr_index(s: String) -> Sdri {
     fh
 }
 
+pub fn generate_sdr_index_new(s: String) -> Sdri2 {
+    let names = s.splitn(3,"::");
+    let names: Vec<&str> = names.collect();
+    let mut fh: Sdri2 = Vec::new();
+    for name in names {
+        fh.push(name_sparsity(name));
+    }
+    fh
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    extern crate flate2;
-    extern crate tar;
 
     use std::fs;
-    use flate2::read::GzDecoder;
-    use tar::Archive;
     use std::io::{BufRead, BufReader};
     use bitvec::prelude::*;
-    use crate::{Packet, request};
-
+/*
     #[test]
     fn load_test_sdr() {
         let mut exe_path = std::env::current_exe().unwrap().to_path_buf();
@@ -106,7 +192,7 @@ mod tests {
 
 
     }
-
+*/
     #[test]
     fn test_interest_creation() {
         let interest = request("mozart-topology-data".to_string());
@@ -179,3 +265,4 @@ mod tests {
         assert_eq!(encoded.len(), 9);
     }
 }
+

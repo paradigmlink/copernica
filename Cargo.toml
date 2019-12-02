@@ -3,7 +3,6 @@
 members = [
     "copernica",
     "copernica-lib",
-    "packets",
     "ccli",
     "network-regressions",
     "logger",

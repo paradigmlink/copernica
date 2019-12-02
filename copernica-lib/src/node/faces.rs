@@ -1,8 +1,10 @@
 use {
-    crate::node::sparse_distributed_representation::{
-        SparseDistributedRepresentation
+    crate::{
+        node::sparse_distributed_representation::{
+            SparseDistributedRepresentation
+        },
+        packets::{Sdri},
     },
-    packets::{Sdri},
 };
 
 #[derive(Debug, Clone)]
@@ -28,6 +30,9 @@ impl Face {
         self.id
     }
     // Pending Request Sparse Distributed Representation
+    // Used to determine the direction of upstream and shouldn't be conflated
+    // with Forwarded Request which determines which faces are downstream nodes,
+    // specifically which nodes to not forward to again.
 
     pub fn create_pending_request(&mut self, packet_sdri: &Sdri) {
         self.pending_request.insert(&packet_sdri);
@@ -48,7 +53,10 @@ impl Face {
 
 
     // Forwarded Request Sparse Distributed Representation
-
+    // Used to determine if a request has been forwarded on this face so as
+    // not to forward the request on the face again. It's easy to get
+    // this mixed up with Pending Requests, which has the specific purpose
+    // of determining which faces are upstream nodes
     pub fn create_forwarded_request(&mut self, packet_sdri: &Sdri) {
         self.forwarded_request.insert(&packet_sdri);
     }
@@ -68,6 +76,8 @@ impl Face {
 
 
     // Forwarding Hint Sparse Distributed Representation
+    // Used to determine if a request can be satisfied on this face.
+    // There's a subtle difference between Pending Request
     pub fn create_forwarding_hint(&mut self, data_sdri: &Sdri) {
         self.forwarding_hint.insert(&data_sdri);
     }

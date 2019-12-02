@@ -9,6 +9,6 @@ stdenv.mkDerivation {
 
   src = null;
 
-  buildInputs = [ rustup amp ];
+  buildInputs = [ rustup amp gdb ];
 
 }
