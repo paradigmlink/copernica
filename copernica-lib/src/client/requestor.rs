@@ -1,6 +1,6 @@
 // @implement: listen_for_requests
 use {
-    crate::packets::{Packet as CopernicaPacket, Sdri, ChunkBytes, Data, generate_sdr_index, request},
+    crate::packets::{Packet as CopernicaPacket, Sdri, ChunkBytes, Data, request},
     bincode::{serialize, deserialize},
     std::{
         net::{SocketAddr},
@@ -60,7 +60,7 @@ impl CopernicaRequestor {
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         thread::spawn(move || socket.start_polling());
         for name in names {
-            let sdri = generate_sdr_index(name.clone());
+            let sdri = Sdri::new(name.clone());
             let sdri_binding_to_packet_guard = sdri_binding_to_packet_phase1_ref.lock().unwrap();
             if let Some(p) = sdri_binding_to_packet_guard.get(&sdri) {
                 results.insert(name.clone(), Some(p.clone()));
@@ -144,12 +144,14 @@ impl CopernicaRequestor {
                                         trace!("GOT MULTI PACKET RESPONSE with CHUNK COUNT = {}", chunk_count);
                                         let mut names: Vec<String> = Vec::new();
                                         for n in 0..*chunk_count + 1 {
-                                            let fmt_name = format!("{}-{}", name.clone(), n);
+                                            let fmt_name = format!("{}::{}", name.clone(), n);
                                             names.push(fmt_name);
                                         }
+                                        println!("NAMES = {:?}", names);
                                         let chunks = self.request(names, timeout + 1000);
                                         println!("RETURNED CHUNKS = {:?}", chunks);
                                         out = stitch_packets(chunks);
+                                        println!("NAMES OUT = {:?}", out);
                                     },
                                     Data::Content { bytes } => {
                                         trace!("GOT SINGLE PACKET RESPONSE {:?}", bytes);
@@ -175,7 +177,7 @@ fn stitch_packets(chunks: StdHashMap<String, Option<CopernicaPacket>>) -> ChunkB
     //println!("chunks hm = {:?}", chunks);
     for (name, packet) in chunks.clone() {
         if let Some(packet) = packet {
-            let v: Vec<&str> = name.rsplit("-").collect();
+            let v: Vec<&str> = name.rsplit("::").collect();
             let number = v[0].parse::<usize>();
             match packet {
                 CopernicaPacket::Response { data, ..} => {
@@ -197,10 +199,9 @@ fn stitch_packets(chunks: StdHashMap<String, Option<CopernicaPacket>>) -> ChunkB
         if prepare.get(&n).is_none() {
             nones += 1;
         }
-        println!("{}/{} Nones", nones, chunks.len());
     }
+    println!("{}/{} are NONE", nones, chunks.len());
     for n in 0..chunks.len() {
-        println!("chunk number: {:?}", n);
         let chunk = prepare.get(&n).unwrap();
         entire.extend(chunk);
     }

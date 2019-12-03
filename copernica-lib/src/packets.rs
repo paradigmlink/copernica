@@ -8,15 +8,11 @@ use {
         Sha3_512,
     },
     chain_addr,
+    chain_crypto::bech32::Bech32,
 };
 
 const HEX : [&str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
-pub type Sdri = Vec<Vec<u16>>;
-pub struct Sdri2 {
-    pubid: Vec<u16>,
-    name: Option<Vec<u16>>,
-    seq: Option<Vec<u16>>,
-}
+//pub type Sdri = Vec<Vec<u16>>;
 pub type ChunkBytes = Vec<u8>;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -33,14 +29,14 @@ pub enum Packet {
 
 pub fn request(name: String) -> Packet {
     Packet::Request {
-        sdri: generate_sdr_index(name)
+        sdri: Sdri::new(name)
         // more to come
     }
 }
 
 pub fn response(name: String, data: Data) -> Packet {
     Packet::Response {
-        sdri: generate_sdr_index(name),
+        sdri: Sdri::new(name),
         data,
     }
 }
@@ -58,7 +54,7 @@ pub fn mk_response(name: String, data: ChunkBytes) -> HashMap<String, Packet> {
         out.insert(name.clone(), response(name.clone(), manifest));
         for chunk in chunks {
             let data = Data::Content { bytes: chunk.to_vec() };
-            let chunk_name: String = format!("{}-{}", name.clone(), count);
+            let chunk_name: String = format!("{}::{}", name.clone(), count);
             out.insert(chunk_name.clone(), response(chunk_name, data));
             count += 1;
         }
@@ -113,7 +109,7 @@ fn name_sparsity(s: &str) -> Vec<(u16)> {
     gen_2048_sparsity(index_of_lowest_occuring_char_in_hash(&hash_name(s)))
 }
 
-pub fn generate_sdr_index(s: String) -> Sdri {
+/*pub fn generate_sdr_index(s: String) -> Sdri {
     let names = s.split('-');
     let names: Vec<&str> = names.collect();
     let mut fh: Sdri = Vec::new();
@@ -122,25 +118,85 @@ pub fn generate_sdr_index(s: String) -> Sdri {
     }
     fh
 }
+*/
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Sdri {
+    id: Vec<u16>,
+    name: Option<Vec<u16>>,
+    seq: Option<Vec<u16>>,
+}
 
-pub fn generate_sdr_index_new(s: String) -> Sdri2 {
-    let names = s.splitn(3,"::");
-    let names: Vec<&str> = names.collect();
-    let mut fh: Sdri2 = Vec::new();
-    for name in names {
-        fh.push(name_sparsity(name));
+impl Sdri {
+    pub fn new(s: String) -> Sdri {
+        let sections = s.splitn(3,"::");
+        let sections: Vec<&str> = sections.collect();
+        let sdri: Sdri = match sections.len() {
+            3 => {
+                let name = format!("{}{}", sections[0], sections[1]);
+                let seq = format!("{}{}{}", sections[0], sections[1], sections[2]);
+                Sdri {
+                    id: name_sparsity(sections[0]),
+                    name: Some(name_sparsity(name.as_str())),
+                    seq: Some(name_sparsity(seq.as_str())),
+                }
+            }
+            2 => {
+                let name = format!("{}{}", sections[0], sections[1]);
+                Sdri {
+                    id: name_sparsity(sections[0]),
+                    name: Some(name_sparsity(name.as_str())),
+                    seq: None,
+                }
+            },
+            1 => {
+                Sdri {
+                    id: name_sparsity(sections[0]),
+                    name: None,
+                    seq: None,
+                }
+            },
+            _ => unreachable!()
+        };
+        sdri
     }
-    fh
+
+    pub fn to_vec(&self) -> Vec<Vec<u16>> {
+        let mut out: Vec<Vec<u16>> = vec![];
+        out.push(self.id.clone());
+        if let Some(name) = self.name.clone() {
+            out.push(name);
+        }
+        if let Some(seq) = self.seq.clone() {
+            out.push(seq);
+        }
+        out
+    }
+}
+
+impl fmt::Debug for Sdri {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &*self {
+            Sdri { id, name: Some(name), seq: Some(seq) } => write!(f, "{:?}::{:?}::{:?}", id, name, seq),
+            Sdri { id, name: Some(name), seq: None } => write!(f, "{:?}::{:?}", id, name),
+            Sdri { id, name: None, seq: Some(seq) } => write!(f, "Cannot have a Some(seq) with a None Name; ID::NONE::Seq"),
+            Sdri { id, name: None, seq: None } => write!(f, "{:?}", id),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-
     use std::fs;
     use std::io::{BufRead, BufReader};
     use bitvec::prelude::*;
+
+    #[test]
+    fn names() {
+        let s: String = "blue::cheese::42".to_string();
+        let so = Sdri::new(s);
+        println!("{:?}", so);
+    }
 /*
     #[test]
     fn load_test_sdr() {
@@ -193,32 +249,6 @@ mod tests {
 
     }
 */
-    #[test]
-    fn test_interest_creation() {
-        let interest = request("mozart-topology-data".to_string());
-        assert_eq!(
-            Packet::Request {
-                sdri: vec![vec![542, 1886, 2014], vec![724, 1588, 1700], vec![160, 528, 720, 992]] }
-            , interest);
-    }
-
-    #[test]
-    fn gen_sdr_index() {
-        let s = "domain-app-data-stewart-calculus-topology-mozart-Johann Sebastian Bach-abracadabra-abc";
-        assert_eq!(
-        vec![
-            vec![898, 978, 1074, 1394],
-            vec![175, 575, 687, 1231, 1567],
-            vec![160, 528, 720, 992],
-            vec![1126, 1286, 1542, 1654],
-            vec![355, 387, 419, 675, 1763],
-            vec![724, 1588, 1700],
-            vec![542, 1886, 2014],
-            vec![1037, 1565, 1773, 1789],
-            vec![145, 945, 1153, 1745],
-            vec![154, 250, 1210, 1306, 1770]]
-        , generate_sdr_index(s.to_string()));
-    }
 
     #[test]
     fn test_creation_of_sparsity_in_a_2048_bit_vector() {

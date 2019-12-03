@@ -4,6 +4,11 @@ version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"
 
+
+[[bin]]
+name = "network-regressions"
+path = "src/main.rs"
+
 [dependencies]
 copernica-lib = { path = "../copernica-lib" }
 logger = { path = "../logger" }
@@ -13,3 +18,6 @@ log = "0.4"
 dirs = "2.0.2"
 bincode = "1"
 rand = "0.7.2"
+
+[profile.dev]
+debug = 2

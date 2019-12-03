@@ -9,8 +9,9 @@ use {
     },
     bincode::{serialize},
     getrandom::getrandom,
-    chain_crypto::{Ed25519, PublicKey, SecretKey},
-    chain_crypto::bech32::Bech32,
+    chain_crypto::{Ed25519, PublicKey, SecretKey,
+        bech32::Bech32,
+    },
     rand_chacha::ChaChaRng,
     rand_core::{SeedableRng},
     std::{

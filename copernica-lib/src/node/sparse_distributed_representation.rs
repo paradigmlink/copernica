@@ -17,18 +17,18 @@ impl SparseDistributedRepresentation {
     }
 
     pub fn insert(&mut self, packet: &Sdri) {
-        for row in packet {
+        for row in packet.to_vec() {
             for elem in row {
-                self.sdr.set(*elem as usize, true);
+                self.sdr.set(elem as usize, true);
             }
         }
     }
 
     pub fn contains(&mut self, packet: &Sdri) -> u8 {
         let mut sdr_vals: Vec<u32> = Vec::new();
-        for row in packet {
+        for row in packet.to_vec() {
             for elem in row {
-                sdr_vals.push(self.sdr.get(*elem as usize).unwrap() as u32);
+                sdr_vals.push(self.sdr.get(elem as usize).unwrap() as u32);
             }
         }
         let hits = sdr_vals.iter().try_fold(0u32, |acc, &elem| acc.checked_add(elem));
@@ -38,9 +38,9 @@ impl SparseDistributedRepresentation {
     }
 
     pub fn delete(&mut self, packet: &Sdri) {
-        for row in packet {
+        for row in packet.to_vec() {
             for elem in row {
-                self.sdr.set(*elem as usize, false);
+                self.sdr.set(elem as usize, false);
             }
         }
     }
