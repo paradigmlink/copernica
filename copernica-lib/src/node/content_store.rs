@@ -1,6 +1,6 @@
 use {
     crate::{
-        packets::{Packet, Sdri},
+        packets::{Packet, Sdri, Response},
     },
     lru::LruCache,
     std::{
@@ -8,12 +8,15 @@ use {
             Arc,
             Mutex,
         },
+        collections::{
+            BTreeMap,
+        },
     },
 };
 
 #[derive(Debug, Clone)]
 pub struct ContentStore{
-    cache: Arc<Mutex<LruCache<Sdri, Packet>>>,
+    cache: Arc<Mutex<LruCache<Sdri, Response>>>,
 }
 
 impl ContentStore {
@@ -26,10 +29,14 @@ impl ContentStore {
 }
 
 impl ContentStore {
-    pub fn has_data(&self, sdri: &Sdri) -> Option<Packet> {
+    pub fn get_response(&self, sdri: &Sdri) -> Option<Response> {
         match self.cache.lock().unwrap().get(sdri) {
-            Some(packet) => {
-                Some(packet.clone())
+            Some(response) => {
+                if response.complete() {
+                    return Some(response.clone())
+                } else {
+                    return None
+                }
             },
             None => {
                 None
@@ -37,14 +44,22 @@ impl ContentStore {
         }
     }
 
-    pub fn put_data(&mut self, data: Packet) {
-        match data.clone() {
-            Packet::Response { sdri, data: _p_data } => {
-                self.cache.lock().unwrap().put(sdri, data);
+    pub fn insert_response(&mut self, response: Response) {
+        self.cache.lock().unwrap().put(response.sdri(), response);
+    }
+
+    pub fn insert_packet(&mut self, packet: Packet) {
+        match packet.clone() {
+            Packet::Response { sdri, ..} => {
+                let mut cache_guard = self.cache.lock().unwrap();
+                if let Some(response) = cache_guard.get_mut(&sdri) {
+                    response.insert(packet);
+                } else {
+                    let response = Response::from_response_packet(packet);
+                    cache_guard.put(sdri, response);
+                }
             },
-            Packet::Request { sdri } => {
-                panic!("Content Store should not contain Requests");
-            },
-        };
+            Packet::Request { .. } => panic!("Request should never be inserted into a Response"),
+        }
     }
 }

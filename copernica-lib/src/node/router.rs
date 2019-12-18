@@ -4,7 +4,7 @@ use {
             content_store::{ContentStore},
             faces::{Face},
         },
-        packets::{Packet as CopernicaPacket, response, Sdri},
+        packets::{Packet as CopernicaPacket, Sdri, Response},
     },
     bincode,
     laminar::{Packet as LaminarPacket, Socket, SocketEvent},
@@ -16,7 +16,7 @@ use {
             PathBuf,
         },
         net::SocketAddr,
-        collections::{HashMap, HashSet},
+        collections::{HashMap, HashSet, BTreeMap},
         fs,
         error::Error,
         io::BufReader,
@@ -98,10 +98,9 @@ impl Router {
                         continue
                     } else {
                         let contents = std::fs::read(path.clone()).expect("file not found");
-                        let packet: CopernicaPacket = bincode::deserialize(&contents).unwrap();
-                        let name = &path.file_stem().unwrap();
-                        cs.put_data(packet.clone());
-                        trace!("[SETUP] router {} using {:?}: adding to content store: {:?}", id, dir, name);
+                        let response: Response = bincode::deserialize(&contents).unwrap();
+                        trace!("[SETUP] router {} using {:?}: adding to content store", id, dir);
+                        cs.insert_response(response);
                     }
                 }
             }
@@ -155,32 +154,40 @@ impl Router {
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
             match copernica_packet.clone() {
                 CopernicaPacket::Request { sdri } => {
-                    match self.cs.has_data(&sdri) {
-                        Some(data) => {
+                    match self.cs.get_response(&sdri) {
+                        Some(response) => {
                             this_face.create_pending_request(&sdri);
-                            trace!("[RESUP] *** response found *** {:?}", data);
-                            handle_packets.push(mk_laminar_packet(packet_from, data));
+                            trace!("[RESUP] *** response found ***");
+                            for (_seq, packet) in response.iter() {
+                                handle_packets.push(
+                                    mk_ordered_laminar_packet(packet_from, packet.clone()));
+                            }
                             return
                         },
                         None => {
                             let mut is_forwarded = false;
                             let mut broadcast = Vec::new();
                             this_face.create_pending_request(&sdri);
-                            trace!("[REQDN {}] left breadcrumb pending request", face_stats(self.id, "IN",  this_face, &sdri));
+                            trace!("[REQDN {}] left breadcrumb pending request",
+                                face_stats(self.id, "IN",  this_face, &sdri));
                             for (address, that_face) in self.faces.iter_mut() {
                                 if *address == packet_from { continue }
                                 if that_face.contains_forwarded_request(&sdri) > 51 {
-                                    trace!("[REQDN {}] don't send request downstream again", face_stats(self.id, "OUT",  that_face, &sdri));
+                                    trace!("[REQDN {}] don't send request downstream again",
+                                        face_stats(self.id, "OUT",  that_face, &sdri));
                                     continue
                                 }
                                 if that_face.contains_pending_request(&sdri)   > 51 {
-                                    trace!("[REQDN {}] don't send request upstream", face_stats(self.id, "OUT",  that_face, &sdri));
+                                    trace!("[REQDN {}] don't send request upstream",
+                                        face_stats(self.id, "OUT",  that_face, &sdri));
                                     continue
                                 }
                                 if that_face.contains_forwarding_hint(&sdri)   > 90 {
                                     that_face.create_forwarded_request(&sdri);
-                                    trace!("[REQDN {}] sending request downstream based on forwarding hint", face_stats(self.id, "OUT",  that_face, &sdri));
-                                    handle_packets.push(mk_laminar_packet(*address, copernica_packet.clone()));
+                                    trace!("[REQDN {}] sending request downstream based on forwarding hint",
+                                        face_stats(self.id, "OUT",  that_face, &sdri));
+                                    handle_packets.push(
+                                        mk_unordered_laminar_packet(*address, copernica_packet.clone()));
                                     is_forwarded = true;
                                     continue
                                 }
@@ -191,30 +198,44 @@ impl Router {
                                 for address in broadcast {
                                     if let Some(face) = self.faces.get_mut(&address) {
                                         face.create_forwarded_request(&sdri);
-                                        trace!("[REQDN {}] bursting on face", face_stats(self.id, "BURST",  face, &sdri));
-                                        handle_packets.push(mk_laminar_packet(address, copernica_packet.clone()));
+                                        trace!("[REQDN {}] bursting on face",
+                                            face_stats(self.id, "BURST",  face, &sdri));
+                                        handle_packets.push(
+                                            mk_unordered_laminar_packet(address, copernica_packet.clone()));
                                     }
                                 }
                             }
                         },
                     }
                 },
-                CopernicaPacket::Response { sdri, .. } => {
+                CopernicaPacket::Response { sdri, numerator, denominator, .. } => {
                     if this_face.contains_forwarded_request(&sdri) > 15 {
-                        this_face.delete_forwarded_request(&sdri);
+                        trace!("[RESUP {}] response matched pending request",
+                            face_stats(self.id, "IN",  this_face, &sdri));
+                        self.cs.insert_packet(copernica_packet.clone());
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hint();
                         }
-                        this_face.create_forwarding_hint(&sdri);
-                        trace!("[RESUP {}] response matched pending request", face_stats(self.id, "IN",  this_face, &sdri));
-                        self.cs.put_data(copernica_packet.clone());
+                        if numerator == denominator - 1 {
+                            this_face.delete_forwarded_request(&sdri);
+                            this_face.create_forwarding_hint(&sdri);
+                        }
                         for (address, that_face) in self.faces.iter_mut() {
                             if *address == packet_from { continue }
-                            that_face.delete_forwarded_request(&sdri);
                             if that_face.contains_pending_request(&sdri) > 50 {
-                                trace!("[RESUP {}] send response upstream", face_stats(self.id, "OUT",  that_face, &sdri));
-                                handle_packets.push(mk_laminar_packet(*address, copernica_packet.clone()));
-                                that_face.delete_pending_request(&sdri);
+                                trace!("[RESUP {}] send response upstream",
+                                    face_stats(self.id, "OUT",  that_face, &sdri));
+                                // store-and-forward
+                                if numerator == denominator - 1 {
+                                    if let Some(response) = self.cs.get_response(&sdri) {
+                                        for (_seq, packet) in response.iter() {
+                                            handle_packets.push(
+                                                mk_ordered_laminar_packet(*address, packet.clone()));
+                                        }
+                                        that_face.delete_forwarded_request(&sdri);
+                                        that_face.delete_pending_request(&sdri);
+                                    }
+                                }
                             }
                         }
                     }
@@ -224,8 +245,12 @@ impl Router {
     }
 }
 
-fn mk_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPacket {
+fn mk_unordered_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPacket {
     LaminarPacket::reliable_unordered(address, bincode::serialize(&packet).unwrap().to_vec())
+}
+
+fn mk_ordered_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPacket {
+    LaminarPacket::reliable_ordered(address, bincode::serialize(&packet).unwrap().to_vec(), None)
 }
 
 fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Sdri) -> String {

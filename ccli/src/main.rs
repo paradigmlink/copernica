@@ -47,6 +47,7 @@ fn main() {
         config = read_config_file(config_path).unwrap();
     }
     let mut cr = CopernicaRequestor::new("127.0.0.1:8089".into());
+    cr.start_polling();
     // stick in the config to the above
 
     if options.generate_id {
@@ -83,8 +84,8 @@ fn main() {
     if let Some(id) = options.decrypt_id {
         let password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
 
-        let id = cr.resolve(id.to_string(), 100);
-        let digest = String::from_utf8(id.to_vec()).unwrap();
+        let id = cr.request(id.to_string(), 100);
+        let digest = String::from_utf8(id.payload()).unwrap();
         println!("{:?}", decrypt_identity(password, digest).unwrap());
     }
 
@@ -92,12 +93,13 @@ fn main() {
         let password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
 
         if let Some((id_name, rest)) = ids.split_first() {
-            let id = cr.request(vec![id_name.to_string()], 100);
-
+            let id = cr.request(id_name.to_string(), 100);
+/*
             if let Some(Some(id_packet)) = id.get(id_name) {
 
                 //let _id = add_trusted_identity(password, id_packet.clone(), rest.to_vec());
             }
+*/
         }
     }
 

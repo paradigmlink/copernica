@@ -3,7 +3,7 @@ use {
     copernica_lib::{
         Router, CopernicaRequestor,
         Config,
-        packets::{mk_response, response, Data, ChunkBytes, Packet},
+        packets::{mk_response, mk_response_packet, Response, Bytes, Packet},
     },
     std::{
         str::FromStr,
@@ -18,6 +18,21 @@ use {
     bincode,
     log::{trace},
 };
+
+const TIMEOUT: u64 = 1000;
+const SAFE_MTU: usize = 1400;
+const GT_MTU: usize = 1410;
+const GT_MTU_BY_12: usize = GT_MTU * 12;
+const MB0_1: usize  = 104857;
+const MB0_2: usize  = 209715;
+const MB0_3: usize  = 314572;
+const MB1: usize    = 1048576;
+const MB5: usize    = 5242880;
+const MB10: usize   = 10485760;
+const MB20: usize   = 20971520;
+const MB50: usize   = 52428800;
+const MB100: usize  = 104857600;
+const MB1000: usize = 1048576000;
 
 #[allow(dead_code)]
 fn router(config: Config) {
@@ -49,30 +64,26 @@ fn generate_random_dir_name() -> PathBuf {
     fs::create_dir_all(dir.clone());
     dir
 }
-fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize) -> Vec<String> {
+fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Vec<String> {
     let mut tmp_dirs: Vec<PathBuf> = Vec::with_capacity(node_count);
-    const DATA_COUNT: usize = 12;
     for n in 0..node_count {
         tmp_dirs.push(generate_random_dir_name());
     }
     println!("{:?}", tmp_dirs);
-    let mut all_packets: HashMap<String, Packet> = HashMap::new();
-    for n in 0..DATA_COUNT {
+    let mut responses: HashMap<String, Response> = HashMap::new();
+    for n in 0..node_count {
         let name = format!("hello{}", n.clone());
-        let value: ChunkBytes = vec![n.clone() as u8; 100025];
-        let packets = mk_response(name, value);
-        println!("PACKETS = {:?}", packets);
-        for (name, packet) in packets {
-            all_packets.insert(name, packet);
-        }
-        println!("ALL_PACKETS = {:?}", all_packets);
+        let value: Bytes = vec![n.clone() as u8; data_size];
+        let response = mk_response(name.clone(), value);
+        responses.insert(name.to_string(), response.clone());
+        println!("ALL_PACKETS = {:?}", responses);
     }
     let mut current_tmp_dir = 0;
-    for (name, packet) in &all_packets {
+    for (name, packet) in &responses {
         let file = tmp_dirs[current_tmp_dir].join(name.clone());
         let mut f = fs::File::create(file).unwrap();
-        let packet_ser = bincode::serialize(&packet).unwrap();
-        f.write_all(&packet_ser).unwrap();
+        let response_ser = bincode::serialize(&packet).unwrap();
+        f.write_all(&response_ser).unwrap();
         f.sync_all().unwrap();
         if current_tmp_dir == node_count -1 {
             current_tmp_dir = 0;
@@ -83,20 +94,55 @@ fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize) -> Vec<String> {
     tmp_dirs.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<String>>()
 }
 fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
-    let value: ChunkBytes = vec![data; size];
-    let packets = mk_response(name.clone().to_string(), value);
-    let dir = generate_random_dir_name();
-    for (name, packet) in packets {
-        let dir = dir.join(name.clone());
-        println!("DIRECTORY: {}",dir.to_str().unwrap());
-        let mut f = fs::File::create(dir).unwrap();
-        let packet_ser = bincode::serialize(&packet).unwrap();
-        f.write_all(&packet_ser).unwrap();
-        f.sync_all().unwrap();
-    }
-    dir.clone().to_string_lossy().to_string()
+    let value: Bytes = vec![data; size];
+    let response = mk_response(name.clone().to_string(), value);
+    let root_dir = generate_random_dir_name();
+    let dir = root_dir.join(name);
+    let mut f = fs::File::create(dir.clone()).unwrap();
+    let response_ser = bincode::serialize(&response).unwrap();
+    f.write_all(&response_ser).unwrap();
+    f.sync_all().unwrap();
+    root_dir.clone().to_string_lossy().to_string()
 }
 
+fn single_fetch() {
+    //populate_tmp_dir_dispersed_gt_mtu(3);
+    let mut network: Vec<Config> = vec![
+        Config {
+            listen_addr: "127.0.0.1:50100".parse().unwrap(),
+            content_store_size: 50,
+            peers: Some(vec!["127.0.0.1:50101".into()]),
+            data_dir: populate_tmp_dir("hello0".to_string(), 0, 1024),
+        },
+        Config {
+            listen_addr: "127.0.0.1:50101".parse().unwrap(),
+            content_store_size: 50,
+            peers: Some(vec!["127.0.0.1:50102".into()]),
+            data_dir: populate_tmp_dir("hello1".to_string(), 1, 1024),
+        },
+        Config {
+            listen_addr: "127.0.0.1:50102".parse().unwrap(),
+            content_store_size: 50,
+            peers: Some(vec!["127.0.0.1:50103".into()]),
+            data_dir: populate_tmp_dir("hello2".to_string(), 2, 1024),
+        },
+        Config {
+            listen_addr: "127.0.0.1:50103".parse().unwrap(),
+            content_store_size: 50,
+            peers: None,
+            data_dir: populate_tmp_dir("hello3".to_string(), 3, 1024),
+        }
+    ];
+    setup_network(network);
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50100".into());
+    cc.start_polling();
+    let actual_hello3 = cc.request("hello3".to_string(), 1000);
+    let actual_hello0 = cc.request("hello0".to_string(), 1000);
+    let expected_hello0 = mk_response("hello0".to_string(), vec![0; 1024]);
+    let expected_hello3 = mk_response("hello3".to_string(), vec![3; 1024]);
+    assert_eq!(actual_hello0, expected_hello0);
+    assert_eq!(actual_hello3, expected_hello3);
+}
 
 fn small_world_graph_lt_mtu() {
     // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
@@ -111,44 +157,44 @@ fn small_world_graph_lt_mtu() {
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50010".into(),
                                   "127.0.0.1:50011".into()]),
-                 data_dir: populate_tmp_dir("hello0".to_string(), 0, 1024),
+                 data_dir: populate_tmp_dir("hello0".to_string(), 0, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50001".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50002".into()]),
-                 data_dir: populate_tmp_dir("hello1".to_string(), 1, 1024),
+                 data_dir: populate_tmp_dir("hello1".to_string(), 1, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50002".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50001".into(),
                                   "127.0.0.1:50003".into(),
                                   "127.0.0.1:50004".into()]),
-                 data_dir: populate_tmp_dir("hello2".to_string(), 2, 1024),
+                 data_dir: populate_tmp_dir("hello2".to_string(), 2, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50003".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50002".into(),
                                   "127.0.0.1:50004".into(),
                                   "127.0.0.1:50007".into()]),
-                 data_dir: populate_tmp_dir("hello3".to_string(), 3, 1024),
+                 data_dir: populate_tmp_dir("hello3".to_string(), 3, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50004".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50002".into(),
                                   "127.0.0.1:50003".into(),
                                   "127.0.0.1:50005".into()]),
-                 data_dir: populate_tmp_dir("hello4".to_string(), 4, 1024),
+                 data_dir: populate_tmp_dir("hello4".to_string(), 4, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50005".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50004".into(),
                                   "127.0.0.1:50006".into()]),
-                 data_dir: populate_tmp_dir("hello5".to_string(), 5, 1024),
+                 data_dir: populate_tmp_dir("hello5".to_string(), 5, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50006".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50005".into(),
                                   "127.0.0.1:50007".into(),
                                   "127.0.0.1:50008".into()]),
-                 data_dir: populate_tmp_dir("hello6".to_string(), 6, 1024),
+                 data_dir: populate_tmp_dir("hello6".to_string(), 6, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50007".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
@@ -157,81 +203,47 @@ fn small_world_graph_lt_mtu() {
                                   "127.0.0.1:50008".into(),
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50010".into()]),
-                 data_dir: populate_tmp_dir("hello7".to_string(), 7, 1024),
+                 data_dir: populate_tmp_dir("hello7".to_string(), 7, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50008".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50006".into(),
                                   "127.0.0.1:50007".into(),
                                   "127.0.0.1:50009".into()]),
-                 data_dir: populate_tmp_dir("hello8".to_string(), 8, 1024),
+                 data_dir: populate_tmp_dir("hello8".to_string(), 8, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50009".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50007".into(),
                                   "127.0.0.1:50008".into(),
                                   "127.0.0.1:50010".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello9".to_string(), 9, 1024),
+                 data_dir: populate_tmp_dir("hello9".to_string(), 9, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50010".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50007".into(),
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50011".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello10".to_string(), 10, 1024),
+                 data_dir: populate_tmp_dir("hello10".to_string(), 10, SAFE_MTU ),
         },
         Config { listen_addr: "127.0.0.1:50011".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50010".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello11".to_string(), 11, 1024),
+                 data_dir: populate_tmp_dir("hello11".to_string(), 11, SAFE_MTU ),
     }];
     setup_network(network);
     let mut cc = CopernicaRequestor::new("127.0.0.1:50004".into());
-    let actual = cc.request(vec![
-        "hello0".to_string(),
-        "hello1".to_string(),
-        "hello2".to_string(),
-        "hello3".to_string(),
-        "hello4".to_string(),
-        "hello5".to_string(),
-        "hello6".to_string(),
-        "hello7".to_string(),
-        "hello8".to_string(),
-        "hello9".to_string(),
-        "hello10".to_string(),
-        "hello11".to_string(),
-        ], 3000);
-    let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
-        let value0: Data = Data::Content{bytes: vec![0; 1024]};
-        expected.insert("hello0".to_string(), Some(response("hello0".to_string(),value0)));
-        let value1: Data = Data::Content{bytes: vec![1; 1024]};
-        expected.insert("hello1".to_string(), Some(response("hello1".to_string(),value1)));
-        let value2: Data = Data::Content{bytes: vec![2; 1024]};
-        expected.insert("hello2".to_string(), Some(response("hello2".to_string(),value2)));
-        let value3: Data = Data::Content{bytes: vec![3; 1024]};
-        expected.insert("hello3".to_string(), Some(response("hello3".to_string(),value3)));
-        let value4: Data = Data::Content{bytes: vec![4; 1024]};
-        expected.insert("hello4".to_string(), Some(response("hello4".to_string(),value4)));
-        let value5: Data = Data::Content{bytes: vec![5; 1024]};
-        expected.insert("hello5".to_string(), Some(response("hello5".to_string(),value5)));
-        let value6: Data = Data::Content{bytes: vec![6; 1024]};
-        expected.insert("hello6".to_string(), Some(response("hello6".to_string(),value6)));
-        let value7: Data = Data::Content{bytes: vec![7; 1024]};
-        expected.insert("hello7".to_string(), Some(response("hello7".to_string(),value7)));
-        let value8: Data = Data::Content{bytes: vec![8; 1024]};
-        expected.insert("hello8".to_string(), Some(response("hello8".to_string(),value8)));
-        let value9: Data = Data::Content{bytes: vec![9; 1024]};
-        expected.insert("hello9".to_string(), Some(response("hello9".to_string(),value9)));
-        let value10: Data = Data::Content{bytes: vec![10; 1024]};
-        expected.insert("hello10".to_string(), Some(response("hello10".to_string(),value10)));
-        let value11: Data = Data::Content{bytes: vec![11; 1024]};
-        expected.insert("hello11".to_string(), Some(response("hello11".to_string(),value11)));
-    assert_eq!(actual, expected);
+    cc.start_polling();
+    for n in 0..11 {
+        let expected = mk_response(format!("hello{}", n), vec![n; SAFE_MTU ]);
+        let actual = cc.request(format!("hello{}", n), TIMEOUT+1000);
+        assert_eq!(actual, expected);
+    }
 }
 
 fn small_world_graph_gt_mtu() {
     // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
     // node0 is 12 o'clock, node1 is 1 o'clock, etc.
-    let tmp_dirs = populate_tmp_dir_dispersed_gt_mtu(12);
+    let tmp_dirs = populate_tmp_dir_dispersed_gt_mtu(12, SAFE_MTU);
     let network: Vec<Config> = vec![
         Config { listen_addr: "127.0.0.1:50020".parse().unwrap(), content_store_size: 150,
                  peers: Some(vec!["127.0.0.1:50021".into(),
@@ -316,56 +328,16 @@ fn small_world_graph_gt_mtu() {
                  data_dir: tmp_dirs[11].clone(),
     }];
     setup_network(network);
-    std::thread::sleep(std::time::Duration::from_secs(1));
     let mut cc = CopernicaRequestor::new("127.0.0.1:50024".into());
-    //        let expected: ChunkBytes = vec![0; 1024];
-    //        let actual = cc.resolve("hello0".to_string(), 1000);
-    //        assert_eq!(actual, expected);
+    cc.start_polling();
     for n in 0..11 {
-        let expected: ChunkBytes = vec![n; 100025];
-        let actual = cc.resolve(format!("hello{}", n), 6000);
+        let expected = mk_response(format!("hello{}", n), vec![n; SAFE_MTU]);
+        let actual = cc.request(format!("hello{}", n), TIMEOUT+1000);
         assert_eq!(actual, expected);
     }
 
 }
-fn single_fetch() {
-    //populate_tmp_dir_dispersed_gt_mtu(3);
-    let mut network: Vec<Config> = vec![];
-    network.push(Config {
-        listen_addr: "127.0.0.1:50100".parse().unwrap(),
-        content_store_size: 50,
-        peers: Some(vec!["127.0.0.1:50101".into()]),
-        data_dir: populate_tmp_dir("hello0".to_string(), 0, 1024),
-    });
-    network.push(Config {
-        listen_addr: "127.0.0.1:50101".parse().unwrap(),
-        content_store_size: 50,
-        peers: Some(vec!["127.0.0.1:50102".into()]),
-        data_dir: populate_tmp_dir("hello1".to_string(), 1, 1024),
-    });
-    network.push(Config {
-        listen_addr: "127.0.0.1:50102".parse().unwrap(),
-        content_store_size: 50,
-        peers: Some(vec!["127.0.0.1:50103".into()]),
-        data_dir: populate_tmp_dir("hello2".to_string(), 2, 1024),
-    });
-    network.push(Config {
-        listen_addr: "127.0.0.1:50103".parse().unwrap(),
-        content_store_size: 50,
-        peers: None,
-        data_dir: populate_tmp_dir("hello3".to_string(), 3, 1024),
-    });
-    setup_network(network);
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50100".into());
-    let actual = cc.request(vec![ "hello3".to_string(), "hello0".to_string()], 300);
-    let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
-    let value0: Data = Data::Content{bytes: vec![0; 1024]};
-    let value3: Data = Data::Content{bytes: vec![3; 1024]};
-    expected.insert("hello3".to_string(), Some(response("hello3".to_string(),value3)));
-    expected.insert("hello0".to_string(), Some(response("hello0".to_string(),value0)));
-    assert_eq!(actual, expected);
-}
-
+/*
 fn timeout() {
     let network: Vec<Config> = vec![
         Config {
@@ -377,53 +349,27 @@ fn timeout() {
     ];
     setup_network(network);
     let mut cc = CopernicaRequestor::new("127.0.0.1:50104".into());
-    let actual = cc.request(vec![ "hello1".to_string()], 50);
-    let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
-    expected.insert("hello1".to_string(), None);
+    cc.start_polling();
+    let actual_hello0 = cc.request("hello0".to_string(), 50);
+    let expected_hello1 = mk_response("hello1".to_string(), None);
     assert_eq!(actual, expected);
 }
-
-fn make_chunks() {
-    let network: Vec<Config> = vec![
-        Config {
-            listen_addr: "127.0.0.1:50105".parse().unwrap(),
-            content_store_size: 50,
-            peers: None,
-            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, 1025),
-        },
-    ];
-    setup_network(network);
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50105".into());
-    let actual = cc.request(vec![
-        "ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(),
-        "ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0::0".to_string(),
-        "ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0::1".to_string(),
-    ], 500);
-    let mut expected: HashMap<String, Option<Packet>> = HashMap::new();
-    let value0: Data = Data::Manifest{chunk_count:1};
-    expected.insert("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), Some(response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(),value0)));
-    let value1: Data = Data::Content{bytes:vec![0; 1024]};
-    expected.insert("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0::0".to_string(), Some(response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0::0".to_string(),value1)));
-    let value2: Data = Data::Content{bytes:vec![0; 1]};
-    expected.insert("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0::1".to_string(), Some(response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0::1".to_string(),value2)));
-    assert_eq!(actual, expected);
-
-}
-
+*/
 fn resolve_gt_mtu() {
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50106".parse().unwrap(),
-            content_store_size: 5000,
+            content_store_size: 50000,
             peers: None,
-            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, 10025),
+            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, MB0_1),
         },
     ];
     setup_network(network);
-    std::thread::sleep(std::time::Duration::from_millis(1000));
     let mut cc = CopernicaRequestor::new("127.0.0.1:50106".into());
-    let actual = cc.resolve("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 2000);
-    let mut expected: ChunkBytes = vec![0; 10025];
+    cc.start_polling();
+    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), TIMEOUT);
+    let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; MB0_1]);
+    println!("length of actual {}, should expect {}", actual.actual_length(), expected.actual_length());
     assert_eq!(actual, expected);
 }
 
@@ -438,8 +384,9 @@ fn resolve_lt_mtu() {
     ];
     setup_network(network);
     let mut cc = CopernicaRequestor::new("127.0.0.1:50107".into());
-    let actual = cc.resolve("hello".to_string(), 500);
-    let mut expected: ChunkBytes = vec![0; 1023];
+    cc.start_polling();
+    let actual = cc.request("hello".to_string(), 500);
+    let expected: Response = mk_response("hello".to_string(), vec![0; 1023]);
     assert_eq!(actual, expected);
 }
 
@@ -449,7 +396,7 @@ fn resolve_gt_mtu_two_nodes() {
             listen_addr: "127.0.0.1:50109".parse().unwrap(),
             content_store_size: 5000,
             peers: None,
-            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, 1025),
+            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, MB0_3),
         },
         Config {
             listen_addr: "127.0.0.1:50108".parse().unwrap(),
@@ -460,15 +407,15 @@ fn resolve_gt_mtu_two_nodes() {
     ];
     setup_network(network);
     let mut cc = CopernicaRequestor::new("127.0.0.1:50108".into());
-    let actual = cc.resolve("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 3000);
-    let mut expected: ChunkBytes = vec![0; 1025];
+    cc.start_polling();
+    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), TIMEOUT+10000);
+    let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; MB0_3]);
     assert_eq!(actual, expected);
 }
 
 fn main() {
     logger::setup_logging(3, None).unwrap();
-    resolve_gt_mtu_two_nodes();
-}
+    resolve_gt_mtu()}
 
 #[cfg(test)]
 mod network_regressions {
@@ -476,32 +423,26 @@ mod network_regressions {
 
     use {
     };
-
+    #[test]
+    fn test_single_fetch() {
+        single_fetch();
+    }
     #[test]
     fn test_small_world_graph_lt_mtu() {
         small_world_graph_lt_mtu();
     }
 
     #[test]
-    fn small_world_graph_gt_mtu() {
+    fn test_small_world_graph_gt_mtu() {
         small_world_graph_gt_mtu();
     }
 
-    #[test]
-    fn test_single_fetch() {
-        single_fetch();
-    }
-
+/*
     #[test]
     fn test_timeout() {
         timeout();
     }
-
-    #[test]
-    fn test_make_chunks() {
-        make_chunks();
-    }
-
+*/
     #[test]
     fn test_resolve_gt_mtu() {
         resolve_gt_mtu();

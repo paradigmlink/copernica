@@ -2,7 +2,7 @@ use {
     crate::{
         identity::{decrypt_identity},
         node::router::{Config},
-        packets::{Packet, Data, response},
+        packets::{Packet, Bytes, mk_response_packet},
     },
     cryptoxide::{
         sha2::{
@@ -43,8 +43,7 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     //hasher.input_str("[]");
     let tc_hash = hasher.result_str();
     println!("tc_hash = {:?}", tc_hash.clone());
-    let data: Data = Data::Content { bytes: tcs_ser.to_vec() };
-    let tc_packet = response(tc_hash.clone(), data);
+    let tc_packet = mk_response_packet(tc_hash.clone(), tcs_ser.to_vec(), 0, 0);
 
     let mut tc_path = std::path::PathBuf::from(config.data_dir.clone());
     tc_path.push(".copernica");

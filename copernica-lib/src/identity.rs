@@ -23,7 +23,7 @@ use {
     crate::{
         web_of_trust::{new_trusted_identity},
         node::router::{Config},
-        packets::{response, Data},
+        packets::{mk_response, Bytes},
         constants,
     },
 };
@@ -85,8 +85,7 @@ pub fn generate_identity(password: String, config: &Config) {
     let crypto_material = format!("{}", sk.to_bech32_str());
     let encrypted_identity = encrypt_identity(password.clone(), pk.to_bech32_str(), &crypto_material);
     let id_name = format!("{}",addr.clone().to_string());
-    let data: Data = Data::Content { bytes: encrypted_identity.as_bytes().to_vec() };
-    let id = response(id_name.clone().to_string(), data);
+    let id = mk_response(id_name.clone().to_string(), encrypted_identity.as_bytes().to_vec());
     let mut identity_path = std::path::PathBuf::from(config.data_dir.clone());
     identity_path.push("identity");
     println!("DATA_DIR: {:?}", identity_path);
