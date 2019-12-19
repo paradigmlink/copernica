@@ -4,7 +4,8 @@ use {
         Router, CopernicaRequestor,
         Config,
         constants,
-        packets::{mk_response, mk_response_packet, Response, Bytes, Packet},
+        packets::{mk_response_packet, Bytes, Packet},
+        response_store::{Response, mk_response},
     },
     std::{
         str::FromStr,

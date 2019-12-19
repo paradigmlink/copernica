@@ -23,7 +23,8 @@ use {
     crate::{
         web_of_trust::{new_trusted_identity},
         node::router::{Config},
-        packets::{mk_response, Bytes},
+        packets::{Bytes},
+        response_store::{mk_response},
         constants,
     },
 };

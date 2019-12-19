@@ -1,7 +1,7 @@
 use {
     rand::Rng,
     bitvec::prelude::*,
-    crate::packets::{Sdri},
+    crate::sdri::{Sdri},
 };
 
 #[derive(Debug, Clone)]

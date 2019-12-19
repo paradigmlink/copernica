@@ -1,10 +1,11 @@
 use {
     crate::{
         node::{
-            content_store::{ContentStore},
             faces::{Face},
         },
-        packets::{Packet as CopernicaPacket, Sdri, Response},
+        packets::{Packet as CopernicaPacket},
+        response_store::{Response, ResponseStore},
+        sdri::{Sdri},
     },
     bincode,
     laminar::{Packet as LaminarPacket, Socket, SocketEvent},
@@ -58,7 +59,7 @@ pub struct Router {
     listen_addr: SocketAddr,
     faces: HashMap<SocketAddr, Face>,
     id: u8,
-    cs:  ContentStore,
+    response_store:  ResponseStore,
 }
 
 impl Router {
@@ -68,7 +69,7 @@ impl Router {
             listen_addr: config.listen_addr,
             faces: HashMap::new(),
             id: rand::thread_rng().gen_range(0, 255),
-            cs:  ContentStore::new(config.content_store_size),
+            response_store:  ResponseStore::new(config.content_store_size),
         }
     }
 
@@ -82,7 +83,7 @@ impl Router {
                 faces.insert(socket_addr, Face::new(socket_addr.port()));
             }
         }
-        let mut cs = ContentStore::new(config.content_store_size);
+        let mut response_store = ResponseStore::new(config.content_store_size);
         if let data_dir = config.data_dir {
             let content_store: PathBuf = [data_dir.clone()].iter().collect();
             let identity: PathBuf = [data_dir.clone(), "identity".to_string()].iter().collect();
@@ -100,7 +101,7 @@ impl Router {
                         let contents = std::fs::read(path.clone()).expect("file not found");
                         let response: Response = bincode::deserialize(&contents).unwrap();
                         trace!("[SETUP] router {} using {:?}: adding to content store", id, dir);
-                        cs.insert_response(response);
+                        response_store.insert_response(response);
                     }
                 }
             }
@@ -109,7 +110,7 @@ impl Router {
             listen_addr: config.listen_addr,
             faces,
             id,
-            cs,
+            response_store,
         }
     }
 
@@ -153,7 +154,7 @@ impl Router {
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
             match copernica_packet.clone() {
                 CopernicaPacket::Request { sdri } => {
-                    match self.cs.get_response(&sdri) {
+                    match self.response_store.get_response(&sdri) {
                         Some(response) => {
                             //this_face.create_pending_request(&sdri);
                             trace!("[RESUP] *** response found ***");
@@ -211,7 +212,7 @@ impl Router {
                     if this_face.contains_forwarded_request(&sdri) > 15 {
                         trace!("[RESUP {}] response matched pending request",
                             face_stats(self.id, "IN",  this_face, &sdri));
-                        self.cs.insert_packet(copernica_packet.clone());
+                        self.response_store.insert_packet(copernica_packet.clone());
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hint();
                         }
@@ -227,7 +228,7 @@ impl Router {
                                 // store-and-forward
                                 //println!("{}/{} ", numerator+1, denominator);
                                 if numerator == denominator - 1 {
-                                    if let Some(response) = self.cs.get_response(&sdri) {
+                                    if let Some(response) = self.response_store.get_response(&sdri) {
                                         for (_seq, packet) in response.iter() {
                                             handle_packets.push(
                                                 mk_ordered_laminar_packet(*address, packet.clone()));

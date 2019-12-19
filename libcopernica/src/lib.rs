@@ -14,6 +14,8 @@ pub mod client;
 pub mod identity;
 pub mod web_of_trust;
 pub mod constants;
+pub mod sdri;
+pub mod response_store;
 pub mod packets;
 pub use crate::{
     node::router::{

@@ -3,7 +3,7 @@ use {
         node::sparse_distributed_representation::{
             SparseDistributedRepresentation
         },
-        packets::{Sdri},
+        sdri::{Sdri},
     },
 };
 
