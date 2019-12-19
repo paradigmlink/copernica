@@ -1,13 +1,6 @@
-extern crate bincode;
-extern crate copernica_lib;
-extern crate log;
-extern crate serde_derive;
-extern crate serde_json;
-extern crate clap;
-
 use {
     log::{trace},
-    copernica_lib::{Router, read_config_file},
+    libcopernica::{Router, read_config_file},
     logger::setup_logging,
     clap::{Arg, App},
 };

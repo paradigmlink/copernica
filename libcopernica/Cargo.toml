@@ -1,5 +1,5 @@
 [package]
-name = "copernica-lib"
+name = "libcopernica"
 version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"

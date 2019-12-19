@@ -1,6 +1,6 @@
 use {
     dirs,
-    copernica_lib::{
+    libcopernica::{
         Router, CopernicaRequestor,
         Config,
         constants,
