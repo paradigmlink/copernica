@@ -73,7 +73,7 @@ impl Response {
     pub fn from_name_and_data(name: String, data: Bytes) -> Response {
         let chunks = data.chunks(constants::FRAGMENT_SIZE);
         let mut packets: BTreeMap<u64, Packet> = BTreeMap::new();
-        let length = (chunks.len() as u64);
+        let length = chunks.len() as u64;
         let mut count: u64 = 0;
         for chunk in chunks {
             packets.insert(count.clone(), mk_response_packet(name.clone(), chunk.to_vec(), count, length));

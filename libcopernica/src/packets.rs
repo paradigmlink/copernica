@@ -4,7 +4,6 @@ use {
     },
     crate::{
         sdri::{Sdri},
-        constants,
     }
 };
 
@@ -36,7 +35,7 @@ impl fmt::Debug for Packet {
         match &*self {
             Packet::Request{sdri} => write!(f, "REQ{:?}", sdri),
             Packet::Response{sdri, numerator, denominator, ..} =>
-                write!(f, "RES{:?}_{}/{}", sdri, numerator, denominator-1)
+                write!(f, "RES{:?} {}/{}", sdri, numerator+1, denominator)
         }
     }
 }

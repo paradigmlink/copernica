@@ -1,15 +1,13 @@
+#![allow(dead_code)]
 use {
-    dirs,
     libcopernica::{
         Router, CopernicaRequestor,
         Config,
         constants,
-        packets::{mk_response_packet, Bytes, Packet},
+        packets::{Bytes},
         response_store::{Response, mk_response},
     },
     std::{
-        str::FromStr,
-        str,
         env,
         fs,
         path::PathBuf,
@@ -67,12 +65,12 @@ fn generate_random_dir_name() -> PathBuf {
     let mut dir = env::temp_dir();
     dir.push("copernica");
     dir.push(unique_dir);
-    fs::create_dir_all(dir.clone());
+    fs::create_dir_all(dir.clone()).unwrap();
     dir
 }
 fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Vec<String> {
     let mut tmp_dirs: Vec<PathBuf> = Vec::with_capacity(node_count);
-    for n in 0..node_count {
+    for _ in 0..node_count {
         tmp_dirs.push(generate_random_dir_name());
     }
     println!("{:?}", tmp_dirs);
@@ -112,8 +110,7 @@ fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
 }
 
 fn single_fetch() {
-    //populate_tmp_dir_dispersed_gt_mtu(3);
-    let mut network: Vec<Config> = vec![
+    let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50100".parse().unwrap(),
             content_store_size: 50,
@@ -415,7 +412,7 @@ fn resolve_gt_mtu_two_nodes() {
     cc.start_polling();
     let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), TIMEOUT+10000);
     let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; MB0_6]);
-    //assert_eq!(actual, expected);
+    assert_eq!(actual, expected);
 }
 
 fn main() {
@@ -427,8 +424,6 @@ fn main() {
 mod network_regressions {
     use super::*;
 
-    use {
-    };
     #[test]
     fn test_single_fetch() {
         single_fetch();

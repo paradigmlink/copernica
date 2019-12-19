@@ -70,7 +70,7 @@ impl fmt::Debug for Sdri {
         match &*self {
             Sdri { id, name: Some(name), seq: Some(seq) } => write!(f, "{:?}::{:?}::{:?}", id, name, seq),
             Sdri { id, name: Some(name), seq: None } => write!(f, "{:?}::{:?}", id, name),
-            Sdri { id, name: None, seq: Some(seq) } => write!(f, "Cannot have a Some(seq) with a None Name; ID::NONE::Seq"),
+            Sdri { id:_, name: None, seq: Some(_seq) } => write!(f, "Cannot have a Some(seq) with a None Name; ID::NONE::Seq"),
             Sdri { id, name: None, seq: None } => write!(f, "{:?}", id),
         }
     }
@@ -122,13 +122,9 @@ fn name_sparsity(s: &str) -> Vec<(u16)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::io::{BufRead, BufReader};
-    use bitvec::prelude::*;
 
     #[test]
     fn names() {
-        let s: String = "blue::cheese::42".to_string();
         let s: String = "ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::my-excel-file.xls".to_string();
 
         let actual = Sdri::new(s);

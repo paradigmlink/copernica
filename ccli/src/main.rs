@@ -88,21 +88,20 @@ fn main() {
         let digest = String::from_utf8(id.payload()).unwrap();
         println!("{:?}", decrypt_identity(password, digest).unwrap());
     }
-
+/*
     if let Some(ids) = options.trust_id {
         let password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
 
         if let Some((id_name, rest)) = ids.split_first() {
             let id = cr.request(id_name.to_string(), 100);
-/*
+
             if let Some(Some(id_packet)) = id.get(id_name) {
 
                 //let _id = add_trusted_identity(password, id_packet.clone(), rest.to_vec());
             }
-*/
         }
     }
-
+*/
 
     //let config = matches.value_of("config").unwrap_or("copernica.json");
 

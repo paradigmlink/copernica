@@ -17,7 +17,7 @@ use {
             PathBuf,
         },
         net::SocketAddr,
-        collections::{HashMap, HashSet, BTreeMap},
+        collections::{HashMap, HashSet},
         fs,
         error::Error,
         io::BufReader,
@@ -91,7 +91,7 @@ impl Router {
 
             let cs_dirs: Vec<PathBuf> = vec![content_store, identity, trusted_connections];
             for dir in cs_dirs {
-                fs::create_dir_all(dir.clone());
+                fs::create_dir_all(dir.clone()).unwrap();
                 for entry in std::fs::read_dir(dir.clone()).expect("directory not found") {
                     let entry = entry.unwrap();
                     let path = entry.path();

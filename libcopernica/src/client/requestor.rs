@@ -1,14 +1,14 @@
 // @implement: listen_for_requests
 use {
     crate::{
-        packets::{Packet as CopernicaPacket, Bytes, mk_request_packet},
+        packets::{Packet as CopernicaPacket, mk_request_packet},
         sdri::{Sdri},
         response_store::{Response},
     },
     bincode::{serialize, deserialize},
     std::{
         net::{SocketAddr},
-        sync::{Arc, Mutex, RwLock},
+        sync::{Arc, RwLock},
         time::{Duration},
         collections::{HashMap, BTreeMap},
         thread,
@@ -110,7 +110,7 @@ impl CopernicaRequestor {
             recv(completed_r) -> _msg => {trace!("COMPLETED") },
             recv(timeout) -> _ => { println!("TIME OUT") },
         };
-        let mut response_guard = response_read_ref.read().unwrap();
+        let response_guard = response_read_ref.read().unwrap();
         let mut result: BTreeMap<u64, CopernicaPacket> = BTreeMap::new();
         for (count, packet) in response_guard.iter() {
             result.insert(*count as u64, packet.clone());

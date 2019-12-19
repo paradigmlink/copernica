@@ -1,8 +1,8 @@
 use {
     crate::{
-        identity::{decrypt_identity},
+        //identity::{decrypt_identity},
         node::router::{Config},
-        packets::{Packet, Bytes, mk_response_packet},
+        packets::{mk_response_packet},
     },
     cryptoxide::{
         sha2::{
@@ -36,7 +36,7 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     let tcs_ser = &bincode::serialize(&tcs).unwrap();
     let signature = sk.sign(tcs_ser);
     println!("signature = {:?}", signature);
-    signature.verify(&pk, &tcs_ser);
+    let _res = signature.verify(&pk, &tcs_ser);
     // need to sign this with pk first, then encrypt with signature, to ensure my packet is unique otherwise everyone's inition thing will be the same
     println!("tcs_ser = {:?}", tcs_ser);
     hasher.input(&tcs_ser);

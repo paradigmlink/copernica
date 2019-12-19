@@ -21,9 +21,8 @@ use {
     },
     chain_addr,
     crate::{
-        web_of_trust::{new_trusted_identity},
+        //web_of_trust::{new_trusted_identity},
         node::router::{Config},
-        packets::{Bytes},
         response_store::{mk_response},
         constants,
     },
