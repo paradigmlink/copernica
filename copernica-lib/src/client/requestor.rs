@@ -59,6 +59,7 @@ impl CopernicaRequestor {
                 let sender = sender.clone();
                 let packet = serialize(&mk_request_packet(name.clone())).unwrap();
                 let packet = LaminarPacket::reliable_unordered(self.remote_addr, packet);
+                //let packet = LaminarPacket::unreliable(self.remote_addr, packet);
                 sender.send(packet).unwrap()
         }
         let (completed_s, completed_r) = unbounded();
@@ -76,7 +77,7 @@ impl CopernicaRequestor {
                                     continue
                                 },
                                 CopernicaPacket::Response { sdri, numerator, denominator, .. } => {
-                                    trace!("RESPONSE ARRIVED: {:?}", sdri);
+                                    trace!("RESPONSE ARRIVED: {:?} {}/{}", sdri, numerator, denominator-1);
                                     if expected_sdri == sdri {
                                         let mut response_guard = response_write_ref.write().unwrap();
                                         response_guard.insert(numerator, packet);

@@ -128,7 +128,6 @@ impl Router {
                             self.handle_packet(packet.clone(), &mut handled_packets);
                             for p in handled_packets {
                                 sender.send(p).expect("Failed to send");
-                                std::thread::sleep(std::time::Duration::from_millis(1));
                             }
                         }
                     }
@@ -156,7 +155,7 @@ impl Router {
                 CopernicaPacket::Request { sdri } => {
                     match self.cs.get_response(&sdri) {
                         Some(response) => {
-                            this_face.create_pending_request(&sdri);
+                            //this_face.create_pending_request(&sdri);
                             trace!("[RESUP] *** response found ***");
                             for (_seq, packet) in response.iter() {
                                 handle_packets.push(
@@ -226,6 +225,7 @@ impl Router {
                                 trace!("[RESUP {}] send response upstream",
                                     face_stats(self.id, "OUT",  that_face, &sdri));
                                 // store-and-forward
+                                //println!("{}/{} ", numerator+1, denominator);
                                 if numerator == denominator - 1 {
                                     if let Some(response) = self.cs.get_response(&sdri) {
                                         for (_seq, packet) in response.iter() {

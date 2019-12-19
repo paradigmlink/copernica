@@ -12,11 +12,12 @@ use {
     },
     chain_addr,
     chain_crypto::bech32::Bech32,
+    crate::{
+        constants,
+    }
 };
 
 const HEX : [&str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
-
-const SAFE_MTU: usize = 1400;
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Sdri {
@@ -115,7 +116,7 @@ pub struct Response {
 
 impl Response {
     pub fn from_name_and_data(name: String, data: Bytes) -> Response {
-        let chunks = data.chunks(SAFE_MTU);
+        let chunks = data.chunks(constants::FRAGMENT_SIZE);
         let mut packets: BTreeMap<u64, Packet> = BTreeMap::new();
         let length = (chunks.len() as u64);
         let mut count: u64 = 0;
