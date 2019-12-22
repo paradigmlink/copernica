@@ -3,7 +3,7 @@ use {
     crate::{
         packets::{Packet as CopernicaPacket, mk_request_packet},
         sdri::{Sdri},
-        response_store::{Response},
+        response_store::{Response, ResponseStore},
     },
     bincode::{serialize, deserialize},
     std::{
@@ -33,8 +33,8 @@ pub struct CopernicaRequestor {
     remote_addr: SocketAddr,
     sender: Option<Sender<LaminarPacket>>,
     receiver: Option<Receiver<SocketEvent>>,
-    sdri_binding_to_packet: HashMap<Sdri, BTreeMap<u64, CopernicaPacket>>,
-    sdri_binding_to_name: HashMap<Sdri, String>,}
+    response_store: Arc<RwLock<ResponseStore>>
+}
 
 impl CopernicaRequestor {
     pub fn new(remote_addr: String) -> CopernicaRequestor {
@@ -42,8 +42,7 @@ impl CopernicaRequestor {
             remote_addr: remote_addr.parse().unwrap(),
             sender: None,
             receiver: None,
-            sdri_binding_to_packet: HashMap::new(),
-            sdri_binding_to_name: HashMap::new(),
+            response_store: Arc::new(RwLock::new(ResponseStore::new(1000))),
         }
     }
     pub fn start_polling(&mut self) {
@@ -54,16 +53,16 @@ impl CopernicaRequestor {
         thread::spawn(move || socket.start_polling());
     }
 
-    pub fn request(&mut self, name: String, timeout: u64) -> Response {
+    pub fn request(&mut self, name: String, timeout: u64) -> Option<Response> {
         let response: Arc<RwLock<BTreeMap<u64, CopernicaPacket>>> = Arc::new(RwLock::new(BTreeMap::new()));
-        let response_write_ref = response.clone();
-        let response_read_ref  = response.clone();
-        let expected_sdri = Sdri::new(name.clone());
+        let response_write_ref = self.response_store.clone();
+        let response_read_ref  = self.response_store.clone();
+        let expected_sdri_p1 = Sdri::new(name.clone());
+        let expected_sdri_p2 = expected_sdri_p1.clone();
         if let Some(sender) =  &self.sender {
                 let sender = sender.clone();
                 let packet = serialize(&mk_request_packet(name.clone())).unwrap();
-                let packet = LaminarPacket::reliable_unordered(self.remote_addr, packet);
-                //let packet = LaminarPacket::unreliable(self.remote_addr, packet);
+                let packet = LaminarPacket::unreliable(self.remote_addr, packet);
                 sender.send(packet).unwrap()
         }
         let (completed_s, completed_r) = unbounded();
@@ -81,10 +80,10 @@ impl CopernicaRequestor {
                                     continue
                                 },
                                 CopernicaPacket::Response { sdri, numerator, denominator, .. } => {
-                                    trace!("RESPONSE ARRIVED: {:?} {}/{}", sdri, numerator, denominator-1);
-                                    if expected_sdri == sdri {
+                                    trace!("RESPONSE PACKET ARRIVED: {:?} {}/{}", sdri, numerator, denominator-1);
+                                    if expected_sdri_p1 == sdri {
                                         let mut response_guard = response_write_ref.write().unwrap();
-                                        response_guard.insert(numerator, packet);
+                                        response_guard.insert_packet(packet);
                                     }
                                     if numerator == denominator - 1 {
                                         completed_s.send(true).unwrap();
@@ -111,11 +110,7 @@ impl CopernicaRequestor {
             recv(timeout) -> _ => { println!("TIME OUT") },
         };
         let response_guard = response_read_ref.read().unwrap();
-        let mut result: BTreeMap<u64, CopernicaPacket> = BTreeMap::new();
-        for (count, packet) in response_guard.iter() {
-            result.insert(*count as u64, packet.clone());
-        }
-        Response::from_name_and_btreemap(name, result)
+        response_guard.get_response(&expected_sdri_p2)
     }
 }
 
@@ -134,16 +129,4 @@ pub fn load_named_responses(dir: &Path) -> HashMap<String, CopernicaPacket> {
         }
     }
     resps
-}
-
-#[cfg(test)]
-mod requestor {
-    use super::*;
-
-    #[test]
-    fn test_polling() {
-        let mut cr = CopernicaRequestor::new("127.0.0.1:8089".to_string());
-        cr.start_polling();
-        cr.request("hello0".to_string(), 100);
-    }
 }

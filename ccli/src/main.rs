@@ -84,9 +84,10 @@ fn main() {
     if let Some(id) = options.decrypt_id {
         let password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
 
-        let id = cr.request(id.to_string(), 100);
-        let digest = String::from_utf8(id.payload()).unwrap();
-        println!("{:?}", decrypt_identity(password, digest).unwrap());
+        if let Some(id) = cr.request(id.to_string(), 100) {
+            let digest = String::from_utf8(id.payload()).unwrap();
+            println!("{:?}", decrypt_identity(password, digest).unwrap());
+        }
     }
 /*
     if let Some(ids) = options.trust_id {

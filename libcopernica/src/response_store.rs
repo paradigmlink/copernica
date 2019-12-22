@@ -18,17 +18,37 @@ use {
 
 #[derive(Debug, Clone)]
 pub struct ResponseStore {
-    cache: Arc<Mutex<LruCache<Sdri, Response>>>,
+    lru: Arc<Mutex<LruCache<Sdri, Response>>>,
 }
 
 impl ResponseStore {
     pub fn new(size: u64) -> ResponseStore {
         ResponseStore {
-            cache:  Arc::new(Mutex::new(LruCache::new(size as usize))),
+            lru:  Arc::new(Mutex::new(LruCache::new(size as usize))),
         }
     }
+    pub fn from_name_and_data(&mut self, name: String, data: Bytes) {
+        let chunks = data.chunks(constants::FRAGMENT_SIZE);
+        let mut packets: BTreeMap<u64, Packet> = BTreeMap::new();
+        let length = chunks.len() as u64;
+        let mut count: u64 = 0;
+        for chunk in chunks {
+            packets.insert(count.clone(), mk_response_packet(name.clone(), chunk.to_vec(), count, length));
+            count += 1;
+        }
+        let response = Response {
+            sdri: Sdri::new(name),
+            packets,
+            length,
+        };
+        self.lru.lock().unwrap().put(response.sdri(), response);
+    }
+    pub fn from_name_and_btreemap(&mut self, name: String, data: BTreeMap<u64, Packet>) {
+        let response = Response::from_name_and_btreemap(name, data);
+        self.lru.lock().unwrap().put(response.sdri(), response);
+    }
     pub fn get_response(&self, sdri: &Sdri) -> Option<Response> {
-        match self.cache.lock().unwrap().get(sdri) {
+        match self.lru.lock().unwrap().get(sdri) {
             Some(response) => {
                 if response.complete() {
                     return Some(response.clone())
@@ -43,18 +63,18 @@ impl ResponseStore {
     }
 
     pub fn insert_response(&mut self, response: Response) {
-        self.cache.lock().unwrap().put(response.sdri(), response);
+        self.lru.lock().unwrap().put(response.sdri(), response);
     }
 
     pub fn insert_packet(&mut self, packet: Packet) {
         match packet.clone() {
             Packet::Response { sdri, ..} => {
-                let mut cache_guard = self.cache.lock().unwrap();
-                if let Some(response) = cache_guard.get_mut(&sdri) {
+                let mut lru_guard = self.lru.lock().unwrap();
+                if let Some(response) = lru_guard.get_mut(&sdri) {
                     response.insert(packet);
                 } else {
                     let response = Response::from_response_packet(packet);
-                    cache_guard.put(sdri, response);
+                    lru_guard.put(sdri, response);
                 }
             },
             Packet::Request { .. } => panic!("Request should never be inserted into a Response"),
@@ -70,6 +90,23 @@ pub struct Response {
 }
 
 impl Response {
+    pub fn insert(&mut self, packet: Packet) {
+        match packet.clone() {
+            Packet::Response { sdri, numerator, denominator, .. } => {
+                if self.sdri.to_vec() != sdri.to_vec() {
+                    panic!("Response.sdri not equal to Packet::Response{sdri, ..}");
+                }
+                if self.length == denominator {
+                    self.packets.insert(numerator, packet);
+                } else {
+                    panic!("Response.length not equal Packet::Response{denominator, ..}");
+                }
+            },
+            Packet::Request {..} => {
+                panic!("Cannot insert a Packet::Request into a Response");
+            },
+        }
+    }
     pub fn from_name_and_data(name: String, data: Bytes) -> Response {
         let chunks = data.chunks(constants::FRAGMENT_SIZE);
         let mut packets: BTreeMap<u64, Packet> = BTreeMap::new();
@@ -107,25 +144,7 @@ impl Response {
                 panic!("Cannot create a Response from a Packet::Request");
              },
         }
-    }
-    pub fn insert(&mut self, packet: Packet) {
-        match packet.clone() {
-            Packet::Response { sdri, numerator, denominator, .. } => {
-                if self.sdri.to_vec() != sdri.to_vec() {
-                    panic!("Response.sdri not equal to Packet::Response{sdri, ..}");
-                }
-                if self.length == denominator {
-                    self.packets.insert(numerator, packet);
-                } else {
-                    panic!("Response.length not equal Packet::Response{denominator, ..}");
-                }
-            },
-            Packet::Request {..} => {
-                panic!("Cannot insert a Packet::Request into a Response");
-            },
-        }
-    }
-    pub fn iter(&self) -> std::collections::btree_map::Iter<u64, Packet> {
+    }    pub fn iter(&self) -> std::collections::btree_map::Iter<u64, Packet> {
         self.packets.iter()
     }
     pub fn payload(&self) -> Bytes {

@@ -73,7 +73,6 @@ fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Vec
     for _ in 0..node_count {
         tmp_dirs.push(generate_random_dir_name());
     }
-    println!("{:?}", tmp_dirs);
     let mut responses: HashMap<String, Response> = HashMap::new();
     for n in 0..node_count {
         let name = format!("hello{}", n.clone());
@@ -98,8 +97,7 @@ fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Vec
     tmp_dirs.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<String>>()
 }
 fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
-    let value: Bytes = vec![data; size];
-    let response = mk_response(name.clone().to_string(), value);
+    let response = mk_response(name.clone().to_string(), vec![data; size]);
     let root_dir = generate_random_dir_name();
     let dir = root_dir.join(name);
     let mut f = fs::File::create(dir.clone()).unwrap();
@@ -110,6 +108,7 @@ fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
 }
 
 fn single_fetch() {
+    let size: usize = 4000;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50100".parse().unwrap(),
@@ -133,18 +132,19 @@ fn single_fetch() {
             listen_addr: "127.0.0.1:50103".parse().unwrap(),
             content_store_size: 50,
             peers: None,
-            data_dir: populate_tmp_dir("hello3".to_string(), 3, 1024),
+            data_dir: populate_tmp_dir("hello3".to_string(), 3, size),
         }
     ];
     setup_network(network);
+    std::thread::sleep(std::time::Duration::from_millis(300));
     let mut cc = CopernicaRequestor::new("127.0.0.1:50100".into());
     cc.start_polling();
-    let actual_hello3 = cc.request("hello3".to_string(), 1000);
+    let actual_hello3 = cc.request("hello3".to_string(), TIMEOUT+5000);
     let actual_hello0 = cc.request("hello0".to_string(), 1000);
     let expected_hello0 = mk_response("hello0".to_string(), vec![0; 1024]);
-    let expected_hello3 = mk_response("hello3".to_string(), vec![3; 1024]);
-    assert_eq!(actual_hello0, expected_hello0);
-    assert_eq!(actual_hello3, expected_hello3);
+    let expected_hello3 = mk_response("hello3".to_string(), vec![3; size]);
+    assert_eq!(actual_hello0, Some(expected_hello0));
+    assert_eq!(actual_hello3, Some(expected_hello3));
 }
 
 fn small_world_graph_lt_mtu() {
@@ -239,14 +239,15 @@ fn small_world_graph_lt_mtu() {
     for n in 0..11 {
         let expected = mk_response(format!("hello{}", n), vec![n; constants::FRAGMENT_SIZE ]);
         let actual = cc.request(format!("hello{}", n), TIMEOUT+1000);
-        assert_eq!(actual, expected);
+        assert_eq!(actual, Some(expected));
     }
 }
 
 fn small_world_graph_gt_mtu() {
     // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
     // node0 is 12 o'clock, node1 is 1 o'clock, etc.
-    let tmp_dirs = populate_tmp_dir_dispersed_gt_mtu(12, constants::FRAGMENT_SIZE);
+    let size: usize = 4000;
+    let tmp_dirs = populate_tmp_dir_dispersed_gt_mtu(12, size);
     let network: Vec<Config> = vec![
         Config { listen_addr: "127.0.0.1:50020".parse().unwrap(), content_store_size: 150,
                  peers: Some(vec!["127.0.0.1:50021".into(),
@@ -334,9 +335,9 @@ fn small_world_graph_gt_mtu() {
     let mut cc = CopernicaRequestor::new("127.0.0.1:50024".into());
     cc.start_polling();
     for n in 0..11 {
-        let expected = mk_response(format!("hello{}", n), vec![n; constants::FRAGMENT_SIZE]);
+        let expected = mk_response(format!("hello{}", n), vec![n; size]);
         let actual = cc.request(format!("hello{}", n), TIMEOUT+1000);
-        assert_eq!(actual, expected);
+        assert_eq!(actual, Some(expected));
     }
 
 }
@@ -359,20 +360,22 @@ fn timeout() {
 }
 */
 fn resolve_gt_mtu() {
+    let size: usize = 2000;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50106".parse().unwrap(),
             content_store_size: 50000,
             peers: None,
-            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, MB0_1),
+            data_dir: populate_tmp_dir("hello0".to_string(), 0, size),
         },
     ];
     setup_network(network);
     let mut cc = CopernicaRequestor::new("127.0.0.1:50106".into());
     cc.start_polling();
-    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), TIMEOUT);
-    let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; MB0_1]);
-    assert_eq!(actual, expected);
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+    let actual = cc.request("hello0".to_string(), TIMEOUT+1000);
+    let expected: Response = mk_response("hello0".to_string(), vec![0; size]);
+    assert_eq!(actual, Some(expected));
 }
 
 fn resolve_lt_mtu() {
@@ -389,16 +392,17 @@ fn resolve_lt_mtu() {
     cc.start_polling();
     let actual = cc.request("hello".to_string(), 500);
     let expected: Response = mk_response("hello".to_string(), vec![0; 1023]);
-    assert_eq!(actual, expected);
+    assert_eq!(actual, Some(expected));
 }
 
 fn resolve_gt_mtu_two_nodes() {
+    let size: usize = 4000;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50109".parse().unwrap(),
             content_store_size: 5000,
             peers: None,
-            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, MB0_6),
+            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, size),
         },
         Config {
             listen_addr: "127.0.0.1:50108".parse().unwrap(),
@@ -410,14 +414,19 @@ fn resolve_gt_mtu_two_nodes() {
     setup_network(network);
     let mut cc = CopernicaRequestor::new("127.0.0.1:50108".into());
     cc.start_polling();
-    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), TIMEOUT+10000);
-    let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; MB0_6]);
-    assert_eq!(actual, expected);
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), TIMEOUT+1000);
+
+    let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; size]);
+    assert_eq!(actual, Some(expected));
 }
 
 fn main() {
     logger::setup_logging(3, None).unwrap();
-    resolve_gt_mtu_two_nodes()
+    //resolve_gt_mtu_two_nodes();
+    //small_world_graph_gt_mtu();
+    single_fetch();
+    //resolve_gt_mtu();
 }
 
 #[cfg(test)]

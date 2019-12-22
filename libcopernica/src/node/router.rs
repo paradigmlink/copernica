@@ -16,6 +16,10 @@ use {
             Path,
             PathBuf,
         },
+        sync::{
+            Arc,
+            Mutex,
+        },
         net::SocketAddr,
         collections::{HashMap, HashSet},
         fs,
@@ -121,28 +125,32 @@ impl Router {
         let _thread = std::thread::spawn(move || socket.start_polling());
         let mut active_connections: HashSet<SocketAddr> = HashSet::new();
         loop {
-            if let Ok(event) = receiver.recv() {
-                let mut handled_packets: Vec<LaminarPacket> = vec![];
-                match event {
-                    SocketEvent::Packet(packet) => {
-                        if self.faces.contains_key(&packet.clone().addr()) {
-                            self.handle_packet(packet.clone(), &mut handled_packets);
-                            for p in handled_packets {
-                                sender.send(p).expect("Failed to send");
+            match receiver.recv() {
+                Ok(event) => {
+                    let mut handled_packets: Vec<LaminarPacket> = vec![];
+                    match event {
+                        SocketEvent::Packet(packet) => {
+                            if self.faces.contains_key(&packet.clone().addr()) {
+                                self.handle_packet(packet.clone(), &mut handled_packets);
+                                for p in handled_packets {
+                                    sender.send(p).expect("Failed to send");
+                                }
+                            }
+                        }
+                        SocketEvent::Timeout(address) => {
+                            trace!("Client timed out: {}", address);
+                        }
+                        SocketEvent::Connect(address) => {
+                            if !active_connections.contains(&address) {
+                                trace!("Adding {:?} to faces", address);
+                                active_connections.insert(address.clone());
+                                self.faces.insert(address, Face::new(address.port()));
                             }
                         }
                     }
-                    SocketEvent::Timeout(address) => {
-                        trace!("Client timed out: {}", address);
-                    }
-                    SocketEvent::Connect(address) => {
-                        if !active_connections.contains(&address) {
-                            trace!("Adding {:?} to faces", address);
-                            active_connections.insert(address.clone());
-                            self.faces.insert(address, Face::new(address.port()));
-                        }
-                    }
-                }
+                },
+                Err(event) => { panic!("Err {:?}", event) },
+                _ => { panic!("catchall") },
             }
         };
     }
