@@ -3,7 +3,7 @@ use {
         node::{
             faces::{Face},
         },
-        packets::{Packet as CopernicaPacket},
+        packets::{NarrowWaist},
         response_store::{Response, ResponseStore},
         sdri::{Sdri},
     },
@@ -157,11 +157,11 @@ impl Router {
 
     fn handle_packet(&mut self,  laminar_packet: LaminarPacket, handle_packets: &mut Vec<LaminarPacket>) {
         let payload = laminar_packet.payload();
-        let copernica_packet: CopernicaPacket = bincode::deserialize(&payload).unwrap();
+        let thin_waist_packet: NarrowWaist = bincode::deserialize(&payload).unwrap();
         let packet_from: SocketAddr = laminar_packet.addr();
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
-            match copernica_packet.clone() {
-                CopernicaPacket::Request { sdri } => {
+            match thin_waist_packet.clone() {
+                NarrowWaist::Request { sdri } => {
                     match self.response_store.get_response(&sdri) {
                         Some(response) => {
                             //this_face.create_pending_request(&sdri);
@@ -195,7 +195,7 @@ impl Router {
                                     trace!("[REQDN {}] sending request downstream based on forwarding hint",
                                         face_stats(self.id, "OUT",  that_face, &sdri));
                                     handle_packets.push(
-                                        mk_unordered_laminar_packet(*address, copernica_packet.clone()));
+                                        mk_unordered_laminar_packet(*address, thin_waist_packet.clone()));
                                     is_forwarded = true;
                                     continue
                                 }
@@ -209,22 +209,22 @@ impl Router {
                                         trace!("[REQDN {}] bursting on face",
                                             face_stats(self.id, "BURST",  face, &sdri));
                                         handle_packets.push(
-                                            mk_unordered_laminar_packet(address, copernica_packet.clone()));
+                                            mk_unordered_laminar_packet(address, thin_waist_packet.clone()));
                                     }
                                 }
                             }
                         },
                     }
                 },
-                CopernicaPacket::Response { sdri, numerator, denominator, .. } => {
+                NarrowWaist::Response { sdri, count, total, .. } => {
                     if this_face.contains_forwarded_request(&sdri) > 15 {
                         trace!("[RESUP {}] response matched pending request",
                             face_stats(self.id, "IN",  this_face, &sdri));
-                        self.response_store.insert_packet(copernica_packet.clone());
+                        self.response_store.insert_packet(thin_waist_packet.clone());
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hint();
                         }
-                        if numerator == denominator - 1 {
+                        if count == total - 1 {
                             this_face.delete_forwarded_request(&sdri);
                             this_face.create_forwarding_hint(&sdri);
                         }
@@ -234,8 +234,8 @@ impl Router {
                                 trace!("[RESUP {}] send response upstream",
                                     face_stats(self.id, "OUT",  that_face, &sdri));
                                 // store-and-forward
-                                //println!("{}/{} ", numerator+1, denominator);
-                                if numerator == denominator - 1 {
+                                //println!("{}/{} ", count+1, total);
+                                if count == total - 1 {
                                     if let Some(response) = self.response_store.get_response(&sdri) {
                                         for (_seq, packet) in response.iter() {
                                             handle_packets.push(
@@ -254,11 +254,11 @@ impl Router {
     }
 }
 
-fn mk_unordered_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPacket {
+fn mk_unordered_laminar_packet(address: SocketAddr, packet: NarrowWaist) -> LaminarPacket {
     LaminarPacket::reliable_unordered(address, bincode::serialize(&packet).unwrap().to_vec())
 }
 
-fn mk_ordered_laminar_packet(address: SocketAddr, packet: CopernicaPacket) -> LaminarPacket {
+fn mk_ordered_laminar_packet(address: SocketAddr, packet: NarrowWaist) -> LaminarPacket {
     LaminarPacket::reliable_ordered(address, bincode::serialize(&packet).unwrap().to_vec(), None)
 }
 

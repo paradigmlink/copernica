@@ -10,32 +10,32 @@ use {
 pub type Bytes = Vec<u8>;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
-pub enum Packet {
+pub enum NarrowWaist {
     Request     { sdri: Sdri },
-    Response    { sdri: Sdri, data: Bytes, numerator: u64, denominator: u64 },
+    Response    { sdri: Sdri, data: Bytes, count: u64, total: u64 },
 }
 
-pub fn mk_request_packet(name: String) -> Packet {
-    Packet::Request {
+pub fn mk_request_packet(name: String) -> NarrowWaist {
+    NarrowWaist::Request {
         sdri: Sdri::new(name)
     }
 }
 
-pub fn mk_response_packet(name: String, data: Bytes, numerator: u64, denominator: u64) -> Packet {
-    Packet::Response {
+pub fn mk_response_packet(name: String, data: Bytes, count: u64, total: u64) -> NarrowWaist {
+    NarrowWaist::Response {
         sdri: Sdri::new(name),
         data,
-        numerator,
-        denominator,
+        count,
+        total,
     }
 }
 
-impl fmt::Debug for Packet {
+impl fmt::Debug for NarrowWaist {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            Packet::Request{sdri} => write!(f, "REQ{:?}", sdri),
-            Packet::Response{sdri, numerator, denominator, ..} =>
-                write!(f, "RES{:?} {}/{}", sdri, numerator+1, denominator)
+            NarrowWaist::Request{sdri} => write!(f, "REQ{:?}", sdri),
+            NarrowWaist::Response{sdri, count, total, ..} =>
+                write!(f, "RES{:?} {}/{}", sdri, count+1, total)
         }
     }
 }
