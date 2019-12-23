@@ -377,19 +377,20 @@ fn resolve_gt_mtu() {
 }
 
 fn resolve_lt_mtu() {
+    let size: usize = 1000;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50107".parse().unwrap(),
             content_store_size: 50,
             peers: None,
-            data_dir: populate_tmp_dir("hello".to_string(), 0, 1023),
+            data_dir: populate_tmp_dir("hello".to_string(), 0, size),
         },
     ];
     setup_network(network);
     let mut cc = CopernicaRequestor::new("127.0.0.1:50107".into());
     cc.start_polling();
     let actual = cc.request("hello".to_string(), 500);
-    let expected: Response = mk_response("hello".to_string(), vec![0; 1023]);
+    let expected: Response = mk_response("hello".to_string(), vec![0; size]);
     assert_eq!(actual, Some(expected));
 }
 
@@ -423,7 +424,8 @@ fn main() {
     logger::setup_logging(3, None).unwrap();
     //resolve_gt_mtu_two_nodes();
     //small_world_graph_gt_mtu();
-    single_fetch();
+    //single_fetch();
+    resolve_lt_mtu()
     //resolve_gt_mtu();
 }
 

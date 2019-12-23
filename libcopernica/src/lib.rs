@@ -17,7 +17,7 @@ pub mod web_of_trust;
 pub mod constants;
 pub mod sdri;
 pub mod response_store;
-pub mod serder;
+pub mod serdeser;
 pub mod narrow_waist;
 pub use crate::{
     node::router::{

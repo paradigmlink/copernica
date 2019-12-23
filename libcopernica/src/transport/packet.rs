@@ -7,9 +7,9 @@ use {
     },
 };
 
-pub type Hertz = f32;
+pub type Hertz = u32;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum InterFace {
     SocketAddr(SocketAddr),
     Sdr(Hertz), // Software Defined Radio (not Sparse Distributed Representation)
@@ -17,8 +17,8 @@ pub enum InterFace {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TransportPacket {
-    reply_to: InterFace,
-    payload: NarrowWaist,
+    pub reply_to: InterFace,
+    pub payload: NarrowWaist,
 }
 
 impl TransportPacket {
@@ -27,5 +27,11 @@ impl TransportPacket {
             reply_to,
             payload,
         }
+    }
+    pub fn payload(&self) -> NarrowWaist {
+        self.payload.clone()
+    }
+    pub fn reply_to(&self) -> InterFace {
+        self.reply_to.clone()
     }
 }

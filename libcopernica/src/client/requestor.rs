@@ -2,10 +2,12 @@
 use {
     crate::{
         narrow_waist::{NarrowWaist, mk_request_packet},
+        transport::{TransportPacket, InterFace},
         sdri::{Sdri},
         response_store::{Response, ResponseStore},
+        serdeser::{serialize, deserialize},
     },
-    bincode::{serialize, deserialize},
+    bincode,
     std::{
         net::{SocketAddr},
         sync::{Arc, RwLock},
@@ -31,6 +33,7 @@ use {
 #[derive(Clone)]
 pub struct CopernicaRequestor {
     remote_addr: SocketAddr,
+    listen_addr: Option<SocketAddr>,
     sender: Option<Sender<LaminarPacket>>,
     receiver: Option<Receiver<SocketEvent>>,
     response_store: Arc<RwLock<ResponseStore>>
@@ -40,6 +43,7 @@ impl CopernicaRequestor {
     pub fn new(remote_addr: String) -> CopernicaRequestor {
         CopernicaRequestor {
             remote_addr: remote_addr.parse().unwrap(),
+            listen_addr: None,
             sender: None,
             receiver: None,
             response_store: Arc::new(RwLock::new(ResponseStore::new(1000))),
@@ -47,6 +51,7 @@ impl CopernicaRequestor {
     }
     pub fn start_polling(&mut self) {
         let mut socket = Socket::bind_any().unwrap();
+        self.listen_addr = Some(socket.local_addr().unwrap());
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         self.sender = Some(sender.clone());
         self.receiver = Some(receiver.clone());
@@ -60,7 +65,9 @@ impl CopernicaRequestor {
         let expected_sdri_p2 = expected_sdri_p1.clone();
         if let Some(sender) =  &self.sender {
             let sender = sender.clone();
-            let packet = serialize(&mk_request_packet(name.clone())).unwrap();
+            let reply_to = InterFace::SocketAddr(self.listen_addr.unwrap());
+            let packet = TransportPacket::new(reply_to, mk_request_packet(name.clone()));
+            let packet = serialize(&packet);
             let packet = LaminarPacket::unreliable(self.remote_addr, packet);
             sender.send(packet).unwrap()
         }
@@ -72,7 +79,8 @@ impl CopernicaRequestor {
                     let packet: SocketEvent = receiver.recv().unwrap();
                     match packet {
                         SocketEvent::Packet(packet) => {
-                            let packet: NarrowWaist = deserialize(&packet.payload()).unwrap();
+                            let packet: TransportPacket = deserialize(&packet.payload());
+                            let packet: NarrowWaist = packet.payload();
                             match packet.clone() {
                                 NarrowWaist::Request { sdri } => {
                                     trace!("REQUEST ARRIVED: {:?}", sdri);

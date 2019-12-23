@@ -4,6 +4,8 @@ use {
             faces::{Face},
         },
         narrow_waist::{NarrowWaist},
+        transport::{TransportPacket, InterFace},
+        serdeser::{serialize, deserialize},
         response_store::{Response, ResponseStore},
         sdri::{Sdri},
     },
@@ -57,7 +59,7 @@ pub fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error
 #[derive(Clone)]
 pub struct Router {
     listen_addr: SocketAddr,
-    faces: HashMap<SocketAddr, Face>,
+    faces: HashMap<InterFace, Face>,
     id: u8,
     response_store:  ResponseStore,
 }
@@ -75,12 +77,13 @@ impl Router {
 
     pub fn new_with_config(config: Config) -> Router {
         let id = rand::thread_rng().gen_range(0,255);
-        let mut faces: HashMap<SocketAddr, Face> = HashMap::new();
+        let mut faces: HashMap<InterFace, Face> = HashMap::new();
         if let Some(peer_addresses) = config.peers {
             for address in peer_addresses {
                 trace!("[SETUP] router {}: adding peer: {:?}", id, address);
                 let socket_addr: SocketAddr = address.parse().unwrap();
-                faces.insert(socket_addr, Face::new(socket_addr.port()));
+                let inter_face: InterFace = InterFace::SocketAddr(socket_addr);
+                faces.insert(inter_face, Face::new());
             }
         }
         let mut response_store = ResponseStore::new(config.content_store_size);
@@ -116,15 +119,16 @@ impl Router {
         let mut socket = Socket::bind(self.listen_addr).unwrap();
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         let _thread = std::thread::spawn(move || socket.start_polling());
-        let mut active_connections: HashSet<SocketAddr> = HashSet::new();
+        let mut active_connections: HashSet<InterFace> = HashSet::new();
         loop {
             match receiver.recv() {
                 Ok(event) => {
                     let mut handled_packets: Vec<LaminarPacket> = vec![];
                     match event {
                         SocketEvent::Packet(packet) => {
-                            if self.faces.contains_key(&packet.clone().addr()) {
-                                self.handle_packet(packet.clone(), &mut handled_packets);
+                            let transport_packet: TransportPacket = deserialize(&packet.payload());
+                            if self.faces.contains_key(&transport_packet.clone().reply_to()) {
+                                self.handle_packet(transport_packet.clone(), &mut handled_packets);
                                 for p in handled_packets {
                                     sender.send(p).expect("Failed to send");
                                 }
@@ -134,10 +138,11 @@ impl Router {
                             trace!("Client timed out: {}", address);
                         }
                         SocketEvent::Connect(address) => {
-                            if !active_connections.contains(&address) {
-                                trace!("Adding {:?} to faces", address);
-                                active_connections.insert(address.clone());
-                                self.faces.insert(address, Face::new(address.port()));
+                            let inter_face: InterFace = InterFace::SocketAddr(address);
+                            if !active_connections.contains(&inter_face) {
+                                trace!("Adding {:?} to faces", inter_face);
+                                active_connections.insert(inter_face.clone());
+                                self.faces.insert(inter_face, Face::new());
                             }
                         }
                     }
@@ -147,10 +152,9 @@ impl Router {
         };
     }
 
-    fn handle_packet(&mut self,  laminar_packet: LaminarPacket, handle_packets: &mut Vec<LaminarPacket>) {
-        let payload = laminar_packet.payload();
-        let thin_waist_packet: NarrowWaist = bincode::deserialize(&payload).unwrap();
-        let packet_from: SocketAddr = laminar_packet.addr();
+    fn handle_packet(&mut self,  transport_packet: TransportPacket, handle_packets: &mut Vec<LaminarPacket>) {
+        let thin_waist_packet: NarrowWaist = transport_packet.payload();
+        let packet_from: InterFace = transport_packet.reply_to();
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
             match thin_waist_packet.clone() {
                 NarrowWaist::Request { sdri } => {
@@ -159,8 +163,7 @@ impl Router {
                             //this_face.create_pending_request(&sdri);
                             trace!("[RESUP] *** response found ***");
                             for (_seq, packet) in response.iter() {
-                                handle_packets.push(
-                                    mk_ordered_laminar_packet(packet_from, packet.clone()));
+                                prepare_packet(packet_from.clone(), self.listen_addr, packet.clone(), handle_packets);
                             }
                             return
                         },
@@ -186,8 +189,7 @@ impl Router {
                                     that_face.create_forwarded_request(&sdri);
                                     trace!("[REQDN {}] sending request downstream based on forwarding hint",
                                         face_stats(self.id, "OUT",  that_face, &sdri));
-                                    handle_packets.push(
-                                        mk_unordered_laminar_packet(*address, thin_waist_packet.clone()));
+                                    prepare_packet(address.clone(), self.listen_addr, thin_waist_packet.clone(), handle_packets);
                                     is_forwarded = true;
                                     continue
                                 }
@@ -200,8 +202,7 @@ impl Router {
                                         face.create_forwarded_request(&sdri);
                                         trace!("[REQDN {}] bursting on face",
                                             face_stats(self.id, "BURST",  face, &sdri));
-                                        handle_packets.push(
-                                            mk_unordered_laminar_packet(address, thin_waist_packet.clone()));
+                                        prepare_packet(address, self.listen_addr, thin_waist_packet.clone(), handle_packets);
                                     }
                                 }
                             }
@@ -226,12 +227,10 @@ impl Router {
                                 trace!("[RESUP {}] send response upstream",
                                     face_stats(self.id, "OUT",  that_face, &sdri));
                                 // store-and-forward
-                                //println!("{}/{} ", count+1, total);
                                 if count == total - 1 {
                                     if let Some(response) = self.response_store.get_response(&sdri) {
                                         for (_seq, packet) in response.iter() {
-                                            handle_packets.push(
-                                                mk_ordered_laminar_packet(*address, packet.clone()));
+                                            prepare_packet(address.clone(), self.listen_addr, packet.clone(), handle_packets);
                                         }
                                         that_face.delete_forwarded_request(&sdri);
                                         that_face.delete_pending_request(&sdri);
@@ -246,14 +245,18 @@ impl Router {
     }
 }
 
-fn mk_unordered_laminar_packet(address: SocketAddr, packet: NarrowWaist) -> LaminarPacket {
-    LaminarPacket::reliable_unordered(address, bincode::serialize(&packet).unwrap().to_vec())
+fn prepare_packet(remote_addr: InterFace, local_addr: SocketAddr, packet: NarrowWaist, handle_packets: &mut Vec<LaminarPacket>) {
+    match remote_addr {
+        InterFace::SocketAddr(raddress) => {
+            let reply_to: InterFace = InterFace::SocketAddr(local_addr);
+            let transport_packet = TransportPacket::new(reply_to, packet);
+            let laminar_packet = LaminarPacket::reliable_unordered(
+                raddress, serialize(&transport_packet));
+            handle_packets.push(laminar_packet);
+        },
+        InterFace::Sdr(_hz) => {},
+    }
 }
-
-fn mk_ordered_laminar_packet(address: SocketAddr, packet: NarrowWaist) -> LaminarPacket {
-    LaminarPacket::reliable_ordered(address, bincode::serialize(&packet).unwrap().to_vec(), None)
-}
-
 fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Sdri) -> String {
     format!(
     "r{0:<3} f{1: <5} {2: <5} pr{3: <3}d{4: <3}fr{5: <3}d{6: <3}fh{7: <3}d{8: <0}",
