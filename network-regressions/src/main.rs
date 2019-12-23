@@ -4,7 +4,7 @@ use {
         Router, CopernicaRequestor,
         Config,
         constants,
-        packets::{Bytes},
+        narrow_waist::{Bytes},
         response_store::{Response, mk_response},
     },
     std::{
@@ -16,7 +16,6 @@ use {
         collections::HashMap,
     },
     bincode,
-    log::{trace},
 };
 
 const TIMEOUT: u64 = 1000;
@@ -79,7 +78,6 @@ fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Vec
         let value: Bytes = vec![n.clone() as u8; data_size];
         let response = mk_response(name.clone(), value);
         responses.insert(name.to_string(), response.clone());
-        println!("ALL_PACKETS = {:?}", responses);
     }
     let mut current_tmp_dir = 0;
     for (name, packet) in &responses {
@@ -379,19 +377,20 @@ fn resolve_gt_mtu() {
 }
 
 fn resolve_lt_mtu() {
+    let size: usize = 1000;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50107".parse().unwrap(),
             content_store_size: 50,
             peers: None,
-            data_dir: populate_tmp_dir("hello".to_string(), 0, 1023),
+            data_dir: populate_tmp_dir("hello".to_string(), 0, size),
         },
     ];
     setup_network(network);
     let mut cc = CopernicaRequestor::new("127.0.0.1:50107".into());
     cc.start_polling();
     let actual = cc.request("hello".to_string(), 500);
-    let expected: Response = mk_response("hello".to_string(), vec![0; 1023]);
+    let expected: Response = mk_response("hello".to_string(), vec![0; size]);
     assert_eq!(actual, Some(expected));
 }
 
@@ -425,7 +424,8 @@ fn main() {
     logger::setup_logging(3, None).unwrap();
     //resolve_gt_mtu_two_nodes();
     //small_world_graph_gt_mtu();
-    single_fetch();
+    //single_fetch();
+    resolve_lt_mtu()
     //resolve_gt_mtu();
 }
 

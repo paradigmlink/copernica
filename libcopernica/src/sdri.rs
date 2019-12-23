@@ -130,7 +130,6 @@ mod tests {
         let actual = Sdri::new(s);
         let actual = actual.to_vec();
         let expected = vec![vec![290, 642, 1490], vec![17, 481, 593]];
-        println!("{:?}", actual);
         assert_eq!(actual, expected);
     }
 /*

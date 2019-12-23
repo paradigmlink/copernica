@@ -1,16 +1,18 @@
 // @implement: listen_for_requests
 use {
     crate::{
-        packets::{Packet as CopernicaPacket, mk_request_packet},
+        narrow_waist::{NarrowWaist, mk_request_packet},
+        transport::{TransportPacket, InterFace},
         sdri::{Sdri},
         response_store::{Response, ResponseStore},
+        serdeser::{serialize, deserialize},
     },
-    bincode::{serialize, deserialize},
+    bincode,
     std::{
         net::{SocketAddr},
         sync::{Arc, RwLock},
         time::{Duration},
-        collections::{HashMap, BTreeMap},
+        collections::{HashMap},
         thread,
         path::Path,
     },
@@ -31,6 +33,7 @@ use {
 #[derive(Clone)]
 pub struct CopernicaRequestor {
     remote_addr: SocketAddr,
+    listen_addr: Option<SocketAddr>,
     sender: Option<Sender<LaminarPacket>>,
     receiver: Option<Receiver<SocketEvent>>,
     response_store: Arc<RwLock<ResponseStore>>
@@ -40,6 +43,7 @@ impl CopernicaRequestor {
     pub fn new(remote_addr: String) -> CopernicaRequestor {
         CopernicaRequestor {
             remote_addr: remote_addr.parse().unwrap(),
+            listen_addr: None,
             sender: None,
             receiver: None,
             response_store: Arc::new(RwLock::new(ResponseStore::new(1000))),
@@ -47,6 +51,7 @@ impl CopernicaRequestor {
     }
     pub fn start_polling(&mut self) {
         let mut socket = Socket::bind_any().unwrap();
+        self.listen_addr = Some(socket.local_addr().unwrap());
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         self.sender = Some(sender.clone());
         self.receiver = Some(receiver.clone());
@@ -54,16 +59,17 @@ impl CopernicaRequestor {
     }
 
     pub fn request(&mut self, name: String, timeout: u64) -> Option<Response> {
-        let response: Arc<RwLock<BTreeMap<u64, CopernicaPacket>>> = Arc::new(RwLock::new(BTreeMap::new()));
         let response_write_ref = self.response_store.clone();
         let response_read_ref  = self.response_store.clone();
         let expected_sdri_p1 = Sdri::new(name.clone());
         let expected_sdri_p2 = expected_sdri_p1.clone();
         if let Some(sender) =  &self.sender {
-                let sender = sender.clone();
-                let packet = serialize(&mk_request_packet(name.clone())).unwrap();
-                let packet = LaminarPacket::unreliable(self.remote_addr, packet);
-                sender.send(packet).unwrap()
+            let sender = sender.clone();
+            let reply_to = InterFace::SocketAddr(self.listen_addr.unwrap());
+            let packet = TransportPacket::new(reply_to, mk_request_packet(name.clone()));
+            let packet = serialize(&packet);
+            let packet = LaminarPacket::unreliable(self.remote_addr, packet);
+            sender.send(packet).unwrap()
         }
         let (completed_s, completed_r) = unbounded();
         if let Some(receiver) = &self.receiver {
@@ -73,19 +79,20 @@ impl CopernicaRequestor {
                     let packet: SocketEvent = receiver.recv().unwrap();
                     match packet {
                         SocketEvent::Packet(packet) => {
-                            let packet: CopernicaPacket = deserialize(&packet.payload()).unwrap();
+                            let packet: TransportPacket = deserialize(&packet.payload());
+                            let packet: NarrowWaist = packet.payload();
                             match packet.clone() {
-                                CopernicaPacket::Request { sdri } => {
+                                NarrowWaist::Request { sdri } => {
                                     trace!("REQUEST ARRIVED: {:?}", sdri);
                                     continue
                                 },
-                                CopernicaPacket::Response { sdri, numerator, denominator, .. } => {
-                                    trace!("RESPONSE PACKET ARRIVED: {:?} {}/{}", sdri, numerator, denominator-1);
+                                NarrowWaist::Response { sdri, count, total, .. } => {
+                                    trace!("RESPONSE PACKET ARRIVED: {:?} {}/{}", sdri, count+1, total);
                                     if expected_sdri_p1 == sdri {
                                         let mut response_guard = response_write_ref.write().unwrap();
                                         response_guard.insert_packet(packet);
                                     }
-                                    if numerator == denominator - 1 {
+                                    if count == total - 1 {
                                         completed_s.send(true).unwrap();
                                         break
                                     }
@@ -114,8 +121,8 @@ impl CopernicaRequestor {
     }
 }
 
-pub fn load_named_responses(dir: &Path) -> HashMap<String, CopernicaPacket> {
-    let mut resps: HashMap<String, CopernicaPacket> = HashMap::new();
+pub fn load_named_responses(dir: &Path) -> HashMap<String, NarrowWaist> {
+    let mut resps: HashMap<String, NarrowWaist> = HashMap::new();
     for entry in std::fs::read_dir(dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
@@ -123,7 +130,7 @@ pub fn load_named_responses(dir: &Path) -> HashMap<String, CopernicaPacket> {
             continue
         } else {
             let contents = std::fs::read(path.clone()).unwrap();
-            let packet: CopernicaPacket = bincode::deserialize(&contents).unwrap();
+            let packet: NarrowWaist = bincode::deserialize(&contents).unwrap();
             let name = &path.file_stem().unwrap();
             resps.insert(name.to_os_string().into_string().unwrap(), packet);
         }

@@ -5,6 +5,7 @@ use {
         },
         sdri::{Sdri},
     },
+    rand::Rng,
 };
 
 #[derive(Debug, Clone)]
@@ -17,9 +18,10 @@ pub struct Face {
 }
 
 impl Face {
-    pub fn new(id: u16) -> Face {
+    pub fn new() -> Face {
+        let mut rng = rand::thread_rng();
         Face {
-            id,
+            id: rng.gen(),
             pending_request:    SparseDistributedRepresentation::new(),
             forwarding_hint:    SparseDistributedRepresentation::new(),
             forwarded_request:  SparseDistributedRepresentation::new(),
