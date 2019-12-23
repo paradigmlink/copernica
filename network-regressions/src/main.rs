@@ -4,7 +4,7 @@ use {
         Router, CopernicaRequestor,
         Config,
         constants,
-        packets::{Bytes},
+        narrow_waist::{Bytes},
         response_store::{Response, mk_response},
     },
     std::{
@@ -16,7 +16,6 @@ use {
         collections::HashMap,
     },
     bincode,
-    log::{trace},
 };
 
 const TIMEOUT: u64 = 1000;
@@ -79,7 +78,6 @@ fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Vec
         let value: Bytes = vec![n.clone() as u8; data_size];
         let response = mk_response(name.clone(), value);
         responses.insert(name.to_string(), response.clone());
-        println!("ALL_PACKETS = {:?}", responses);
     }
     let mut current_tmp_dir = 0;
     for (name, packet) in &responses {

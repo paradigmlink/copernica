@@ -10,7 +10,7 @@ use {
     },
     lru::LruCache,
     crate::{
-        packets::{NarrowWaist, mk_response_packet, Bytes},
+        narrow_waist::{NarrowWaist, mk_response_packet, Bytes},
         sdri::{Sdri},
         constants,
     }

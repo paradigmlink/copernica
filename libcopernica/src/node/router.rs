@@ -3,7 +3,7 @@ use {
         node::{
             faces::{Face},
         },
-        packets::{NarrowWaist},
+        narrow_waist::{NarrowWaist},
         response_store::{Response, ResponseStore},
         sdri::{Sdri},
     },
@@ -15,10 +15,6 @@ use {
         path::{
             Path,
             PathBuf,
-        },
-        sync::{
-            Arc,
-            Mutex,
         },
         net::SocketAddr,
         collections::{HashMap, HashSet},
@@ -88,25 +84,22 @@ impl Router {
             }
         }
         let mut response_store = ResponseStore::new(config.content_store_size);
-        if let data_dir = config.data_dir {
-            let content_store: PathBuf = [data_dir.clone()].iter().collect();
-            let identity: PathBuf = [data_dir.clone(), "identity".to_string()].iter().collect();
-            let trusted_connections: PathBuf = [data_dir.clone(), "trusted_connections".to_string()].iter().collect();
-
-            let cs_dirs: Vec<PathBuf> = vec![content_store, identity, trusted_connections];
-            for dir in cs_dirs {
-                fs::create_dir_all(dir.clone()).unwrap();
-                for entry in std::fs::read_dir(dir.clone()).expect("directory not found") {
-                    let entry = entry.unwrap();
-                    let path = entry.path();
-                    if path.is_dir() {
-                        continue
-                    } else {
-                        let contents = std::fs::read(path.clone()).expect("file not found");
-                        let response: Response = bincode::deserialize(&contents).unwrap();
-                        trace!("[SETUP] router {} using {:?}: adding to content store", id, dir);
-                        response_store.insert_response(response);
-                    }
+        let content_store: PathBuf = [config.data_dir.clone()].iter().collect();
+        let identity: PathBuf = [config.data_dir.clone(), "identity".to_string()].iter().collect();
+        let trusted_connections: PathBuf = [config.data_dir.clone(), "trusted_connections".to_string()].iter().collect();
+        let cs_dirs: Vec<PathBuf> = vec![content_store, identity, trusted_connections];
+        for dir in cs_dirs {
+            fs::create_dir_all(dir.clone()).unwrap();
+            for entry in std::fs::read_dir(dir.clone()).expect("directory not found") {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.is_dir() {
+                    continue
+                } else {
+                    let contents = std::fs::read(path.clone()).expect("file not found");
+                    let response: Response = bincode::deserialize(&contents).unwrap();
+                    trace!("[SETUP] router {} using {:?}: adding to content store", id, dir);
+                    response_store.insert_response(response);
                 }
             }
         }
@@ -150,7 +143,6 @@ impl Router {
                     }
                 },
                 Err(event) => { panic!("Err {:?}", event) },
-                _ => { panic!("catchall") },
             }
         };
     }

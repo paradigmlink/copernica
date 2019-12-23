@@ -9,14 +9,16 @@ extern crate sha3;
 #[cfg(test)]
 extern crate bitvec;
 
-mod node;
+pub mod node;
 pub mod client;
+pub mod transport;
 pub mod identity;
 pub mod web_of_trust;
 pub mod constants;
 pub mod sdri;
 pub mod response_store;
-pub mod packets;
+pub mod serder;
+pub mod narrow_waist;
 pub use crate::{
     node::router::{
         Router,
@@ -25,5 +27,8 @@ pub use crate::{
     },
     client::{
         CopernicaRequestor,
+    },
+    transport::{
+        TransportPacket,
     },
 };

@@ -2,7 +2,7 @@ use {
     crate::{
         //identity::{decrypt_identity},
         node::router::{Config},
-        packets::{mk_response_packet},
+        narrow_waist::{mk_response_packet},
     },
     cryptoxide::{
         sha2::{

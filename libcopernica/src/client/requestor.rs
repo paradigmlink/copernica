@@ -1,7 +1,7 @@
 // @implement: listen_for_requests
 use {
     crate::{
-        packets::{NarrowWaist, mk_request_packet},
+        narrow_waist::{NarrowWaist, mk_request_packet},
         sdri::{Sdri},
         response_store::{Response, ResponseStore},
     },
@@ -10,7 +10,7 @@ use {
         net::{SocketAddr},
         sync::{Arc, RwLock},
         time::{Duration},
-        collections::{HashMap, BTreeMap},
+        collections::{HashMap},
         thread,
         path::Path,
     },
@@ -54,7 +54,6 @@ impl CopernicaRequestor {
     }
 
     pub fn request(&mut self, name: String, timeout: u64) -> Option<Response> {
-        let response: Arc<RwLock<BTreeMap<u64, NarrowWaist>>> = Arc::new(RwLock::new(BTreeMap::new()));
         let response_write_ref = self.response_store.clone();
         let response_read_ref  = self.response_store.clone();
         let expected_sdri_p1 = Sdri::new(name.clone());
