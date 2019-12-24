@@ -2,7 +2,7 @@
 use {
     crate::{
         narrow_waist::{NarrowWaist, mk_request_packet},
-        transport::{TransportPacket, InterFace},
+        transport::{TransportPacket, ReplyTo},
         sdri::{Sdri},
         response_store::{Response, ResponseStore},
         serdeser::{serialize, deserialize},
@@ -65,7 +65,7 @@ impl CopernicaRequestor {
         let expected_sdri_p2 = expected_sdri_p1.clone();
         if let Some(sender) =  &self.sender {
             let sender = sender.clone();
-            let reply_to = InterFace::SocketAddr(self.listen_addr.unwrap());
+            let reply_to = ReplyTo::Udp(self.listen_addr.unwrap());
             let packet = TransportPacket::new(reply_to, mk_request_packet(name.clone()));
             let packet = serialize(&packet);
             let packet = LaminarPacket::unreliable(self.remote_addr, packet);

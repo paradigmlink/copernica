@@ -4,7 +4,7 @@ use {
             faces::{Face},
         },
         narrow_waist::{NarrowWaist},
-        transport::{TransportPacket, InterFace},
+        transport::{TransportPacket, ReplyTo},
         serdeser::{serialize, deserialize},
         response_store::{Response, ResponseStore},
         sdri::{Sdri},
@@ -59,7 +59,7 @@ pub fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error
 #[derive(Clone)]
 pub struct Router {
     listen_addr: SocketAddr,
-    faces: HashMap<InterFace, Face>,
+    faces: HashMap<ReplyTo, Face>,
     id: u8,
     response_store:  ResponseStore,
 }
@@ -77,12 +77,12 @@ impl Router {
 
     pub fn new_with_config(config: Config) -> Router {
         let id = rand::thread_rng().gen_range(0,255);
-        let mut faces: HashMap<InterFace, Face> = HashMap::new();
+        let mut faces: HashMap<ReplyTo, Face> = HashMap::new();
         if let Some(peer_addresses) = config.peers {
             for address in peer_addresses {
                 trace!("[SETUP] router {}: adding peer: {:?}", id, address);
                 let socket_addr: SocketAddr = address.parse().unwrap();
-                let inter_face: InterFace = InterFace::SocketAddr(socket_addr);
+                let inter_face: ReplyTo = ReplyTo::Udp(socket_addr);
                 faces.insert(inter_face, Face::new());
             }
         }
@@ -119,7 +119,7 @@ impl Router {
         let mut socket = Socket::bind(self.listen_addr).unwrap();
         let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
         let _thread = std::thread::spawn(move || socket.start_polling());
-        let mut active_connections: HashSet<InterFace> = HashSet::new();
+        let mut active_connections: HashSet<ReplyTo> = HashSet::new();
         loop {
             match receiver.recv() {
                 Ok(event) => {
@@ -138,7 +138,7 @@ impl Router {
                             trace!("Client timed out: {}", address);
                         }
                         SocketEvent::Connect(address) => {
-                            let inter_face: InterFace = InterFace::SocketAddr(address);
+                            let inter_face: ReplyTo = ReplyTo::Udp(address);
                             if !active_connections.contains(&inter_face) {
                                 trace!("Adding {:?} to faces", inter_face);
                                 active_connections.insert(inter_face.clone());
@@ -154,7 +154,7 @@ impl Router {
 
     fn handle_packet(&mut self,  transport_packet: TransportPacket, handle_packets: &mut Vec<LaminarPacket>) {
         let thin_waist_packet: NarrowWaist = transport_packet.payload();
-        let packet_from: InterFace = transport_packet.reply_to();
+        let packet_from: ReplyTo = transport_packet.reply_to();
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
             match thin_waist_packet.clone() {
                 NarrowWaist::Request { sdri } => {
@@ -245,18 +245,20 @@ impl Router {
     }
 }
 
-fn prepare_packet(remote_addr: InterFace, local_addr: SocketAddr, packet: NarrowWaist, handle_packets: &mut Vec<LaminarPacket>) {
+fn prepare_packet(remote_addr: ReplyTo, local_addr: SocketAddr, packet: NarrowWaist, handle_packets: &mut Vec<LaminarPacket>) {
     match remote_addr {
-        InterFace::SocketAddr(raddress) => {
-            let reply_to: InterFace = InterFace::SocketAddr(local_addr);
+        ReplyTo::Udp(raddress) => {
+            // @crazy: UDP needs to extract send-to, stick it in the UDP packet, then swap out ReplyTo with local address
+            let reply_to: ReplyTo = ReplyTo::Udp(local_addr);
             let transport_packet = TransportPacket::new(reply_to, packet);
             let laminar_packet = LaminarPacket::reliable_unordered(
                 raddress, serialize(&transport_packet));
             handle_packets.push(laminar_packet);
         },
-        InterFace::Sdr(_hz) => {},
+        ReplyTo::Sdr(_hz) => {},
     }
 }
+
 fn face_stats(router_id: u8, direction: &str, face: &mut Face, sdri: &Sdri) -> String {
     format!(
     "r{0:<3} f{1: <5} {2: <5} pr{3: <3}d{4: <3}fr{5: <3}d{6: <3}fh{7: <3}d{8: <0}",

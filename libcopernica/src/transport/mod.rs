@@ -1,2 +1,2 @@
-pub use self::packet::{TransportPacket, InterFace, Hertz};
+pub use self::packet::{TransportPacket, ReplyTo, Hertz};
 mod packet;
