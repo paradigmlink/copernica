@@ -3,7 +3,8 @@ extern crate serde_json;
 
 use {
     libcopernica::{
-        client::{CopernicaRequestor, load_named_responses},
+        client::{CopernicaRequestor},
+        narrow_waist::{NarrowWaist},
         identity::{generate_identity, decrypt_identity},
         //web_of_trust::{add_trusted_identity},
         Config, read_config_file,
@@ -11,6 +12,8 @@ use {
     rpassword::prompt_password_stdout,
     structopt::StructOpt,
     std::{
+        collections::{HashMap},
+        path::{Path},
         io,
     },
 };
@@ -46,7 +49,7 @@ fn main() {
     if let Some(config_path) = options.config {
         config = read_config_file(config_path).unwrap();
     }
-    let mut cr = CopernicaRequestor::new("127.0.0.1:8089".into());
+    let mut cr = CopernicaRequestor::new("127.0.0.1:8089".into(), "127.0.0.1:8088".into());
     cr.start_polling();
     // stick in the config to the above
 
@@ -107,4 +110,21 @@ fn main() {
     //let config = matches.value_of("config").unwrap_or("copernica.json");
 
 
+}
+
+fn load_named_responses(dir: &Path) -> HashMap<String, NarrowWaist> {
+    let mut resps: HashMap<String, NarrowWaist> = HashMap::new();
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.is_dir() {
+            continue
+        } else {
+            let contents = std::fs::read(path.clone()).unwrap();
+            let packet: NarrowWaist = bincode::deserialize(&contents).unwrap();
+            let name = &path.file_stem().unwrap();
+            resps.insert(name.to_os_string().into_string().unwrap(), packet);
+        }
+    }
+    resps
 }

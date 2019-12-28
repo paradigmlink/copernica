@@ -2,19 +2,16 @@
 use {
     crate::{
         narrow_waist::{NarrowWaist, mk_request_packet},
-        transport::{TransportPacket, ReplyTo},
+        transport::{TransportPacket, TransportResponse, ReplyTo,
+            send_transport_packet, send_transport_response, receive_transport_packet,
+        },
         sdri::{Sdri},
         response_store::{Response, ResponseStore},
-        serdeser::{serialize, deserialize},
     },
-    bincode,
     std::{
-        net::{SocketAddr},
         sync::{Arc, RwLock},
         time::{Duration},
-        collections::{HashMap},
         thread,
-        path::Path,
     },
     crossbeam_channel::{
             unbounded,
@@ -25,37 +22,44 @@ use {
             never
     },
     log::{trace},
-    laminar::{
-        Packet as LaminarPacket, Socket, SocketEvent
-    },
 };
 
 #[derive(Clone)]
 pub struct CopernicaRequestor {
-    remote_addr: SocketAddr,
-    listen_addr: Option<SocketAddr>,
-    sender: Option<Sender<LaminarPacket>>,
-    receiver: Option<Receiver<SocketEvent>>,
+    remote_addr: ReplyTo,
+    listen_addr: ReplyTo,
+    transport_packet_receiver: Option<Receiver<TransportPacket>>,
+    transport_packet_sender: Option<Sender<TransportPacket>>,
+    transport_response_sender: Option<Sender<TransportResponse>>,
     response_store: Arc<RwLock<ResponseStore>>
 }
 
 impl CopernicaRequestor {
-    pub fn new(remote_addr: String) -> CopernicaRequestor {
+    pub fn new(listen_addr: String, remote_addr: String) -> CopernicaRequestor {
+        let listen_addr = ReplyTo::Udp(listen_addr.parse().unwrap());
+        let remote_addr = ReplyTo::Udp(remote_addr.parse().unwrap());
         CopernicaRequestor {
-            remote_addr: remote_addr.parse().unwrap(),
-            listen_addr: None,
-            sender: None,
-            receiver: None,
+            remote_addr,
+            listen_addr,
+            transport_packet_receiver: None,
+            transport_packet_sender: None,
+            transport_response_sender: None,
             response_store: Arc::new(RwLock::new(ResponseStore::new(1000))),
         }
     }
     pub fn start_polling(&mut self) {
-        let mut socket = Socket::bind_any().unwrap();
-        self.listen_addr = Some(socket.local_addr().unwrap());
-        let (sender, receiver) = (socket.get_packet_sender(), socket.get_event_receiver());
-        self.sender = Some(sender.clone());
-        self.receiver = Some(receiver.clone());
-        thread::spawn(move || socket.start_polling());
+        let listen_addr_1 = self.listen_addr.clone();
+        let listen_addr_2 = self.remote_addr.clone();
+        let listen_addr_3 = self.remote_addr.clone();
+        let (inbound_tp_sender, inbound_tp_receiver) = unbounded();
+        let (outbound_tr_sender, outbound_tr_receiver) = unbounded();
+        let (outbound_tp_sender, outbound_tp_receiver) = unbounded();
+        self.transport_packet_receiver = Some(inbound_tp_receiver.clone());
+        self.transport_packet_sender = Some(outbound_tp_sender.clone());
+        self.transport_response_sender = Some(outbound_tr_sender.clone());
+        thread::spawn(move || receive_transport_packet(listen_addr_1, inbound_tp_sender));
+        thread::spawn(move || send_transport_response(listen_addr_2, outbound_tr_receiver));
+        thread::spawn(move || send_transport_packet(listen_addr_3, outbound_tp_receiver));
     }
 
     pub fn request(&mut self, name: String, timeout: u64) -> Option<Response> {
@@ -63,49 +67,34 @@ impl CopernicaRequestor {
         let response_read_ref  = self.response_store.clone();
         let expected_sdri_p1 = Sdri::new(name.clone());
         let expected_sdri_p2 = expected_sdri_p1.clone();
-        if let Some(sender) =  &self.sender {
+        if let Some(sender) =  &self.transport_packet_sender {
             let sender = sender.clone();
-            let reply_to = ReplyTo::Udp(self.listen_addr.unwrap());
-            let packet = TransportPacket::new(reply_to, mk_request_packet(name.clone()));
-            let packet = serialize(&packet);
-            let packet = LaminarPacket::unreliable(self.remote_addr, packet);
+            let packet = TransportPacket::new(self.listen_addr.clone(), mk_request_packet(name.clone()));
             sender.send(packet).unwrap()
         }
         let (completed_s, completed_r) = unbounded();
-        if let Some(receiver) = &self.receiver {
+        if let Some(receiver) = &self.transport_packet_receiver {
             let receiver = receiver.clone();
             thread::spawn(move || {
                 loop {
-                    let packet: SocketEvent = receiver.recv().unwrap();
-                    match packet {
-                        SocketEvent::Packet(packet) => {
-                            let packet: TransportPacket = deserialize(&packet.payload());
-                            let packet: NarrowWaist = packet.payload();
-                            match packet.clone() {
-                                NarrowWaist::Request { sdri } => {
-                                    trace!("REQUEST ARRIVED: {:?}", sdri);
-                                    continue
-                                },
-                                NarrowWaist::Response { sdri, count, total, .. } => {
-                                    trace!("RESPONSE PACKET ARRIVED: {:?} {}/{}", sdri, count+1, total);
-                                    if expected_sdri_p1 == sdri {
-                                        let mut response_guard = response_write_ref.write().unwrap();
-                                        response_guard.insert_packet(packet);
-                                    }
-                                    if count == total - 1 {
-                                        completed_s.send(true).unwrap();
-                                        break
-                                    }
-                                    // @missing: need a self.looking_for so valid responses are not thrown away
-                                },
+                    let tp: TransportPacket = receiver.recv().unwrap();
+                    let packet: NarrowWaist = tp.payload();
+                    match packet.clone() {
+                        NarrowWaist::Request { sdri } => {
+                            trace!("REQUEST ARRIVED: {:?}", sdri);
+                            continue
+                        },
+                        NarrowWaist::Response { sdri, count, total, .. } => {
+                            trace!("RESPONSE PACKET ARRIVED: {:?} {}/{}", sdri, count+1, total);
+                            if expected_sdri_p1 == sdri {
+                                let mut response_guard = response_write_ref.write().unwrap();
+                                response_guard.insert_packet(packet);
                             }
-                        }
-                        SocketEvent::Timeout(address) => {
-                            trace!("Client timed out: {}", address);
-                        }
-                        SocketEvent::Connect(address) => {
-                            trace!("New connection from: {:?}", address);
-                        }
+                            if count == total - 1 {
+                                completed_s.send(true).unwrap();
+                                break
+                            }
+                        },
                     }
                 }
             });
@@ -121,19 +110,3 @@ impl CopernicaRequestor {
     }
 }
 
-pub fn load_named_responses(dir: &Path) -> HashMap<String, NarrowWaist> {
-    let mut resps: HashMap<String, NarrowWaist> = HashMap::new();
-    for entry in std::fs::read_dir(dir).unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if path.is_dir() {
-            continue
-        } else {
-            let contents = std::fs::read(path.clone()).unwrap();
-            let packet: NarrowWaist = bincode::deserialize(&contents).unwrap();
-            let name = &path.file_stem().unwrap();
-            resps.insert(name.to_os_string().into_string().unwrap(), packet);
-        }
-    }
-    resps
-}

@@ -3,14 +3,14 @@ use {
         node::sparse_distributed_representation::{
             SparseDistributedRepresentation
         },
+        transport::{ReplyTo},
         sdri::{Sdri},
     },
-    rand::Rng,
 };
 
 #[derive(Debug, Clone)]
 pub struct Face {
-    id:                u16,
+    id:                ReplyTo,
     pending_request:   SparseDistributedRepresentation,
     forwarding_hint:   SparseDistributedRepresentation,
     forwarded_request: SparseDistributedRepresentation,
@@ -18,18 +18,17 @@ pub struct Face {
 }
 
 impl Face {
-    pub fn new() -> Face {
-        let mut rng = rand::thread_rng();
+    pub fn new(id: ReplyTo) -> Face {
         Face {
-            id: rng.gen(),
+            id,
             pending_request:    SparseDistributedRepresentation::new(),
             forwarding_hint:    SparseDistributedRepresentation::new(),
             forwarded_request:  SparseDistributedRepresentation::new(),
         }
     }
 
-    pub fn get_id(&self) -> u16 {
-        self.id
+    pub fn id(&self) -> ReplyTo {
+        self.id.clone()
     }
     // Pending Request Sparse Distributed Representation
     // Used to determine the direction of upstream and shouldn't be conflated
@@ -39,13 +38,13 @@ impl Face {
     pub fn create_pending_request(&mut self, packet_sdri: &Sdri) {
         self.pending_request.insert(&packet_sdri);
     }
-    pub fn contains_pending_request(&mut self, request_sdri: &Sdri) -> u8 {
+    pub fn contains_pending_request(&self, request_sdri: &Sdri) -> u8 {
         self.pending_request.contains(request_sdri)
     }
     pub fn delete_pending_request(&mut self, request_sdri: &Sdri) {
         self.pending_request.delete(request_sdri);
     }
-    pub fn pending_request_decoherence(&mut self) -> u8 {
+    pub fn pending_request_decoherence(&self) -> u8 {
         self.pending_request.decoherence()
     }
     #[allow(dead_code)]
@@ -62,13 +61,13 @@ impl Face {
     pub fn create_forwarded_request(&mut self, packet_sdri: &Sdri) {
         self.forwarded_request.insert(&packet_sdri);
     }
-    pub fn contains_forwarded_request(&mut self, request_sdri: &Sdri) -> u8 {
+    pub fn contains_forwarded_request(&self, request_sdri: &Sdri) -> u8 {
         self.forwarded_request.contains(request_sdri)
     }
     pub fn delete_forwarded_request(&mut self, request_sdri: &Sdri) {
         self.forwarded_request.delete(request_sdri);
     }
-    pub fn forwarded_request_decoherence(&mut self) -> u8 {
+    pub fn forwarded_request_decoherence(&self) -> u8 {
         self.forwarded_request.decoherence()
     }
     #[allow(dead_code)]
@@ -83,10 +82,10 @@ impl Face {
     pub fn create_forwarding_hint(&mut self, data_sdri: &Sdri) {
         self.forwarding_hint.insert(&data_sdri);
     }
-    pub fn contains_forwarding_hint(&mut self, request_sdri: &Sdri) -> u8 {
+    pub fn contains_forwarding_hint(&self, request_sdri: &Sdri) -> u8 {
         self.forwarding_hint.contains(request_sdri)
     }
-    pub fn forwarding_hint_decoherence(&mut self) -> u8 {
+    pub fn forwarding_hint_decoherence(&self) -> u8 {
         self.forwarding_hint.decoherence()
     }
     pub fn partially_forget_forwarding_hint(&mut self) {
