@@ -6,7 +6,7 @@ use {
             send_transport_packet, send_transport_response, receive_transport_packet,
         },
         sdri::{Sdri},
-        response_store::{Response, ResponseStore},
+        response_store::{Response, ResponseStore, Got},
     },
     std::{
         sync::{Arc, RwLock},
@@ -106,7 +106,16 @@ impl CopernicaRequestor {
             recv(timeout) -> _ => { println!("TIME OUT") },
         };
         let response_guard = response_read_ref.read().unwrap();
-        response_guard.get_response(&expected_sdri_p2)
+        match response_guard.get(&expected_sdri_p2) {
+            Some(response) => {
+                match response {
+                    Got::All(response) => return Some(response),
+                    Got::Single(_) => return None,
+                }
+            },
+            None => return None,
+        }
+
     }
 }
 

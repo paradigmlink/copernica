@@ -6,9 +6,9 @@ use {
         narrow_waist::{NarrowWaist},
         transport::{
             TransportPacket, TransportResponse, ReplyTo,
-            relay_transport_packet, send_transport_response, receive_transport_packet,
+            relay_transport_packet, send_transport_packet, send_transport_response, receive_transport_packet,
         },
-        response_store::{Response, ResponseStore},
+        response_store::{Response, ResponseStore, Got},
         sdri::{Sdri},
     },
     bincode,
@@ -117,12 +117,15 @@ impl Router {
         let listen_addr_1 = self.listen_addr.clone();
         let listen_addr_2 = self.listen_addr.clone();
         let listen_addr_3 = self.listen_addr.clone();
+        let listen_addr_4 = self.listen_addr.clone();
         let (receive_tp_sender, receive_tp_receiver) = unbounded::<TransportPacket>();
         let (send_tr_sender, send_tr_receiver) = unbounded::<TransportResponse>();
-        let (send_tp_sender, send_tp_receiver) = unbounded::<(ReplyTo, TransportPacket)>();
+        let (relay_tp_sender, relay_tp_receiver) = unbounded::<(ReplyTo, TransportPacket)>();
+        let (send_tp_sender, send_tp_receiver) = unbounded::<TransportPacket>();
         std::thread::spawn(move || receive_transport_packet(listen_addr_1, receive_tp_sender));
         std::thread::spawn(move || send_transport_response(listen_addr_2, send_tr_receiver));
-        std::thread::spawn(move || relay_transport_packet(listen_addr_3, send_tp_receiver));
+        std::thread::spawn(move || relay_transport_packet(listen_addr_3, relay_tp_receiver));
+        std::thread::spawn(move || send_transport_packet(listen_addr_4, send_tp_receiver));
         loop {
             match receive_tp_receiver.recv() {
                 Ok(tp) => {
@@ -132,7 +135,7 @@ impl Router {
                         self.faces.insert(reply_to.clone(), Face::new(reply_to));
                     }
                     //all_faces_stats(&self.faces, &tp, &format!("ALL FACES STATS ON INBOUND for {:?}", self.listen_addr.clone()));
-                    self.handle_packet(&tp, send_tr_sender.clone(), send_tp_sender.clone());
+                    self.handle_packet(&tp, send_tr_sender.clone(), relay_tp_sender.clone(), send_tp_sender.clone());
                     //all_faces_stats(&self.faces, &tp, &format!("ALL FACES STATS ON OUTBOUND for {:?}", self.listen_addr.clone()));
                 },
                 _ => {},
@@ -142,19 +145,30 @@ impl Router {
     }
 
     fn handle_packet(&mut self, transport_packet: &TransportPacket,
-        send_transport_response: Sender<TransportResponse>,
-        relay_transport_packet: Sender<(ReplyTo, TransportPacket)>) {
+            send_transport_response: Sender<TransportResponse>,
+            relay_transport_packet: Sender<(ReplyTo, TransportPacket)>,
+            send_transport_packet: Sender<TransportPacket>) {
         let thin_waist_packet: NarrowWaist = transport_packet.payload();
         let packet_from: ReplyTo = transport_packet.reply_to();
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
             match thin_waist_packet.clone() {
                 NarrowWaist::Request { sdri } => {
-                    match self.response_store.get_response(&sdri) {
+                    match self.response_store.get(&sdri) {
                         Some(response) => {
-                            let tr = TransportResponse::new(transport_packet.reply_to(), response);
-                            outbound_stats(&transport_packet, &self.listen_addr,
-                                this_face, "********* RESPONSE FOUND *********");
-                            send_transport_response.send(tr).unwrap();
+                            match response {
+                                Got::All(response) => {
+                                    let tr = TransportResponse::new(transport_packet.reply_to(), response);
+                                    outbound_stats(&transport_packet, &self.listen_addr,
+                                        this_face, "********* RESPONSE FOUND *********");
+                                    send_transport_response.send(tr).unwrap();
+                                },
+                                Got::Single(narrow_waist) => {
+                                    let tp = TransportPacket::new(transport_packet.reply_to(), narrow_waist);
+                                    outbound_stats(&transport_packet, &self.listen_addr,
+                                        this_face, "********* RESPONSE PACKET FOUND *********");
+                                    send_transport_packet.send(tp).unwrap();
+                                },
+                            }
                             return
                         },
                         None => {
@@ -219,11 +233,21 @@ impl Router {
                             outbound_stats(&transport_packet, &self.listen_addr,
                                 that_face, "Send response upstream");
                                 if count == total - 1 {
-                                    if let Some(response) = self.response_store.get_response(&sdri) {
-                                        let tr = TransportResponse::new(address.clone(), response);
-                                        send_transport_response.send(tr).unwrap();
-                                        that_face.delete_forwarded_request(&sdri);
-                                        that_face.delete_pending_request(&sdri);
+                                    if let Some(response) = self.response_store.get(&sdri) {
+                                        match response {
+                                            Got::All(response) => {
+                                                let tr = TransportResponse::new(address.clone(), response);
+                                                send_transport_response.send(tr).unwrap();
+                                                that_face.delete_forwarded_request(&sdri);
+                                                that_face.delete_pending_request(&sdri);
+                                            },
+                                            Got::Single(narrow_waist) => {
+                                                let tp = TransportPacket::new(address.clone(), narrow_waist);
+                                                send_transport_packet.send(tp).unwrap();
+                                                that_face.delete_forwarded_request(&sdri);
+                                                that_face.delete_pending_request(&sdri);
+                                            },
+                                        }
                                     }
                                 }
                             }

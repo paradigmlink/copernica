@@ -47,11 +47,27 @@ impl ResponseStore {
         let response = Response::from_name_and_btreemap(name, data);
         self.lru.lock().unwrap().put(response.sdri(), response);
     }
-    pub fn get_response(&self, sdri: &Sdri) -> Option<Response> {
+    pub fn get(&self, sdri: &Sdri) -> Option<Got> {
         match self.lru.lock().unwrap().get(sdri) {
             Some(response) => {
                 if response.complete() {
-                    return Some(response.clone())
+                    match sdri {
+                        Sdri { id: _, name: Some(_name), seq: Some(seq) } => {
+                            match response.get_packet(*seq as u64) {
+                                Some(narrow_waist) => {
+                                    return Some(Got::Single(narrow_waist))
+                                },
+                                None => return None,
+                            }
+                        },
+                        Sdri { id: _, name: Some(_name), seq: None } => {
+                            return Some(Got::All(response.clone()))
+                        },
+                        Sdri { id: _, name: None, seq: None } => {
+                            return Some(Got::All(response.clone()))
+                        },
+                        Sdri { id:_, name: None, seq: Some(_seq) } => panic!("Cannot have a Some(seq) with a None Name; ID::NONE::Seq"),
+                    }
                 } else {
                     return None
                 }
@@ -80,6 +96,12 @@ impl ResponseStore {
             NarrowWaist::Request { .. } => panic!("Request should never be inserted into a Response"),
         }
     }
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum Got {
+    All(Response),
+    Single(NarrowWaist),
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -158,6 +180,14 @@ impl Response {
                 })
             .flatten()
             .collect()
+    }
+    pub fn get_packet(&self, seq: u64) -> Option<NarrowWaist> {
+        match self.packets.get(&seq) {
+            Some(narrow_waist) => {
+                return Some(narrow_waist.clone())
+            },
+            None => return None,
+        }
     }
     pub fn sdri(&self) -> Sdri {
         self.sdri.clone()

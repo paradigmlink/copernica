@@ -13,9 +13,9 @@ use {
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Sdri {
-    id: Vec<u16>,
-    name: Option<Vec<u16>>,
-    seq: Option<usize>,
+    pub id: Vec<u16>,
+    pub name: Option<Vec<u16>>,
+    pub seq: Option<usize>,
 }
 
 impl Sdri {
