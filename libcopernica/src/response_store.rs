@@ -47,6 +47,14 @@ impl ResponseStore {
         let response = Response::from_name_and_btreemap(name, data);
         self.lru.lock().unwrap().put(response.sdri(), response);
     }
+    pub fn complete(&self, sdri: &Sdri) -> bool {
+        match self.lru.lock().unwrap().get(sdri) {
+            Some(response) => {
+                response.complete()
+            },
+            None => return false,
+        }
+    }
     pub fn get(&self, sdri: &Sdri) -> Option<Got> {
         match self.lru.lock().unwrap().get(sdri) {
             Some(response) => {
@@ -87,7 +95,7 @@ impl ResponseStore {
             NarrowWaist::Response { sdri, ..} => {
                 let mut lru_guard = self.lru.lock().unwrap();
                 if let Some(response) = lru_guard.get_mut(&sdri) {
-                    response.insert(packet);
+                    response.insert_packet(packet);
                 } else {
                     let response = Response::from_response_packet(packet);
                     lru_guard.put(sdri, response);
@@ -112,7 +120,7 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn insert(&mut self, packet: NarrowWaist) {
+    pub fn insert_packet(&mut self, packet: NarrowWaist) {
         match packet.clone() {
             NarrowWaist::Response { sdri, count, total, .. } => {
                 if self.sdri.to_vec() != sdri.to_vec() {
@@ -159,7 +167,7 @@ impl Response {
                     packets: BTreeMap::new(),
                     length: total,
                 };
-                response.insert(packet);
+                response.insert_packet(packet);
                 return response
             },
             NarrowWaist::Request { .. } => {
@@ -194,12 +202,6 @@ impl Response {
     }
     pub fn complete(&self) -> bool {
         self.packets.len() as u64 == self.length
-    }
-    pub fn expected_length(&self) -> u64 {
-        self.length
-    }
-    pub fn actual_length(&self) -> u64 {
-        self.packets.len() as u64
     }
 }
 

@@ -217,43 +217,41 @@ impl Router {
                         },
                     }
                 },
-                NarrowWaist::Response { sdri, count, total, .. } => {
+                NarrowWaist::Response { sdri, .. } => {
                     if this_face.contains_forwarded_request(&sdri) > 15 {
                         self.response_store.insert_packet(thin_waist_packet.clone());
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hint();
                         }
-                        if count == total - 1 {
+                        if self.response_store.complete(&sdri) {
                             this_face.delete_forwarded_request(&sdri);
                             this_face.create_forwarding_hint(&sdri);
                         }
                         for (address, that_face) in self.faces.iter_mut() {
                             if *address == packet_from { continue }
                             if that_face.contains_pending_request(&sdri) > 50 {
-                            outbound_stats(&transport_packet, &self.listen_addr,
-                                that_face, "Send response upstream");
-                                if count == total - 1 {
-                                    if let Some(response) = self.response_store.get(&sdri) {
-                                        match response {
-                                            Got::All(response) => {
-                                                let tr = TransportResponse::new(address.clone(), response);
-                                                send_transport_response.send(tr).unwrap();
-                                                that_face.delete_forwarded_request(&sdri);
-                                                that_face.delete_pending_request(&sdri);
-                                            },
-                                            Got::Single(narrow_waist) => {
-                                                let tp = TransportPacket::new(address.clone(), narrow_waist);
-                                                send_transport_packet.send(tp).unwrap();
-                                                that_face.delete_forwarded_request(&sdri);
-                                                that_face.delete_pending_request(&sdri);
-                                            },
+                                outbound_stats(&transport_packet, &self.listen_addr,
+                                    that_face, "Send response upstream");
+                                if let Some(response) = self.response_store.get(&sdri) {
+                                    match response {
+                                        Got::All(response) => {
+                                            let tr = TransportResponse::new(address.clone(), response);
+                                            send_transport_response.send(tr).unwrap();
+                                            that_face.delete_forwarded_request(&sdri);
+                                            that_face.delete_pending_request(&sdri);
+                                        },
+                                        Got::Single(narrow_waist) => {
+                                            let tp = TransportPacket::new(address.clone(), narrow_waist);
+                                            send_transport_packet.send(tp).unwrap();
+                                            that_face.delete_forwarded_request(&sdri);
+                                            that_face.delete_pending_request(&sdri);
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                },
+                }
             }
         }
     }
