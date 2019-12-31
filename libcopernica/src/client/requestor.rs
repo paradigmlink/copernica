@@ -62,7 +62,7 @@ impl CopernicaRequestor {
         thread::spawn(move || send_transport_packet(listen_addr_3, outbound_tp_receiver));
     }
 
-    pub fn request(&mut self, name: String, timeout: u64) -> Option<Response> {
+    pub async fn request(&mut self, name: String, timeout: u64) -> Option<Response> {
         let response_write_ref = self.response_store.clone();
         let response_read_ref  = self.response_store.clone();
         let expected_sdri_p1 = Sdri::new(name.clone());
@@ -106,7 +106,7 @@ impl CopernicaRequestor {
             recv(timeout) -> _ => { println!("TIME OUT") },
         };
         let response_guard = response_read_ref.read().unwrap();
-        match response_guard.get(&expected_sdri_p2) {
+        match response_guard.get(&expected_sdri_p2).await {
             Some(response) => {
                 match response {
                     Got::All(response) => return Some(response),

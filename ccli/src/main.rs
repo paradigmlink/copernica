@@ -11,6 +11,7 @@ use {
     },
     rpassword::prompt_password_stdout,
     structopt::StructOpt,
+    async_std,
     std::{
         collections::{HashMap},
         path::{Path},
@@ -83,16 +84,16 @@ fn main() {
         let id_password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
         println!("chosen_id: {:?}, id_password: {:?}", chosen_id, id_password);
     }
-
+/*
     if let Some(id) = options.decrypt_id {
         let password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
 
-        if let Some(id) = cr.request(id.to_string(), 100) {
+        if let Some(id) = cr.request(id.to_string(), 100).await {
             let digest = String::from_utf8(id.payload()).unwrap();
             println!("{:?}", decrypt_identity(password, digest).unwrap());
         }
     }
-/*
+
     if let Some(ids) = options.trust_id {
         let password = prompt_password_stdout("enter password for chosen identity: ").unwrap();
 

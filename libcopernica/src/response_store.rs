@@ -47,18 +47,18 @@ impl ResponseStore {
         let response = Response::from_name_and_btreemap(name, data);
         self.lru.lock().unwrap().put(response.sdri(), response);
     }
-    pub fn complete(&self, sdri: &Sdri) -> bool {
+    pub async fn complete(&self, sdri: &Sdri) -> bool {
         match self.lru.lock().unwrap().get(sdri) {
             Some(response) => {
-                response.complete()
+                response.complete().await
             },
             None => return false,
         }
     }
-    pub fn get(&self, sdri: &Sdri) -> Option<Got> {
+    pub async fn get(&self, sdri: &Sdri) -> Option<Got> {
         match self.lru.lock().unwrap().get(sdri) {
             Some(response) => {
-                if response.complete() {
+                if response.complete().await {
                     match sdri {
                         Sdri { id: _, name: Some(_name), seq: Some(seq) } => {
                             match response.get_packet(*seq as u64) {
@@ -200,7 +200,7 @@ impl Response {
     pub fn sdri(&self) -> Sdri {
         self.sdri.clone()
     }
-    pub fn complete(&self) -> bool {
+    pub async fn complete(&self) -> bool {
         self.packets.len() as u64 == self.length
     }
 }

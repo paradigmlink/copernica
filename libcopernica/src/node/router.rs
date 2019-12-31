@@ -112,7 +112,7 @@ impl Router {
         }
     }
 
-    pub fn run(&mut self) {
+    pub async fn run(&mut self) {
         trace!("{:?} IS LISTENING", self.listen_addr);
         let listen_addr_1 = self.listen_addr.clone();
         let listen_addr_2 = self.listen_addr.clone();
@@ -135,7 +135,7 @@ impl Router {
                         self.faces.insert(reply_to.clone(), Face::new(reply_to));
                     }
                     //all_faces_stats(&self.faces, &tp, &format!("ALL FACES STATS ON INBOUND for {:?}", self.listen_addr.clone()));
-                    self.handle_packet(&tp, send_tr_sender.clone(), relay_tp_sender.clone(), send_tp_sender.clone());
+                    self.handle_packet(&tp, send_tr_sender.clone(), relay_tp_sender.clone(), send_tp_sender.clone()).await;
                     //all_faces_stats(&self.faces, &tp, &format!("ALL FACES STATS ON OUTBOUND for {:?}", self.listen_addr.clone()));
                 },
                 _ => {},
@@ -144,7 +144,7 @@ impl Router {
         };
     }
 
-    fn handle_packet(&mut self, transport_packet: &TransportPacket,
+    async fn handle_packet(&mut self, transport_packet: &TransportPacket,
             send_transport_response: Sender<TransportResponse>,
             relay_transport_packet: Sender<(ReplyTo, TransportPacket)>,
             send_transport_packet: Sender<TransportPacket>) {
@@ -153,7 +153,7 @@ impl Router {
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
             match thin_waist_packet.clone() {
                 NarrowWaist::Request { sdri } => {
-                    match self.response_store.get(&sdri) {
+                    match self.response_store.get(&sdri).await {
                         Some(response) => {
                             match response {
                                 Got::All(response) => {
@@ -223,7 +223,7 @@ impl Router {
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hint();
                         }
-                        if self.response_store.complete(&sdri) {
+                        if self.response_store.complete(&sdri).await {
                             this_face.delete_forwarded_request(&sdri);
                             this_face.create_forwarding_hint(&sdri);
                         }
@@ -232,7 +232,7 @@ impl Router {
                             if that_face.contains_pending_request(&sdri) > 50 {
                                 outbound_stats(&transport_packet, &self.listen_addr,
                                     that_face, "Send response upstream");
-                                if let Some(response) = self.response_store.get(&sdri) {
+                                if let Some(response) = self.response_store.get(&sdri).await {
                                     match response {
                                         Got::All(response) => {
                                             let tr = TransportResponse::new(address.clone(), response);
