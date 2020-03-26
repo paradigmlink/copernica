@@ -1,14 +1,12 @@
-{ nixpkgs ? fetchTarball channel:nixos-unstable
-, pkgs ? import nixpkgs {}
+{
+pkgs ? import <nixpkgs> {}
 }:
 
 with pkgs;
 
 stdenv.mkDerivation {
   name = "copernican";
-
   src = null;
-
-  buildInputs = [ rustup amp gdb gdbgui rr];
+  buildInputs = [ rustup gdb cgdb rr ];
 
 }

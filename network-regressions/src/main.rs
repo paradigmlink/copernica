@@ -19,7 +19,7 @@ use {
     bincode,
 };
 
-const TIMEOUT: u64 = 1000;
+//const TIMEOUT: u64 = 1000;
 const GT_MTU: usize = 1410;
 const GT_MTU_BY_12: usize = GT_MTU * 12;
 const MB0_1: usize  = 104857;
@@ -110,7 +110,7 @@ fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
 }
 
 async fn single_fetch() {
-    let size: usize = 1000;
+    let size: usize = MB5;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50100".parse().unwrap(),
@@ -138,14 +138,16 @@ async fn single_fetch() {
         }
     ];
     setup_network(network);
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    std::thread::sleep(std::time::Duration::from_millis(1000));
     let mut cc = CopernicaRequestor::new("127.0.0.1:50099".into(), "127.0.0.1:50100".into());
     cc.start_polling();
-    let actual_hello0 = cc.request("hello2".to_string(), TIMEOUT).await;
-    let expected_hello0 = mk_response("hello2".to_string(), vec![2; 1024]);
-    assert_eq!(actual_hello0, Some(expected_hello0));
+    //let actual_hello0 = cc.request("hello2".to_string()).await;
+    //let expected_hello0 = mk_response("hello2".to_string(), vec![2; 1024]);
+    //assert_eq!(actual_hello0, Some(expected_hello0));
 
-    //let actual_hello3 = cc.request("hello3".to_string(), TIMEOUT*24);
+    if let Some(actual_hello0) = cc.request("hello0".to_string()).await {
+        println!("MISSING {:?}", actual_hello0.missing());
+    }
     //let expected_hello3 = mk_response("hello3".to_string(), vec![3; size]);
     //assert_eq!(actual_hello3, Some(expected_hello3));
 }
@@ -241,7 +243,7 @@ async fn small_world_graph_lt_mtu() {
     cc.start_polling();
     for n in 0..11 {
         let expected = mk_response(format!("hello{}", n), vec![n; constants::FRAGMENT_SIZE ]);
-        let actual = cc.request(format!("hello{}", n), TIMEOUT*3).await;
+        let actual = cc.request(format!("hello{}", n)).await;
         assert_eq!(actual, Some(expected));
     }
 }
@@ -340,7 +342,7 @@ async fn small_world_graph_gt_mtu() {
     cc.start_polling();
     for n in 0..11 {
         let expected = mk_response(format!("hello{}", n), vec![n; size]);
-        let actual = cc.request(format!("hello{}", n), TIMEOUT*3).await;
+        let actual = cc.request(format!("hello{}", n)).await;
         assert_eq!(actual, Some(expected));
     }
 
@@ -377,7 +379,7 @@ async fn resolve_gt_mtu() {
     let mut cc = CopernicaRequestor::new("127.0.0.1:50105".into(), "127.0.0.1:50106".into());
     cc.start_polling();
     std::thread::sleep(std::time::Duration::from_millis(3000));
-    let actual = cc.request("hello0".to_string(), TIMEOUT*10).await;
+    let actual = cc.request("hello0".to_string()).await;
     std::thread::sleep(std::time::Duration::from_millis(1000)); // to print all faces outbound
     let expected: Response = mk_response("hello0".to_string(), vec![0; size]);
     assert_eq!(actual, Some(expected));
@@ -397,7 +399,7 @@ async fn resolve_lt_mtu() {
     let mut cc = CopernicaRequestor::new("127.0.0.1:50098".into(), "127.0.0.1:50107".into());
     cc.start_polling();
     std::thread::sleep(std::time::Duration::from_millis(3));
-    let actual = cc.request("hello".to_string(), 100).await;
+    let actual = cc.request("hello".to_string()).await;
     std::thread::sleep(std::time::Duration::from_millis(3));
     let expected: Response = mk_response("hello".to_string(), vec![0; size]);
     assert_eq!(actual, Some(expected));
@@ -424,7 +426,7 @@ async fn resolve_gt_mtu_two_nodes() {
     let mut cc = CopernicaRequestor::new("127.0.0.1:50103".into(), "127.0.0.1:50108".into());
     cc.start_polling();
     std::thread::sleep(std::time::Duration::from_millis(20));
-    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), TIMEOUT).await;
+    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string()).await;
     std::thread::sleep(std::time::Duration::from_millis(3));
     let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; size]);
     assert_eq!(actual, Some(expected));
@@ -450,7 +452,7 @@ async fn resolve_lt_mtu_two_nodes() {
     let mut cc = CopernicaRequestor::new("127.0.0.1:50110".into(), "127.0.0.1:50111".into());
     cc.start_polling();
     std::thread::sleep(std::time::Duration::from_millis(50));
-    let actual = task::block_on(async { cc.request("hello0".to_string(), TIMEOUT).await });
+    let actual = task::block_on(async { cc.request("hello0".to_string()).await });
     std::thread::sleep(std::time::Duration::from_millis(10));
     let expected: Response = mk_response("hello0".to_string(), vec![0; size]);
     assert_eq!(actual, Some(expected));

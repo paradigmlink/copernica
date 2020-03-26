@@ -1,3 +1,4 @@
+// https://numenta.com/assets/pdf/biological-and-machine-intelligence/BaMI-SDR.pdf
 use {
     rand::Rng,
     bitvec::prelude::*,

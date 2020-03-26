@@ -15,7 +15,7 @@ use {
 pub struct Sdri {
     pub id: Vec<u16>,
     pub name: Option<Vec<u16>>,
-    pub seq: Option<usize>,
+    pub seq: Option<u64>,
 }
 
 impl Sdri {
@@ -25,7 +25,7 @@ impl Sdri {
         let sdri: Sdri = match sections.len() {
             3 => {
                 let name = format!("{}{}", sections[0], sections[1]);
-                let seq = sections[2].parse::<usize>().unwrap();
+                let seq = sections[2].parse::<u64>().unwrap();
                 Sdri {
                     id: name_sparsity(sections[0]),
                     name: Some(name_sparsity(name.as_str())),

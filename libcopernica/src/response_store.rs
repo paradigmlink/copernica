@@ -63,16 +63,16 @@ impl ResponseStore {
                         Sdri { id: _, name: Some(_name), seq: Some(seq) } => {
                             match response.get_packet(*seq as u64) {
                                 Some(narrow_waist) => {
-                                    return Some(Got::Single(narrow_waist))
+                                    return Some(Got::NarrowWaist(narrow_waist))
                                 },
                                 None => return None,
                             }
                         },
                         Sdri { id: _, name: Some(_name), seq: None } => {
-                            return Some(Got::All(response.clone()))
+                            return Some(Got::Response(response.clone()))
                         },
                         Sdri { id: _, name: None, seq: None } => {
-                            return Some(Got::All(response.clone()))
+                            return Some(Got::Response(response.clone()))
                         },
                         Sdri { id:_, name: None, seq: Some(_seq) } => panic!("Cannot have a Some(seq) with a None Name; ID::NONE::Seq"),
                     }
@@ -85,7 +85,6 @@ impl ResponseStore {
             },
         }
     }
-
     pub fn insert_response(&mut self, response: Response) {
         self.lru.lock().unwrap().put(response.sdri(), response);
     }
@@ -108,8 +107,8 @@ impl ResponseStore {
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Got {
-    All(Response),
-    Single(NarrowWaist),
+    Response(Response),
+    NarrowWaist(NarrowWaist),
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -202,6 +201,16 @@ impl Response {
     }
     pub async fn complete(&self) -> bool {
         self.packets.len() as u64 == self.length
+    }
+    pub fn missing(&self) -> Vec<u64> {
+        let mut missing: Vec<u64> = Vec::new();
+        let mut count: u64 = 0;
+        for n in 0..self.length {
+            if self.packets.contains_key(&(n as u64)) {
+                missing.push(n as u64);
+            }
+        }
+        missing
     }
 }
 

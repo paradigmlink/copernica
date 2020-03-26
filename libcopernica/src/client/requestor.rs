@@ -1,4 +1,3 @@
-// @implement: listen_for_requests
 use {
     crate::{
         narrow_waist::{NarrowWaist, mk_request_packet},
@@ -62,7 +61,7 @@ impl CopernicaRequestor {
         thread::spawn(move || send_transport_packet(listen_addr_3, outbound_tp_receiver));
     }
 
-    pub async fn request(&mut self, name: String, timeout: u64) -> Option<Response> {
+    pub async fn request(&mut self, name: String) -> Option<Response> {
         let response_write_ref = self.response_store.clone();
         let response_read_ref  = self.response_store.clone();
         let expected_sdri_p1 = Sdri::new(name.clone());
@@ -72,6 +71,7 @@ impl CopernicaRequestor {
             let packet = TransportPacket::new(self.listen_addr.clone(), mk_request_packet(name.clone()));
             sender.send(packet).unwrap()
         }
+
         let (completed_s, completed_r) = unbounded();
         if let Some(receiver) = &self.transport_packet_receiver {
             let receiver = receiver.clone();
@@ -99,18 +99,18 @@ impl CopernicaRequestor {
                 }
             });
         }  // end loop
-        let duration = Some(Duration::from_millis(timeout));
-        let timeout = duration.map(|d| after(d)).unwrap_or_else(never);
+     //   let duration = Some(Duration::from_millis(timeout));
+     //   let timeout = duration.map(|d| after(d)).unwrap_or_else(never);
         select! {
             recv(completed_r) -> _msg => {trace!("COMPLETED") },
-            recv(timeout) -> _ => { println!("TIME OUT") },
+   //         recv(timeout) -> _ => { println!("TIME OUT") },
         };
         let response_guard = response_read_ref.read().unwrap();
         match response_guard.get(&expected_sdri_p2).await {
             Some(response) => {
                 match response {
-                    Got::All(response) => return Some(response),
-                    Got::Single(_) => return None,
+                    Got::Response(response) => return Some(response),
+                    Got::NarrowWaist(_) => return None,
                 }
             },
             None => return None,
