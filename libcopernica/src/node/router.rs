@@ -86,7 +86,7 @@ impl Router {
             }
         }
         let mut response_store = ResponseStore::new(config.content_store_size);
-        let content_store: PathBuf = [config.data_dir.clone()].iter().collect();
+        let content_store: PathBuf = [config.data_dir.clone(), "content_store".to_string()].iter().collect();
         let identity: PathBuf = [config.data_dir.clone(), "identity".to_string()].iter().collect();
         let trusted_connections: PathBuf = [config.data_dir.clone(), "trusted_connections".to_string()].iter().collect();
         let cs_dirs: Vec<PathBuf> = vec![content_store, identity, trusted_connections];
