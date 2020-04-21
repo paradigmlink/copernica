@@ -29,7 +29,7 @@ impl SparseDistributedRepresentation {
         let mut sdr_vals: Vec<u32> = Vec::new();
         for row in packet.to_vec() {
             for elem in row {
-                sdr_vals.push(self.sdr.get(elem as usize).unwrap() as u32);
+                sdr_vals.push(*self.sdr.get(elem as usize).unwrap() as u32);
             }
         }
         let hits = sdr_vals.iter().try_fold(0u32, |acc, &elem| acc.checked_add(elem));
@@ -54,7 +54,7 @@ impl SparseDistributedRepresentation {
     }
 
     pub fn decoherence(&self) -> u8 {
-        let hits = self.sdr.iter().try_fold(0u32, |acc, elem| acc.checked_add(elem as u32));
+        let hits = self.sdr.iter().try_fold(0u32, |acc, elem| acc.checked_add(*elem as u32));
         let percentage = (hits.unwrap() as f32 / self.sdr.len() as f32) * 100f32;
         //println!("hits: {:?}, length: {:?}, percentage: {}", hits.unwrap(), vals.len(), percentage);
         percentage as u8

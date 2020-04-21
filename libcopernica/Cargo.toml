@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 rand = "0.7.2"
-bitvec = "0.15.2"
+bitvec = "^0.17"
 bincode = "1"
 logger = { path = "../logger" }
 async-task = "1.0.0"
