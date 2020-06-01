@@ -110,7 +110,7 @@ fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
 }
 
 async fn single_fetch() {
-    let size: usize = MB5;
+    let size: usize = MB0_1;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50100".parse().unwrap(),
@@ -141,15 +141,13 @@ async fn single_fetch() {
     std::thread::sleep(std::time::Duration::from_millis(1000));
     let mut cc = CopernicaRequestor::new("127.0.0.1:50099".into(), "127.0.0.1:50100".into());
     cc.start_polling();
-    //let actual_hello0 = cc.request("hello2".to_string()).await;
-    //let expected_hello0 = mk_response("hello2".to_string(), vec![2; 1024]);
-    //assert_eq!(actual_hello0, Some(expected_hello0));
-
     if let Some(actual_hello0) = cc.request("hello0".to_string()).await {
         println!("MISSING {:?}", actual_hello0.missing());
     }
-    //let expected_hello3 = mk_response("hello3".to_string(), vec![3; size]);
-    //assert_eq!(actual_hello3, Some(expected_hello3));
+
+    let expected_hello3 = mk_response("hello3".to_string(), vec![3; size]);
+    let actual_hello3 = cc.request("hello3".to_string()).await;
+    assert_eq!(actual_hello3, Some(expected_hello3));
 }
 
 async fn small_world_graph_lt_mtu() {

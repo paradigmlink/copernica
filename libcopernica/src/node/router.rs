@@ -86,7 +86,7 @@ impl Router {
             }
         }
         let mut response_store = ResponseStore::new(config.content_store_size);
-        let content_store: PathBuf = [config.data_dir.clone(), "content_store".to_string()].iter().collect();
+        let content_store: PathBuf = [config.data_dir.clone()].iter().collect();
         let identity: PathBuf = [config.data_dir.clone(), "identity".to_string()].iter().collect();
         let trusted_connections: PathBuf = [config.data_dir.clone(), "trusted_connections".to_string()].iter().collect();
         let cs_dirs: Vec<PathBuf> = vec![content_store, identity, trusted_connections];
@@ -183,12 +183,12 @@ impl Router {
                                 }
                                 if that_face.contains_forwarded_request(&sdri) > 51 {
                                     outbound_stats(&transport_packet, &self.listen_addr,
-                                        that_face, "Don't send request downstream again");
+                                        that_face, "Don't send request upstream again");
                                     continue
                                 }
                                 if that_face.contains_pending_request(&sdri)   > 51 {
                                     outbound_stats(&transport_packet, &self.listen_addr,
-                                        that_face, "Don't send request upstream");
+                                        that_face, "Don't send request downstream");
                                     continue
                                 }
                                 if that_face.contains_forwarding_hint(&sdri)   > 90 {
