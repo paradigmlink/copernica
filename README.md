@@ -18,6 +18,10 @@ Install `rustup`.
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
+## Paper
+
+Please read the [paper](https://fractalide.com/fractalide.pdf).
+
 ## Authors
 
 * **Stewart Mackenzie** - [sjmackenzie](https://github.com/sjmackenzie)
