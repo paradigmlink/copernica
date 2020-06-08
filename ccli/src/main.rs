@@ -11,7 +11,6 @@ use {
     },
     rpassword::prompt_password_stdout,
     structopt::StructOpt,
-    async_std,
     std::{
         collections::{HashMap},
         path::{Path},

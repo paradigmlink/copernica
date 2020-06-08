@@ -50,7 +50,7 @@ impl ResponseStore {
     pub async fn complete(&self, sdri: &Sdri) -> bool {
         match self.lru.lock().unwrap().get(sdri) {
             Some(response) => {
-                response.complete().await
+                response.complete()
             },
             None => return false,
         }
@@ -58,7 +58,7 @@ impl ResponseStore {
     pub async fn get(&self, sdri: &Sdri) -> Option<Got> {
         match self.lru.lock().unwrap().get(sdri) {
             Some(response) => {
-                if response.complete().await {
+                if response.complete() {
                     match sdri {
                         Sdri { id: _, name: Some(_name), seq: Some(seq) } => {
                             match response.get_packet(*seq as u64) {
@@ -199,14 +199,13 @@ impl Response {
     pub fn sdri(&self) -> Sdri {
         self.sdri.clone()
     }
-    pub async fn complete(&self) -> bool {
+    pub fn complete(&self) -> bool {
         self.packets.len() as u64 == self.length
     }
     pub fn missing(&self) -> Vec<u64> {
         let mut missing: Vec<u64> = Vec::new();
-        let mut count: u64 = 0;
         for n in 0..self.length {
-            if self.packets.contains_key(&(n as u64)) {
+            if !self.packets.contains_key(&(n as u64)) {
                 missing.push(n as u64);
             }
         }

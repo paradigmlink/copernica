@@ -12,8 +12,7 @@ use {
     },
 };
 
-pub fn receive_transport_packet(listen_addr: ReplyTo,
-    transport_packet_sender: Sender<TransportPacket> ){
+pub fn receive_transport_packet(listen_addr: ReplyTo, transport_packet_sender: Sender<TransportPacket> ){
     task::block_on(async move {
         match listen_addr {
             ReplyTo::Udp(listen_addr) => {

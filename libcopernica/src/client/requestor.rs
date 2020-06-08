@@ -61,7 +61,7 @@ impl CopernicaRequestor {
         thread::spawn(move || send_transport_packet(listen_addr_3, outbound_tp_receiver));
     }
 
-    pub async fn request(&mut self, name: String) -> Option<Response> {
+    pub async fn request(&mut self, name: String, retries: u8, timeout_per_retry: u64) -> Option<Response> {
         let response_write_ref = self.response_store.clone();
         let response_read_ref  = self.response_store.clone();
         let expected_sdri_p1 = Sdri::new(name.clone());
@@ -98,12 +98,12 @@ impl CopernicaRequestor {
                     }
                 }
             });
-        }  // end loop
-     //   let duration = Some(Duration::from_millis(timeout));
-     //   let timeout = duration.map(|d| after(d)).unwrap_or_else(never);
+        }
+        let duration = Some(Duration::from_millis(timeout_per_retry));
+        let timeout = duration.map(|d| after(d)).unwrap_or_else(never);
         select! {
-            recv(completed_r) -> _msg => {trace!("COMPLETED") },
-   //         recv(timeout) -> _ => { println!("TIME OUT") },
+            recv(completed_r) -> _msg => trace!("COMPLETED"),
+            recv(timeout) -> _ =>  trace!("TIME OUT") ,
         };
         let response_guard = response_read_ref.read().unwrap();
         match response_guard.get(&expected_sdri_p2).await {

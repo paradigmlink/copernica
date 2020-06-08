@@ -104,7 +104,7 @@ fn gen_2048_sparsity(u: Vec<(u16, &str)>) -> Vec<u16> {
     u.iter().map(|(position, character)| (position * 16 + (u16::from_str_radix(character, 16).unwrap()))).collect::<Vec<u16>>()
 }
 
-fn name_sparsity(s: &str) -> Vec<(u16)> {
+fn name_sparsity(s: &str) -> Vec<u16> {
     gen_2048_sparsity(index_of_lowest_occuring_char_in_hash(&hash_name(s)))
 }
 
