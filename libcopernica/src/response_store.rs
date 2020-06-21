@@ -47,7 +47,7 @@ impl ResponseStore {
         let response = Response::from_name_and_btreemap(name, data);
         self.lru.lock().unwrap().put(response.sdri(), response);
     }
-    pub async fn complete(&self, sdri: &Sdri) -> bool {
+    pub fn complete(&self, sdri: &Sdri) -> bool {
         match self.lru.lock().unwrap().get(sdri) {
             Some(response) => {
                 response.complete()

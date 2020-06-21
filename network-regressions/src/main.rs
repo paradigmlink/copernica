@@ -142,8 +142,8 @@ async fn single_fetch() {
     ];
     setup_network(network).await;
     let mut cc = CopernicaRequestor::new("127.0.0.1:50099".into(), "127.0.0.1:50100".into());
-    let retries: u8 = 2;
-    let timeout_per_retry: u64 = 1000;
+    let retries: u8 = 4;
+    let timeout_per_retry: u64 = 4000;
     cc.start_polling();
 
     let expected_hello0 = mk_response("hello0".to_string(), vec![0; size0]);
@@ -430,8 +430,8 @@ async fn resolve_lt_mtu() {
 }
 
 async fn resolve_gt_mtu_two_nodes() {
-    //let size: usize = 1428;
-    let size: usize = 1500;
+    let size: usize = 1428;
+    //let size: usize = 1500;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50109".parse().unwrap(),
@@ -451,7 +451,6 @@ async fn resolve_gt_mtu_two_nodes() {
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
-    std::thread::sleep(std::time::Duration::from_millis(20));
     let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), retries, timeout_per_retry).await;
     std::thread::sleep(std::time::Duration::from_millis(3));
     let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; size]);
@@ -487,7 +486,6 @@ async fn resolve_lt_mtu_two_nodes() {
 fn main() {
     logger::setup_logging(3, None).unwrap();
     task::block_on(async {
-        //small_world_graph_lt_mtu().await;
         //resolve_gt_mtu_two_nodes().await;
         //small_world_graph_lt_mtu().await;
         //resolve_lt_mtu_two_nodes().await;

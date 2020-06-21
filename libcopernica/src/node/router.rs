@@ -223,7 +223,7 @@ impl Router {
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hint();
                         }
-                        if self.response_store.complete(&sdri).await {
+                        if self.response_store.complete(&sdri) {
                             this_face.delete_forwarded_request(&sdri);
                             this_face.create_forwarding_hint(&sdri);
                         }
