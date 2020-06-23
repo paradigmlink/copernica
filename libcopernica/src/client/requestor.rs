@@ -14,12 +14,12 @@ use {
         thread,
     },
     crossbeam_channel::{
-            unbounded,
-            Sender,
-            Receiver,
-            select,
-            after,
-            never
+        unbounded,
+        Sender,
+        Receiver,
+        select,
+        after,
+        never
     },
     log::{trace},
 };

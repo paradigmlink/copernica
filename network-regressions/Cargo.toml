@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 libcopernica = { path = "../libcopernica" }
+takeaway = { path = "../takeaway" }
 logger = { path = "../logger" }
 crossbeam = "0.7"
 crossbeam-channel = "0.3"

@@ -7,6 +7,6 @@ with pkgs;
 stdenv.mkDerivation {
   name = "copernican";
   src = null;
-  buildInputs = [ rustup gdb cgdb rr ];
+  buildInputs = [ rustup gdb cgdb rr fuse pkgconfig ];
 
 }

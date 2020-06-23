@@ -6,6 +6,7 @@ members = [
     "ccli",
     "network-regressions",
     "logger",
+    "takeaway",
 ]
 
 exclude = [

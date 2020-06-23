@@ -5,7 +5,7 @@ use {
     clap::{Arg, App},
 };
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let matches = App::new("Copernica")
                     .version("0.1.0")
                     .author("Stewart Mackenzie <sjm@fractalide.com>")
@@ -31,5 +31,6 @@ fn main() {
 
     let mut r = Router::new_with_config(config);
     r.run();
+    Ok(())
 }
 
