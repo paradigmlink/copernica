@@ -41,6 +41,7 @@ impl Face {
     pub fn contains_pending_request(&self, request_sdri: &Sdri) -> u8 {
         self.pending_request.contains(request_sdri)
     }
+    #[allow(dead_code)]
     pub fn delete_pending_request(&mut self, request_sdri: &Sdri) {
         self.pending_request.delete(request_sdri);
     }

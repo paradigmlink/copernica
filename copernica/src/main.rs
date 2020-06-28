@@ -3,6 +3,7 @@ use {
     copernica::{Router, read_config_file},
     logger::setup_logging,
     clap::{Arg, App},
+    async_std::{ task, },
 };
 
 fn main() -> std::io::Result<()> {
@@ -30,7 +31,7 @@ fn main() -> std::io::Result<()> {
     trace!("copernica node started");
 
     let mut r = Router::new_with_config(config);
-    r.run();
+    task::block_on(async {r.run().await;});
     Ok(())
 }
 

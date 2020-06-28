@@ -88,10 +88,6 @@ impl CopernicaRequestor {
         thread::spawn(move || handle_inbound_packets(whitelist, rs, inbound_tp_receiver));
     }
 
-    fn req(&mut self, sdri: Sdri) -> Option<Response> {
-        None
-    }
-
     pub async fn request(&mut self, name: String, retries: u8, timeout_per_retry: u64) -> Option<Response> {
         if let Some(sender) = &self.transport_packet_sender {
             let sdri = Sdri::new(name.clone());
@@ -116,14 +112,14 @@ impl CopernicaRequestor {
                         loop {
                             let rs = rs_guard1.lock().unwrap();
                             if rs.complete(&sdri3) {
-                                completed_s.send(true);
+                                let _ = completed_s.send(true);
                             }
                         }
                     });
                     let duration = Some(Duration::from_millis(timeout_per_retry));
                     let timeout = duration.map(|d| after(d)).unwrap_or_else(never);
                     select! {
-                        recv(completed_r) -> _msg => { overall_completed_s.send(true); trace!("RETRY {}/{} COMPLETED", x, retries); break},
+                        recv(completed_r) -> _msg => { let _ = overall_completed_s.send(true); trace!("RETRY {}/{} COMPLETED", x, retries); break},
                         recv(timeout) -> _ =>  trace!("RETRY TIMED OUT") ,
                     };
                 }

@@ -5,7 +5,9 @@ use {
     copernica::{
         client::{CopernicaRequestor},
         narrow_waist::{NarrowWaist},
-        identity::{generate_identity, decrypt_identity},
+        identity::{generate_identity,
+          //decrypt_identity
+        },
         //web_of_trust::{add_trusted_identity},
         Config, read_config_file,
     },
