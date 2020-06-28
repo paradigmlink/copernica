@@ -1,7 +1,7 @@
 use {
     anyhow::{ Result },
     log::{trace},
-    libcopernica::{
+    copernica::{
         CopernicaRequestor,
         narrow_waist::{Bytes},
         response_store::{Response, mk_response},

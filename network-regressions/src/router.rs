@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use {
-    libcopernica::{
+    copernica::{
         Router, CopernicaRequestor,
         Config,
         constants,

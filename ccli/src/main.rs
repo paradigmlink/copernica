@@ -2,7 +2,7 @@ extern crate serde_derive;
 extern crate serde_json;
 
 use {
-    libcopernica::{
+    copernica::{
         client::{CopernicaRequestor},
         narrow_waist::{NarrowWaist},
         identity::{generate_identity, decrypt_identity},

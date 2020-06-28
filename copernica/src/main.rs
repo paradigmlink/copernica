@@ -1,6 +1,6 @@
 use {
     log::{trace},
-    libcopernica::{Router, read_config_file},
+    copernica::{Router, read_config_file},
     logger::setup_logging,
     clap::{Arg, App},
 };

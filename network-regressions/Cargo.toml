@@ -10,7 +10,7 @@ name = "network-regressions"
 path = "src/main.rs"
 
 [dependencies]
-libcopernica = { path = "../libcopernica" }
+copernica = { path = "../copernica" }
 copernicafs = { path = "../copernicafs" }
 logger = { path = "../logger" }
 crossbeam = "0.7"

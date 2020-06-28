@@ -2,7 +2,7 @@
 
 members = [
     "copernica",
-    "libcopernica",
+    "copernica",
     "ccli",
     "network-regressions",
     "logger",

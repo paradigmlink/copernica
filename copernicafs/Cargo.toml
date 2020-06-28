@@ -16,7 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 
-libcopernica = { path = "../libcopernica" }
+copernica = { path = "../copernica" }
 logger = { path = "../logger" }
 log = "0.4"
 clap = "2.33.0"
