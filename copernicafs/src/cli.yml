@@ -1,0 +1,18 @@
+name: copernicafs
+version: "0.1.0"
+author: Stewart Mackenzie <sjm@fractalide.com>
+about: File system for the Copernica networking protocol
+subcommands:
+  - mount:
+    name: "mount"
+    about: "Mount the file system."
+    args:
+      - mountpoint:
+          value_name: mount_directory
+          help: Path to mount directory
+          takes_value: true
+          required: true
+after_help: "Note: this is a work in progress. It might cause data loss. Use with caution."
+settings:
+  - SubcommandRequiredElseHelp
+  - ColorAuto
