@@ -8,9 +8,11 @@ use {
         identity::{generate_identity,
           //decrypt_identity
         },
+        packer::{Packer},
         //web_of_trust::{add_trusted_identity},
         Config, read_config_file,
     },
+    anyhow::{Result},
     rpassword::prompt_password_stdout,
     structopt::StructOpt,
     std::{
@@ -19,34 +21,10 @@ use {
         io,
     },
 };
+mod config;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "ccli", about = "A CLI interface to Copernica, an anonymous content delivery network or networking protocol for the edge of the internet", author = "Stewart Mackenzie <sjm@fractalide.com>", version = "0.1.0")]
-struct Options {
-    #[structopt(short = "g", long = "generate-id", help = "Generate a new Ed25519 identity keypair")]
-    generate_id: bool,
-
-    #[structopt(short = "d", long = "decrypt-id", help = "Generate a new Ed25519 identity keypair")]
-    decrypt_id: Option<String>,
-
-    #[structopt(short = "l", long = "list-ids", help = "List identities")]
-    list_ids: bool,
-
-    #[structopt(short = "u", long = "use-id", help = "Load up the private key associated with this identity")]
-    use_id: bool,
-
-    #[structopt(short = "t", long = "trust-id", help = "Trust someone else's identity -t <your-id> <their-id> <another-id> <etc>")]
-    trust_id: Option<Vec<String>>,
-
-    #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
-    verbose: u8,
-
-    #[structopt(short = "c", long = "config", help = "Location of your config file")]
-    config: Option<String>,
-}
-
-fn main() {
-    let options = Options::from_args();
+fn main() -> Result<()> {
+    let options = config::Options::from_args();
     let mut config = Config::new();
     if let Some(config_path) = options.config {
         config = read_config_file(config_path).unwrap();
@@ -111,7 +89,17 @@ fn main() {
 
     //let config = matches.value_of("config").unwrap_or("copernica.json");
 
+    if let Some(publish_path) = options.publish {
+        if let Some(destination) = options.destination {
+            let publish_path= std::path::PathBuf::from(&publish_path);
+            let destination_path = std::path::PathBuf::from(&destination);
 
+            let p = Packer::new(&publish_path, &destination_path)?;
+            p.publish()?;
+        }
+    }
+
+    Ok(())
 }
 
 fn load_named_responses(dir: &Path) -> HashMap<String, NarrowWaist> {

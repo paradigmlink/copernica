@@ -1,11 +1,9 @@
 use {
     fuse::{
-        FileAttr, FileType, Filesystem, ReplyAttr, ReplyCreate,
-        ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry,
-        ReplyStatfs, ReplyWrite, Request,
+        Filesystem, ReplyAttr, ReplyEntry, Request,
     },
-    libc::{ENOENT, ENOTDIR, ENOTRECOVERABLE, EREMOTE},
-    super::{Config, File, FileId, FileManager, CopernicaFacade},
+    libc::{ENOENT},
+    super::{Config, FileId, FileManager, CopernicaFacade},
     anyhow::{Result},
     time::Timespec,
     std::{

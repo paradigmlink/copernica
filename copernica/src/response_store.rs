@@ -28,7 +28,7 @@ impl ResponseStore {
         }
     }
     pub fn from_name_and_data(&mut self, name: String, data: Bytes) {
-        let chunks = data.chunks(constants::FRAGMENT_SIZE);
+        let chunks = data.chunks(constants::FRAGMENT_SIZE as usize);
         let mut packets: BTreeMap<u64, NarrowWaist> = BTreeMap::new();
         let length = chunks.len() as u64;
         let mut count: u64 = 0;
@@ -137,7 +137,7 @@ impl Response {
         }
     }
     pub fn from_name_and_data(name: String, data: Bytes) -> Response {
-        let chunks = data.chunks(constants::FRAGMENT_SIZE);
+        let chunks = data.chunks(constants::FRAGMENT_SIZE as usize);
         let mut packets: BTreeMap<u64, NarrowWaist> = BTreeMap::new();
         let length = chunks.len() as u64;
         let mut count: u64 = 0;

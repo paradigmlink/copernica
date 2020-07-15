@@ -9,7 +9,6 @@ use {
     },
     async_std::{ task, },
     std::{
-        env,
         fs,
         path::PathBuf,
         io::Write,
@@ -17,6 +16,7 @@ use {
         collections::HashMap,
     },
     bincode,
+    crate::common::{generate_random_dir_name},
 };
 
 //const TIMEOUT: u64 = 1000;
@@ -53,23 +53,6 @@ async fn setup_network(network: Vec<Config>) {
     for node in network {
         router(node);
     }
-}
-async fn generate_random_dir_name() -> PathBuf {
-    use std::iter;
-    use rand::{Rng, thread_rng};
-    use rand::distributions::Alphanumeric;
-
-    let mut rng = thread_rng();
-    let unique_dir: String = iter::repeat(())
-            .map(|()| rng.sample(Alphanumeric))
-            .take(7)
-            .collect();
-
-    let mut dir = env::temp_dir();
-    dir.push("copernica");
-    dir.push(unique_dir);
-    fs::create_dir_all(dir.clone()).unwrap();
-    dir
 }
 async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Vec<String> {
     let mut tmp_dirs: Vec<PathBuf> = Vec::with_capacity(node_count);
@@ -176,44 +159,44 @@ pub async fn small_world_graph_lt_mtu() {
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50010".into(),
                                   "127.0.0.1:50011".into()]),
-                 data_dir: populate_tmp_dir("hello0".to_string(), 0, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello0".to_string(), 0, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50001".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50002".into()]),
-                 data_dir: populate_tmp_dir("hello1".to_string(), 1, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello1".to_string(), 1, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50002".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50001".into(),
                                   "127.0.0.1:50003".into(),
                                   "127.0.0.1:50004".into()]),
-                 data_dir: populate_tmp_dir("hello2".to_string(), 2, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello2".to_string(), 2, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50003".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50002".into(),
                                   "127.0.0.1:50004".into(),
                                   "127.0.0.1:50007".into()]),
-                 data_dir: populate_tmp_dir("hello3".to_string(), 3, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello3".to_string(), 3, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50004".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50002".into(),
                                   "127.0.0.1:50003".into(),
                                   "127.0.0.1:50005".into()]),
-                 data_dir: populate_tmp_dir("hello4".to_string(), 4, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello4".to_string(), 4, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50005".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50004".into(),
                                   "127.0.0.1:50006".into()]),
-                 data_dir: populate_tmp_dir("hello5".to_string(), 5, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello5".to_string(), 5, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50006".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50005".into(),
                                   "127.0.0.1:50007".into(),
                                   "127.0.0.1:50008".into()]),
-                 data_dir: populate_tmp_dir("hello6".to_string(), 6, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello6".to_string(), 6, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50007".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
@@ -222,32 +205,32 @@ pub async fn small_world_graph_lt_mtu() {
                                   "127.0.0.1:50008".into(),
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50010".into()]),
-                 data_dir: populate_tmp_dir("hello7".to_string(), 7, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello7".to_string(), 7, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50008".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50006".into(),
                                   "127.0.0.1:50007".into(),
                                   "127.0.0.1:50009".into()]),
-                 data_dir: populate_tmp_dir("hello8".to_string(), 8, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello8".to_string(), 8, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50009".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50007".into(),
                                   "127.0.0.1:50008".into(),
                                   "127.0.0.1:50010".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello9".to_string(), 9, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello9".to_string(), 9, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50010".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50007".into(),
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50011".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello10".to_string(), 10, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello10".to_string(), 10, constants::FRAGMENT_SIZE as usize ).await,
         },
         Config { listen_addr: "127.0.0.1:50011".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50010".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello11".to_string(), 11, constants::FRAGMENT_SIZE ).await,
+                 data_dir: populate_tmp_dir("hello11".to_string(), 11, constants::FRAGMENT_SIZE as usize ).await,
     }];
     setup_network(network).await;
     let mut cc = CopernicaRequestor::new("127.0.0.1:49999".into(), "127.0.0.1:50004".into());
@@ -255,7 +238,7 @@ pub async fn small_world_graph_lt_mtu() {
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
     for n in 0..11 {
-        let expected = mk_response(format!("hello{}", n), vec![n; constants::FRAGMENT_SIZE ]);
+        let expected = mk_response(format!("hello{}", n), vec![n; constants::FRAGMENT_SIZE as usize ]);
         let actual = cc.request(format!("hello{}", n), retries, timeout_per_retry).await;
         assert_eq!(actual, Some(expected));
     }

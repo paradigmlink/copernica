@@ -15,4 +15,6 @@ pub const HEX : [&str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
 /// Now copernica structs take up 72 bytes (for the moment) also sdri is variable, to be fixed
 /// 1444 = 1452 - 72
 /// The maximum size we can break up a chunk of data is 1394
-pub const FRAGMENT_SIZE: usize = 1428;
+/// Was set at 1428 but I'm setting it to 1024 so that things don't blow up
+/// using datatye u16 because this information is communicated in the Response Manifest.
+pub const FRAGMENT_SIZE: u16 = 1024;

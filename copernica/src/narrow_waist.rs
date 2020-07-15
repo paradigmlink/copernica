@@ -2,6 +2,7 @@ use {
     std::{
         fmt,
     },
+    borsh::{BorshSerialize, BorshDeserialize},
     crate::{
         sdri::{Sdri},
     }
@@ -9,7 +10,7 @@ use {
 
 pub type Bytes = Vec<u8>;
 
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub enum NarrowWaist {
     Request     { sdri: Sdri },
     Response    { sdri: Sdri, data: Bytes, count: u64, total: u64 },
@@ -35,7 +36,7 @@ impl fmt::Debug for NarrowWaist {
         match &*self {
             NarrowWaist::Request{sdri} => write!(f, "REQ{:?}", sdri),
             NarrowWaist::Response{sdri, count, total, ..} =>
-                write!(f, "RES{:?} {}/{}", sdri, count+1, total)
+                write!(f, "RES{:?} {}/{}", sdri, count, total)
         }
     }
 }

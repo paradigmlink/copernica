@@ -5,6 +5,7 @@ extern crate chain_addr;
 #[macro_use]
 extern crate serde_derive;
 extern crate sha3;
+extern crate borsh;
 
 #[cfg(test)]
 extern crate bitvec;
@@ -16,6 +17,7 @@ pub mod identity;
 pub mod web_of_trust;
 pub mod constants;
 pub mod sdri;
+pub mod packer;
 pub mod response_store;
 pub mod serdeser;
 pub mod narrow_waist;

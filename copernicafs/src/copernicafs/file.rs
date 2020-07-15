@@ -1,5 +1,5 @@
 use {
-    fuse::{FileAttr, FileType},
+    fuse::{FileAttr},
     id_tree::NodeId,
 };
 

@@ -1,10 +1,10 @@
 use {
     super::{File, FileId, CopernicaFacade},
-    id_tree::{Node, NodeId, Tree, TreeBuilder},
+    id_tree::{NodeId, Tree, TreeBuilder},
     std::{
         collections::HashMap,
     },
-    anyhow::{Context, Result, Error},
+    anyhow::{Result},
 };
 pub type Inode = u64;
 pub type CopernicaId = String;
@@ -23,7 +23,7 @@ impl FileManager {
     pub fn with_copernica_facade(
         cf: CopernicaFacade,
     ) -> Result<Self> {
-        let mut manager = FileManager {
+        let manager = FileManager {
             tree: TreeBuilder::new().with_node_capacity(500).build(),
             files: HashMap::new(),
             node_ids: HashMap::new(),

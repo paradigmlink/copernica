@@ -1,5 +1,4 @@
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::path::{PathBuf};
 
 #[derive(Deserialize, Clone, Debug, Default)]
 pub struct Config {

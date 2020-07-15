@@ -5,7 +5,10 @@ extern crate serde_derive;
 
 mod copernicafs;
 
-pub use copernicafs::filesystem::{NullFs, CopernicaFs};
-pub use copernicafs::{Config, CopernicaFacade, FileManager};
+pub use self::copernicafs::{
+    {Config, CopernicaFacade, FileManager},
+    filesystem::{NullFs, CopernicaFs},
+};
+
 
 

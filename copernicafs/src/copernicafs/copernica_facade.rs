@@ -3,7 +3,7 @@ pub struct CopernicaFacade {
 }
 
 impl CopernicaFacade {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(_config: &Config) -> Self {
         CopernicaFacade {}
     }
 }

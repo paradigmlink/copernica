@@ -6,12 +6,13 @@ use {
         Digest,
         Sha3_512,
     },
+    borsh::{BorshSerialize, BorshDeserialize},
     crate::{
         constants,
     }
 };
 
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct Sdri {
     pub id: Vec<u16>,
     pub name: Option<Vec<u16>>,
