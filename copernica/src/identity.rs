@@ -14,6 +14,7 @@ use {
     },
     rand_chacha::ChaChaRng,
     rand_core::{SeedableRng},
+    anyhow::{Result},
     std::{
         io::{Read},
         fmt,
@@ -71,7 +72,7 @@ fn password_to_key(password: &Password, salt: Salt, key: &mut Key) {
     pbkdf2(&mut mac, &salt[..], PASSWORD_DERIVATION_ITERATIONS, key);
 }
 
-pub fn generate_identity(password: String, config: &Config) {
+pub fn generate_identity(password: String, config: &Config) -> Result<()> {
     let mut buf = [0u8; 32];
     match getrandom(&mut buf) {
         Err(why) => panic!("{:?}", why),
@@ -85,13 +86,14 @@ pub fn generate_identity(password: String, config: &Config) {
     let crypto_material = format!("{}", sk.to_bech32_str());
     let encrypted_identity = encrypt_identity(password.clone(), pk.to_bech32_str(), &crypto_material);
     let id_name = format!("{}",addr.clone().to_string());
-    let id = mk_response(id_name.clone().to_string(), encrypted_identity.as_bytes().to_vec());
+    let id = mk_response(id_name.clone().to_string(), encrypted_identity.as_bytes().to_vec())?;
     let mut identity_path = std::path::PathBuf::from(config.data_dir.clone());
     identity_path.push("identity");
     println!("DATA_DIR: {:?}", identity_path);
     let identity_path = identity_path.join(id_name);
     let id_ser = serialize(&id).unwrap();
     std::fs::write(identity_path, id_ser).unwrap();
+    Ok(())
 }
 
 pub fn encrypt_identity(password: String, pk: String, cleartext: &String) -> String {

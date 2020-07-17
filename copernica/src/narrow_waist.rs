@@ -3,6 +3,7 @@ use {
         fmt,
     },
     borsh::{BorshSerialize, BorshDeserialize},
+    anyhow::{Result},
     crate::{
         sdri::{Sdri},
     }
@@ -16,19 +17,19 @@ pub enum NarrowWaist {
     Response    { sdri: Sdri, data: Bytes, count: u64, total: u64 },
 }
 
-pub fn mk_request_packet(name: String) -> NarrowWaist {
-    NarrowWaist::Request {
-        sdri: Sdri::new(name)
-    }
+pub fn mk_request_packet(name: String) -> Result<NarrowWaist> {
+    Ok(NarrowWaist::Request {
+        sdri: Sdri::new(name)?
+    })
 }
 
-pub fn mk_response_packet(name: String, data: Bytes, count: u64, total: u64) -> NarrowWaist {
-    NarrowWaist::Response {
-        sdri: Sdri::new(name),
+pub fn mk_response_packet(name: String, data: Bytes, count: u64, total: u64) -> Result<NarrowWaist> {
+    Ok(NarrowWaist::Response {
+        sdri: Sdri::new(name)?,
         data,
         count,
         total,
-    }
+    })
 }
 
 impl fmt::Debug for NarrowWaist {

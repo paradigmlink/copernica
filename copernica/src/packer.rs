@@ -97,13 +97,13 @@ impl Packer {
         let manifest = ResponseManifest{ app_type: 0, chunk_size: self.chunk_size, offset: file_manifest_offset };
         let manifest_ser = manifest.try_to_vec()?;
 
-        response.insert("0", mk_response_packet(self.name.clone(), manifest_ser.clone(), 0, total_offset).try_to_vec()?)?;
+        response.insert("0", mk_response_packet(self.name.clone(), manifest_ser.clone(), 0, total_offset)?.try_to_vec()?)?;
 
         let mut current_offset: u64 = 1; // start at 1 cause the manifest, which is always length 1 and in element 0.
         let file_manifest_chunks = file_manifest_ser.chunks(self.chunk_size as usize);
         for chunk in file_manifest_chunks {
             response.insert(&current_offset.to_string(),
-                mk_response_packet(self.name.clone(), chunk.clone().to_vec(), current_offset, total_offset).try_to_vec()?)?;
+                mk_response_packet(self.name.clone(), chunk.clone().to_vec(), current_offset, total_offset)?.try_to_vec()?)?;
             current_offset += 1;
         }
 
@@ -115,7 +115,7 @@ impl Packer {
                 let file_chunks = buffer.chunks(self.chunk_size as usize);
                 for chunk in file_chunks {
                     response.insert(&current_offset.to_string(),
-                        mk_response_packet(self.name.clone(), chunk.clone().to_vec(), current_offset, total_offset).try_to_vec()?)?;
+                        mk_response_packet(self.name.clone(), chunk.clone().to_vec(), current_offset, total_offset)?.try_to_vec()?)?;
                     current_offset += 1;
                 }
             }

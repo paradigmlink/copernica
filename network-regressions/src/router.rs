@@ -7,6 +7,7 @@ use {
         narrow_waist::{Bytes},
         response_store::{Response, mk_response},
     },
+    anyhow::{Result},
     async_std::{ task, },
     std::{
         fs,
@@ -54,7 +55,7 @@ async fn setup_network(network: Vec<Config>) {
         router(node);
     }
 }
-async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Vec<String> {
+async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Result<Vec<String>> {
     let mut tmp_dirs: Vec<PathBuf> = Vec::with_capacity(node_count);
     for _ in 0..node_count {
         tmp_dirs.push(generate_random_dir_name().await);
@@ -63,7 +64,7 @@ async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) 
     for n in 0..node_count {
         let name = format!("hello{}", n.clone());
         let value: Bytes = vec![n.clone() as u8; data_size];
-        let response = mk_response(name.clone(), value);
+        let response = mk_response(name.clone(), value)?;
         responses.insert(name.to_string(), response.clone());
     }
     let mut current_tmp_dir = 0;
@@ -79,20 +80,20 @@ async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) 
             current_tmp_dir += 1;
         }
     }
-    tmp_dirs.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<String>>()
+    Ok(tmp_dirs.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<String>>())
 }
-async fn populate_tmp_dir(name: String, data: u8, size: usize) -> String {
-    let response = mk_response(name.clone().to_string(), vec![data; size]);
+async fn populate_tmp_dir(name: String, data: u8, size: usize) -> Result<String> {
+    let response = mk_response(name.clone().to_string(), vec![data; size])?;
     let root_dir = generate_random_dir_name().await;
     let dir = root_dir.join(name);
     let mut f = fs::File::create(dir.clone()).unwrap();
     let response_ser = bincode::serialize(&response).unwrap();
     f.write_all(&response_ser).unwrap();
     f.sync_all().unwrap();
-    root_dir.clone().to_string_lossy().to_string()
+    Ok(root_dir.clone().to_string_lossy().to_string())
 }
 
-pub async fn single_fetch() {
+pub async fn single_fetch() -> Result<()> {
     let size0: usize = 1024;
     let size1: usize = 1025;
     let size2: usize = 1025;
@@ -102,25 +103,25 @@ pub async fn single_fetch() {
             listen_addr: "127.0.0.1:50100".parse().unwrap(),
             content_store_size: 50,
             peers: Some(vec!["127.0.0.1:50101".into()]),
-            data_dir: populate_tmp_dir("hello0".to_string(), 0, size0).await,
+            data_dir: populate_tmp_dir("hello0".to_string(), 0, size0).await?,
         },
         Config {
             listen_addr: "127.0.0.1:50101".parse().unwrap(),
             content_store_size: 50,
             peers: Some(vec!["127.0.0.1:50102".into()]),
-            data_dir: populate_tmp_dir("hello1".to_string(), 1, size1).await,
+            data_dir: populate_tmp_dir("hello1".to_string(), 1, size1).await?,
         },
         Config {
             listen_addr: "127.0.0.1:50102".parse().unwrap(),
             content_store_size: 50,
             peers: Some(vec!["127.0.0.1:50103".into()]),
-            data_dir: populate_tmp_dir("hello2".to_string(), 2, size2).await,
+            data_dir: populate_tmp_dir("hello2".to_string(), 2, size2).await?,
         },
         Config {
             listen_addr: "127.0.0.1:50103".parse().unwrap(),
             content_store_size: 50,
             peers: None,
-            data_dir: populate_tmp_dir("hello3".to_string(), 3, size3).await,
+            data_dir: populate_tmp_dir("hello3".to_string(), 3, size3).await?,
         }
     ];
     setup_network(network).await;
@@ -129,24 +130,25 @@ pub async fn single_fetch() {
     let timeout_per_retry: u64 = 4000;
     cc.start_polling();
 
-    let expected_hello0 = mk_response("hello0".to_string(), vec![0; size0]);
-    let actual_hello0 = cc.request("hello0".to_string(), retries, timeout_per_retry).await;
-    assert_eq!(actual_hello0, Some(expected_hello0));
+    let expected_hello0 = mk_response("hello0".to_string(), vec![0; size0])?;
+    let actual_hello0 = cc.request("hello0".to_string(), retries, timeout_per_retry).await?;
+    assert_eq!(actual_hello0, expected_hello0);
 
-    let expected_hello1 = mk_response("hello1".to_string(), vec![1; size1]);
-    let actual_hello1 = cc.request("hello1".to_string(), retries, timeout_per_retry).await;
-    assert_eq!(actual_hello1, Some(expected_hello1));
+    let expected_hello1 = mk_response("hello1".to_string(), vec![1; size1])?;
+    let actual_hello1 = cc.request("hello1".to_string(), retries, timeout_per_retry).await?;
+    assert_eq!(actual_hello1, expected_hello1);
 
-    let expected_hello2 = mk_response("hello2".to_string(), vec![2; size2]);
-    let actual_hello2 = cc.request("hello2".to_string(), retries, timeout_per_retry).await;
-    assert_eq!(actual_hello2, Some(expected_hello2));
+    let expected_hello2 = mk_response("hello2".to_string(), vec![2; size2])?;
+    let actual_hello2 = cc.request("hello2".to_string(), retries, timeout_per_retry).await?;
+    assert_eq!(actual_hello2, expected_hello2);
 
-    let expected_hello3 = mk_response("hello3".to_string(), vec![3; size3]);
-    let actual_hello3 = cc.request("hello3".to_string(), retries, timeout_per_retry).await;
-    assert_eq!(actual_hello3, Some(expected_hello3));
+    let expected_hello3 = mk_response("hello3".to_string(), vec![3; size3])?;
+    let actual_hello3 = cc.request("hello3".to_string(), retries, timeout_per_retry).await?;
+    assert_eq!(actual_hello3, expected_hello3);
+    Ok(())
 }
 
-pub async fn small_world_graph_lt_mtu() {
+pub async fn small_world_graph_lt_mtu() -> Result<()> {
     // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
     // node0 is 12 o'clock, node1 is 1 o'clock, etc.
     let network: Vec<Config> = vec![
@@ -159,44 +161,44 @@ pub async fn small_world_graph_lt_mtu() {
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50010".into(),
                                   "127.0.0.1:50011".into()]),
-                 data_dir: populate_tmp_dir("hello0".to_string(), 0, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello0".to_string(), 0, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50001".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50002".into()]),
-                 data_dir: populate_tmp_dir("hello1".to_string(), 1, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello1".to_string(), 1, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50002".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50001".into(),
                                   "127.0.0.1:50003".into(),
                                   "127.0.0.1:50004".into()]),
-                 data_dir: populate_tmp_dir("hello2".to_string(), 2, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello2".to_string(), 2, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50003".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50002".into(),
                                   "127.0.0.1:50004".into(),
                                   "127.0.0.1:50007".into()]),
-                 data_dir: populate_tmp_dir("hello3".to_string(), 3, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello3".to_string(), 3, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50004".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50002".into(),
                                   "127.0.0.1:50003".into(),
                                   "127.0.0.1:50005".into()]),
-                 data_dir: populate_tmp_dir("hello4".to_string(), 4, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello4".to_string(), 4, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50005".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
                                   "127.0.0.1:50004".into(),
                                   "127.0.0.1:50006".into()]),
-                 data_dir: populate_tmp_dir("hello5".to_string(), 5, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello5".to_string(), 5, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50006".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50005".into(),
                                   "127.0.0.1:50007".into(),
                                   "127.0.0.1:50008".into()]),
-                 data_dir: populate_tmp_dir("hello6".to_string(), 6, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello6".to_string(), 6, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50007".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50000".into(),
@@ -205,32 +207,32 @@ pub async fn small_world_graph_lt_mtu() {
                                   "127.0.0.1:50008".into(),
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50010".into()]),
-                 data_dir: populate_tmp_dir("hello7".to_string(), 7, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello7".to_string(), 7, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50008".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50006".into(),
                                   "127.0.0.1:50007".into(),
                                   "127.0.0.1:50009".into()]),
-                 data_dir: populate_tmp_dir("hello8".to_string(), 8, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello8".to_string(), 8, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50009".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50007".into(),
                                   "127.0.0.1:50008".into(),
                                   "127.0.0.1:50010".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello9".to_string(), 9, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello9".to_string(), 9, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50010".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50007".into(),
                                   "127.0.0.1:50009".into(),
                                   "127.0.0.1:50011".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello10".to_string(), 10, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello10".to_string(), 10, constants::FRAGMENT_SIZE as usize ).await?,
         },
         Config { listen_addr: "127.0.0.1:50011".parse().unwrap(), content_store_size: 50,
                  peers: Some(vec!["127.0.0.1:50010".into(),
                                   "127.0.0.1:50000".into()]),
-                 data_dir: populate_tmp_dir("hello11".to_string(), 11, constants::FRAGMENT_SIZE as usize ).await,
+                 data_dir: populate_tmp_dir("hello11".to_string(), 11, constants::FRAGMENT_SIZE as usize ).await?,
     }];
     setup_network(network).await;
     let mut cc = CopernicaRequestor::new("127.0.0.1:49999".into(), "127.0.0.1:50004".into());
@@ -238,18 +240,19 @@ pub async fn small_world_graph_lt_mtu() {
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
     for n in 0..11 {
-        let expected = mk_response(format!("hello{}", n), vec![n; constants::FRAGMENT_SIZE as usize ]);
-        let actual = cc.request(format!("hello{}", n), retries, timeout_per_retry).await;
-        assert_eq!(actual, Some(expected));
+        let expected = mk_response(format!("hello{}", n), vec![n; constants::FRAGMENT_SIZE as usize ])?;
+        let actual = cc.request(format!("hello{}", n), retries, timeout_per_retry).await?;
+        assert_eq!(actual, expected);
     }
+    Ok(())
 }
 
-pub async fn small_world_graph_gt_mtu() {
+pub async fn small_world_graph_gt_mtu() -> Result<()> {
     // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
     // node0 is 12 o'clock, node1 is 1 o'clock, etc.
     let size: usize = 2000;
     let cs_size: u64 = 350;
-    let tmp_dirs = populate_tmp_dir_dispersed_gt_mtu(12, size).await;
+    let tmp_dirs = populate_tmp_dir_dispersed_gt_mtu(12, size).await?;
     let network: Vec<Config> = vec![
         Config { listen_addr: "127.0.0.1:50020".parse().unwrap(), content_store_size: cs_size,
                  peers: Some(vec!["127.0.0.1:50021".into(),
@@ -342,14 +345,15 @@ pub async fn small_world_graph_gt_mtu() {
     let count: u8 = 10;
     let expected = mk_response(name.clone(), vec![count; size]);
     let actual = cc.request(name, retries, timeout_per_retry).await;
-    assert_eq!(actual, Some(expected));
+    assert_eq!(actual, expected);
 */
     for n in 0..11 {
         let name: String = format!("hello{}", n);
-        let expected = mk_response(name.clone(), vec![n; size]);
-        let actual = cc.request(name.clone(), retries, timeout_per_retry).await;
-        assert_eq!(actual, Some(expected.clone()), "\n=================\nTesting {}\n=================\n", name);
+        let expected = mk_response(name.clone(), vec![n; size])?;
+        let actual = cc.request(name.clone(), retries, timeout_per_retry).await?;
+        assert_eq!(actual, expected.clone(), "\n=================\nTesting {}\n=================\n", name);
     }
+    Ok(())
 
 }
 /*
@@ -372,14 +376,14 @@ async fn timeout() {
     assert_eq!(actual, expected);
 }
 */
-pub async fn resolve_gt_mtu() {
+pub async fn resolve_gt_mtu() -> Result<()> {
     let size: usize = GT_MTU;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50106".parse().unwrap(),
             content_store_size: 50000,
             peers: None,
-            data_dir: populate_tmp_dir("hello0".to_string(), 0, size).await,
+            data_dir: populate_tmp_dir("hello0".to_string(), 0, size).await?,
         },
     ];
     setup_network(network).await;
@@ -387,19 +391,20 @@ pub async fn resolve_gt_mtu() {
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
-    let expected: Response = mk_response("hello0".to_string(), vec![0; size]);
-    let actual = cc.request("hello0".to_string(), retries, timeout_per_retry).await;
-    assert_eq!(actual, Some(expected));
+    let expected: Response = mk_response("hello0".to_string(), vec![0; size])?;
+    let actual = cc.request("hello0".to_string(), retries, timeout_per_retry).await?;
+    assert_eq!(actual, expected);
+    Ok(())
 }
 
-pub async fn resolve_lt_mtu() {
+pub async fn resolve_lt_mtu() -> Result<()> {
     let size: usize = 1;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50107".parse().unwrap(),
             content_store_size: 50,
             peers: None,
-            data_dir: populate_tmp_dir("hello".to_string(), 0, size).await,
+            data_dir: populate_tmp_dir("hello".to_string(), 0, size).await?,
         },
     ];
     setup_network(network).await;
@@ -407,12 +412,13 @@ pub async fn resolve_lt_mtu() {
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
-    let expected: Response = mk_response("hello".to_string(), vec![0; size]);
-    let actual = cc.request("hello".to_string(), retries, timeout_per_retry).await;
-    assert_eq!(actual, Some(expected));
+    let expected: Response = mk_response("hello".to_string(), vec![0; size])?;
+    let actual = cc.request("hello".to_string(), retries, timeout_per_retry).await?;
+    assert_eq!(actual, expected);
+    Ok(())
 }
 
-pub async fn resolve_gt_mtu_two_nodes() {
+pub async fn resolve_gt_mtu_two_nodes() -> Result<()> {
     let size: usize = 1428;
     //let size: usize = 1500;
     let network: Vec<Config> = vec![
@@ -420,7 +426,7 @@ pub async fn resolve_gt_mtu_two_nodes() {
             listen_addr: "127.0.0.1:50109".parse().unwrap(),
             content_store_size: 1,
             peers: None,
-            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, size).await,
+            data_dir: populate_tmp_dir("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), 0, size).await?,
         },
         Config {
             listen_addr: "127.0.0.1:50108".parse().unwrap(),
@@ -434,20 +440,21 @@ pub async fn resolve_gt_mtu_two_nodes() {
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
-    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), retries, timeout_per_retry).await;
+    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), retries, timeout_per_retry).await?;
     std::thread::sleep(std::time::Duration::from_millis(3));
-    let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; size]);
-    assert_eq!(actual, Some(expected));
+    let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; size])?;
+    assert_eq!(actual, expected);
+    Ok(())
 }
 
-pub async fn resolve_lt_mtu_two_nodes() {
+pub async fn resolve_lt_mtu_two_nodes() -> Result<()> {
     let size: usize = 1;
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50112".parse().unwrap(),
             content_store_size: 5000,
             peers: None,
-            data_dir: populate_tmp_dir("hello0".to_string(), 0, size).await,
+            data_dir: populate_tmp_dir("hello0".to_string(), 0, size).await?,
         },
         Config {
             listen_addr: "127.0.0.1:50111".parse().unwrap(),
@@ -461,9 +468,10 @@ pub async fn resolve_lt_mtu_two_nodes() {
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
-    let actual = cc.request("hello0".to_string(), retries, timeout_per_retry).await;
-    let expected: Response = mk_response("hello0".to_string(), vec![0; size]);
-    assert_eq!(actual, Some(expected));
+    let actual = cc.request("hello0".to_string(), retries, timeout_per_retry).await?;
+    let expected: Response = mk_response("hello0".to_string(), vec![0; size])?;
+    assert_eq!(actual, expected);
+    Ok(())
 }
 
 #[cfg(test)]

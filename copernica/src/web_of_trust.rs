@@ -10,6 +10,7 @@ use {
         },
         digest::Digest,
     },
+    anyhow::{Result},
     chain_crypto::{Ed25519, PublicKey, SecretKey},
     bincode::{serialize},
     std::{
@@ -30,7 +31,7 @@ pub fn add_trusted_identity(password: String, identity: Packet, addresses: Vec<S
     };
 }
 */
-pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &PublicKey<Ed25519>) -> String {
+pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &PublicKey<Ed25519>) -> Result<String> {
     let mut hasher = Sha256::new();
     let tcs: HashSet<String> = HashSet::new();
     let tcs_ser = &bincode::serialize(&tcs).unwrap();
@@ -43,7 +44,7 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     //hasher.input_str("[]");
     let tc_hash = hasher.result_str();
     println!("tc_hash = {:?}", tc_hash.clone());
-    let tc_packet = mk_response_packet(tc_hash.clone(), tcs_ser.to_vec(), 0, 0);
+    let tc_packet = mk_response_packet(tc_hash.clone(), tcs_ser.to_vec(), 0, 0)?;
 
     let mut tc_path = std::path::PathBuf::from(config.data_dir.clone());
     tc_path.push(".copernica");
@@ -52,6 +53,6 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     println!("id = {:?}", tc_path);
     let tc_ser = serialize(&tc_packet).unwrap();
     std::fs::write(tc_path, tc_ser).unwrap();
-    tc_hash
+    Ok(tc_hash)
 }
 

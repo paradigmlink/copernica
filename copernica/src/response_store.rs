@@ -8,6 +8,7 @@ use {
             Mutex,
         },
     },
+    anyhow::{Result, anyhow},
     lru::LruCache,
     crate::{
         narrow_waist::{NarrowWaist, mk_response_packet, Bytes},
@@ -27,25 +28,27 @@ impl ResponseStore {
             lru:  Arc::new(Mutex::new(LruCache::new(size as usize))),
         }
     }
-    pub fn from_name_and_data(&mut self, name: String, data: Bytes) {
+    pub fn from_name_and_data(&mut self, name: String, data: Bytes) -> Result<()> {
         let chunks = data.chunks(constants::FRAGMENT_SIZE as usize);
         let mut packets: BTreeMap<u64, NarrowWaist> = BTreeMap::new();
         let length = chunks.len() as u64;
         let mut count: u64 = 0;
         for chunk in chunks {
-            packets.insert(count.clone(), mk_response_packet(name.clone(), chunk.to_vec(), count, length));
+            packets.insert(count.clone(), mk_response_packet(name.clone(), chunk.to_vec(), count, length)?);
             count += 1;
         }
         let response = Response {
-            sdri: Sdri::new(name),
+            sdri: Sdri::new(name)?,
             packets,
             length,
         };
         self.lru.lock().unwrap().put(response.sdri(), response);
+        Ok(())
     }
-    pub fn from_name_and_btreemap(&mut self, name: String, data: BTreeMap<u64, NarrowWaist>) {
-        let response = Response::from_name_and_btreemap(name, data);
+    pub fn from_name_and_btreemap(&mut self, name: String, data: BTreeMap<u64, NarrowWaist>) -> Result<()> {
+        let response = Response::from_name_and_btreemap(name, data)?;
         self.lru.lock().unwrap().put(response.sdri(), response);
+        Ok(())
     }
     pub fn complete(&self, sdri: &Sdri) -> bool {
         match self.lru.lock().unwrap().get(sdri) {
@@ -119,44 +122,49 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn insert_packet(&mut self, packet: NarrowWaist) {
+    pub fn insert_packet(&mut self, packet: NarrowWaist) -> Result<()> {
         match packet.clone() {
             NarrowWaist::Response { sdri, count, total, .. } => {
-                if self.sdri.to_vec() != sdri.to_vec() {
-                    panic!("Response.sdri not equal to NarrowWaist::Response{sdri, ..}");
+                if self.sdri.id != sdri.id {
+                }
+                if let (Some(names1), Some(names2)) = (self.sdri.name, sdri.name) {
+                    if names1 != names2 {
+                        return Err(anyhow!("Response.sdri.name not equal to inbound NarrowWaist::Response.sdri.name"))
+                    }
                 }
                 if self.length == total {
                     self.packets.insert(count, packet);
+                    return Ok(())
                 } else {
-                    panic!("Response.length not equal NarrowWaist::Response{total, ..}");
+                    return Err(anyhow!("Response.length not equal NarrowWaist::Response{total, ..}"))
                 }
             },
             NarrowWaist::Request {..} => {
-                panic!("Cannot insert a NarrowWaist::Request into a Response");
+                return Err(anyhow!("Cannot insert a NarrowWaist::Request into a Response"))
             },
         }
     }
-    pub fn from_name_and_data(name: String, data: Bytes) -> Response {
+    pub fn from_name_and_data(name: String, data: Bytes) -> Result<Response> {
         let chunks = data.chunks(constants::FRAGMENT_SIZE as usize);
         let mut packets: BTreeMap<u64, NarrowWaist> = BTreeMap::new();
         let length = chunks.len() as u64;
         let mut count: u64 = 0;
         for chunk in chunks {
-            packets.insert(count.clone(), mk_response_packet(name.clone(), chunk.to_vec(), count, length));
+            packets.insert(count.clone(), mk_response_packet(name.clone(), chunk.to_vec(), count, length)?);
             count += 1;
         }
-        Response {
-            sdri: Sdri::new(name),
+        Ok(Response {
+            sdri: Sdri::new(name)?,
             packets,
             length,
-        }
+        })
     }
-    pub fn from_name_and_btreemap(name: String, data: BTreeMap<u64, NarrowWaist>) -> Response {
-        Response {
-            sdri: Sdri::new(name),
+    pub fn from_name_and_btreemap(name: String, data: BTreeMap<u64, NarrowWaist>) -> Result<Response> {
+        Ok(Response {
+            sdri: Sdri::new(name)?,
             length: data.len() as u64,
             packets: data.clone(),
-        }
+        })
     }
     pub fn from_response_packet(packet: NarrowWaist) -> Response {
         match packet.clone() {
@@ -213,6 +221,6 @@ impl Response {
     }
 }
 
-pub fn mk_response(name: String, data: Bytes) -> Response {
+pub fn mk_response(name: String, data: Bytes) -> Result<Response> {
     Response::from_name_and_data(name, data)
 }

@@ -2,7 +2,10 @@
 use {
     rand::Rng,
     bitvec::prelude::*,
-    crate::sdri::{Sdri},
+    crate::{
+        constants,
+        sdri::{Sdri}
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -13,23 +16,29 @@ pub struct SparseDistributedRepresentation {
 impl SparseDistributedRepresentation {
     pub fn new() -> Self {
         SparseDistributedRepresentation {
-            sdr: bitvec![0; 2048],
+            sdr: bitvec![0; constants::BLOOM_FILTER_LENGTH as usize],
         }
     }
 
     pub fn insert(&mut self, packet: &Sdri) {
-        for row in packet.to_vec() {
-            for elem in row {
-                self.sdr.set(elem as usize, true);
+        for id in &packet.id[..] {
+            self.sdr.set(*id as usize, true);
+        }
+        if let Some(names) = &packet.name {
+            for name in names {
+                self.sdr.set(*name as usize, true);
             }
         }
     }
 
     pub fn contains(&self, packet: &Sdri) -> u8 {
         let mut sdr_vals: Vec<u32> = Vec::new();
-        for row in packet.to_vec() {
-            for elem in row {
-                sdr_vals.push(*self.sdr.get(elem as usize).unwrap() as u32);
+        for id in &packet.id[..] {
+            sdr_vals.push(*self.sdr.get(*id as usize).unwrap() as u32);
+        }
+        if let Some(names) = &packet.name {
+            for name in names {
+                sdr_vals.push(*self.sdr.get(*name as usize).unwrap() as u32);
             }
         }
         let hits = sdr_vals.iter().try_fold(0u32, |acc, &elem| acc.checked_add(elem));
@@ -39,9 +48,12 @@ impl SparseDistributedRepresentation {
     }
 
     pub fn delete(&mut self, packet: &Sdri) {
-        for row in packet.to_vec() {
-            for elem in row {
-                self.sdr.set(elem as usize, false);
+        for id in &packet.id[..] {
+            self.sdr.set(*id as usize, false);
+        }
+        if let Some(names) = &packet.name {
+            for name in names {
+                self.sdr.set(*name as usize, false);
             }
         }
     }

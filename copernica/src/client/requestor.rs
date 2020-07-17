@@ -21,6 +21,7 @@ use {
         after,
         never
     },
+    anyhow::{Result, anyhow},
     log::{trace},
 };
 
@@ -88,9 +89,9 @@ impl CopernicaRequestor {
         thread::spawn(move || handle_inbound_packets(whitelist, rs, inbound_tp_receiver));
     }
 
-    pub async fn request(&mut self, name: String, retries: u8, timeout_per_retry: u64) -> Option<Response> {
+    pub async fn request(&mut self, name: String, retries: u8, timeout_per_retry: u64) -> Result<Response> {
         if let Some(sender) = &self.transport_packet_sender {
-            let sdri = Sdri::new(name.clone());
+            let sdri = Sdri::new(name.clone())?;
             let sdri2 = sdri.clone();
             let retries2 = retries.clone();
             let timeout_per_retry2 = timeout_per_retry.clone();
@@ -103,7 +104,7 @@ impl CopernicaRequestor {
             let sender2 = sender.clone();
             thread::spawn(move || {
                 for x in 0..retries {
-                    let packet = TransportPacket::new(address.clone(), mk_request_packet(name.clone()));
+                    let packet = TransportPacket::new(address.clone(), mk_request_packet(name.clone())?);
                     sender2.send(packet).unwrap();
                     let (completed_s, completed_r) = unbounded();
                     let rs_guard1 = rs_guard.clone();
@@ -119,10 +120,11 @@ impl CopernicaRequestor {
                     let duration = Some(Duration::from_millis(timeout_per_retry));
                     let timeout = duration.map(|d| after(d)).unwrap_or_else(never);
                     select! {
-                        recv(completed_r) -> _msg => { let _ = overall_completed_s.send(true); trace!("RETRY {}/{} COMPLETED", x, retries); break},
-                        recv(timeout) -> _ =>  trace!("RETRY TIMED OUT") ,
+                        recv(completed_r) -> _msg => { let _ = overall_completed_s.send(true); trace!("RETRY {}/{} COMPLETED", x, retries); return Ok(())},
+                        recv(timeout) -> _ => { trace!("RETRY TIMED OUT"); return Err(anyhow!("Request timed out"))},
                     };
                 }
+                Ok(())
             });
             let duration = Some(Duration::from_millis(timeout_per_retry2 * retries2 as u64 + 10));
             let timeout = duration.map(|d| after(d)).unwrap_or_else(never);
@@ -135,14 +137,14 @@ impl CopernicaRequestor {
             match rs_guard.get(&sdri2).await {
                 Some(response) => {
                     match response {
-                        Got::Response(response) => return Some(response),
-                        Got::NarrowWaist(_) => return None,
+                        Got::Response(response) => return Ok(response),
+                        Got::NarrowWaist(_) => return Err(anyhow!("Error: got a request when making a request")),
                     }
                 },
-                None => return None,
+                None => return Err(anyhow!("Error: No response returned")),
             }
         }
-        None
+        Err(anyhow!("Error: Transport Packet Sender not initialized"))
     }
 /*
     pub async fn request2(&mut self, name: String, retries: u8, timeout_per_retry: u64) -> Option<Response> {

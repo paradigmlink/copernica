@@ -28,7 +28,7 @@ chain-addr = { path = "../chain-libs/chain-addr" }
 getrandom = "0.1.13"
 rand_chacha = "0.1"
 rand_core = "0.3"
-cryptoxide = "0.1.2"
+cryptoxide = "0.2.1"
 base64 = "0.11.0"
 dirs = "2.0.2"
 sha3 = "0.8.2"
