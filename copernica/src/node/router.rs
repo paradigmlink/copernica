@@ -10,8 +10,9 @@ use {
         },
         response_store::{Response, ResponseStore, Got},
         sdri::{Sdri},
+        borsh::{BorshDeserialize},
     },
-    bincode,
+    anyhow::{Result},
     log::{trace},
     crossbeam_channel::{Sender, unbounded},
     std::{
@@ -64,17 +65,17 @@ pub struct Router {
 }
 
 impl Router {
-    pub fn new() -> Router {
+    pub fn new() -> Result<Router> {
         let config: Config = Config::new();
         let listen_addr: ReplyTo = ReplyTo::Udp(config.listen_addr);
-        Router {
+        Ok(Router {
             listen_addr: listen_addr,
             faces: HashMap::new(),
-            response_store:  ResponseStore::new(config.content_store_size),
-        }
+            response_store:  ResponseStore::new(config.content_store_size)?,
+        })
     }
 
-    pub fn new_with_config(config: Config) -> Router {
+    pub fn new_with_config(config: Config) -> Result<Router> {
         let mut faces: HashMap<ReplyTo, Face> = HashMap::new();
         let listen_addr: ReplyTo = ReplyTo::Udp(config.listen_addr);
         if let Some(peer_addresses) = config.peers {
@@ -85,7 +86,7 @@ impl Router {
                 faces.insert(face_id.clone(), Face::new(face_id));
             }
         }
-        let mut response_store = ResponseStore::new(config.content_store_size);
+        let mut response_store = ResponseStore::new(config.content_store_size)?;
         let content_store: PathBuf = [config.data_dir.clone()].iter().collect();
         let identity: PathBuf = [config.data_dir.clone(), "identity".to_string()].iter().collect();
         let trusted_connections: PathBuf = [config.data_dir.clone(), "trusted_connections".to_string()].iter().collect();
@@ -99,20 +100,20 @@ impl Router {
                     continue
                 } else {
                     let contents = std::fs::read(path.clone()).expect("file not found");
-                    let response: Response = bincode::deserialize(&contents).unwrap();
+                    let response: Response = Response::try_from_slice(&contents)?;
                     trace!("[SETUP] router {:?} using {:?}: adding to content store", listen_addr, dir);
                     response_store.insert_response(response);
                 }
             }
         }
-        Router {
+        Ok(Router {
             listen_addr,
             faces,
             response_store,
-        }
+        })
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self) -> Result<()> {
         trace!("{:?} IS LISTENING", self.listen_addr);
         let listen_addr_1 = self.listen_addr.clone();
         let listen_addr_2 = self.listen_addr.clone();
@@ -135,7 +136,7 @@ impl Router {
                         self.faces.insert(reply_to.clone(), Face::new(reply_to));
                     }
                     //all_faces_stats(&self.faces, &tp, &format!("ALL FACES STATS ON INBOUND for {:?}", self.listen_addr.clone()));
-                    self.handle_packet(&tp, send_tr_sender.clone(), relay_tp_sender.clone(), send_tp_sender.clone()).await;
+                    self.handle_packet(&tp, send_tr_sender.clone(), relay_tp_sender.clone(), send_tp_sender.clone()).await?;
                     //all_faces_stats(&self.faces, &tp, &format!("ALL FACES STATS ON OUTBOUND for {:?}", self.listen_addr.clone()));
                 },
                 _ => {},
@@ -147,7 +148,7 @@ impl Router {
     async fn handle_packet(&mut self, transport_packet: &TransportPacket,
             send_transport_response: Sender<TransportResponse>,
             relay_transport_packet: Sender<(ReplyTo, TransportPacket)>,
-            send_transport_packet: Sender<TransportPacket>) {
+            send_transport_packet: Sender<TransportPacket>) -> Result<()> {
         let thin_waist_packet: NarrowWaist = transport_packet.payload();
         let packet_from: ReplyTo = transport_packet.reply_to();
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
@@ -169,7 +170,7 @@ impl Router {
                                     send_transport_packet.send(tp).unwrap();
                                 },
                             }
-                            return
+                            return Ok(())
                         },
                         None => {
                             let mut is_forwarded = false;
@@ -219,7 +220,7 @@ impl Router {
                 },
                 NarrowWaist::Response { sdri, .. } => {
                     if this_face.contains_forwarded_request(&sdri) > 15 {
-                        self.response_store.insert_packet(thin_waist_packet.clone());
+                        self.response_store.insert_packet(thin_waist_packet.clone())?;
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hint();
                         }
@@ -240,6 +241,7 @@ impl Router {
                 }
             }
         }
+        Ok(())
     }
 }
 

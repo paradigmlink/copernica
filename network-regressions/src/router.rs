@@ -8,6 +8,7 @@ use {
         response_store::{Response, mk_response},
     },
     anyhow::{Result},
+    borsh::{BorshSerialize},
     async_std::{ task, },
     std::{
         fs,
@@ -16,8 +17,9 @@ use {
         thread::{spawn},
         collections::HashMap,
     },
-    bincode,
-    crate::common::{generate_random_dir_name},
+    crate::{
+        common::{generate_random_dir_name},
+    },
 };
 
 //const TIMEOUT: u64 = 1000;
@@ -41,19 +43,23 @@ const MB500: usize  = 524288000;
 const MB1000: usize = 1048576000;
 
 #[allow(dead_code)]
-fn router(config: Config) {
-    let mut router = Router::new_with_config(config);
+fn router(config: Config) -> Result<()> {
+    let mut router = Router::new_with_config(config)?;
     spawn( move || {
         task::block_on(async {
-            router.run().await
-        });
+            router.run().await?;
+            Ok::<(), anyhow::Error>(())
+        })?;
+        Ok::<(), anyhow::Error>(())
     });
+    Ok(())
 }
 #[allow(dead_code)]
-async fn setup_network(network: Vec<Config>) {
+async fn setup_network(network: Vec<Config>) -> Result<()> {
     for node in network {
-        router(node);
+        router(node)?;
     }
+    Ok(())
 }
 async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Result<Vec<String>> {
     let mut tmp_dirs: Vec<PathBuf> = Vec::with_capacity(node_count);
@@ -71,7 +77,7 @@ async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) 
     for (name, packet) in &responses {
         let file = tmp_dirs[current_tmp_dir].join(name.clone());
         let mut f = fs::File::create(file).unwrap();
-        let response_ser = bincode::serialize(&packet).unwrap();
+        let response_ser = packet.try_to_vec()?;
         f.write_all(&response_ser).unwrap();
         f.sync_all().unwrap();
         if current_tmp_dir == node_count -1 {
@@ -87,7 +93,7 @@ async fn populate_tmp_dir(name: String, data: u8, size: usize) -> Result<String>
     let root_dir = generate_random_dir_name().await;
     let dir = root_dir.join(name);
     let mut f = fs::File::create(dir.clone()).unwrap();
-    let response_ser = bincode::serialize(&response).unwrap();
+    let response_ser = response.try_to_vec()?;
     f.write_all(&response_ser).unwrap();
     f.sync_all().unwrap();
     Ok(root_dir.clone().to_string_lossy().to_string())
@@ -124,8 +130,8 @@ pub async fn single_fetch() -> Result<()> {
             data_dir: populate_tmp_dir("hello3".to_string(), 3, size3).await?,
         }
     ];
-    setup_network(network).await;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50099".into(), "127.0.0.1:50100".into());
+    setup_network(network).await?;
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50099".into(), "127.0.0.1:50100".into())?;
     let retries: u8 = 4;
     let timeout_per_retry: u64 = 4000;
     cc.start_polling();
@@ -234,8 +240,8 @@ pub async fn small_world_graph_lt_mtu() -> Result<()> {
                                   "127.0.0.1:50000".into()]),
                  data_dir: populate_tmp_dir("hello11".to_string(), 11, constants::FRAGMENT_SIZE as usize ).await?,
     }];
-    setup_network(network).await;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:49999".into(), "127.0.0.1:50004".into());
+    setup_network(network).await?;
+    let mut cc = CopernicaRequestor::new("127.0.0.1:49999".into(), "127.0.0.1:50004".into())?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
@@ -336,8 +342,8 @@ pub async fn small_world_graph_gt_mtu() -> Result<()> {
                                   "127.0.0.1:50020".into()]),
                  data_dir: tmp_dirs[11].clone(),
     }];
-    setup_network(network).await;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50019".into(), "127.0.0.1:50024".into());
+    setup_network(network).await?;
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50019".into(), "127.0.0.1:50024".into())?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
@@ -386,8 +392,8 @@ pub async fn resolve_gt_mtu() -> Result<()> {
             data_dir: populate_tmp_dir("hello0".to_string(), 0, size).await?,
         },
     ];
-    setup_network(network).await;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50105".into(), "127.0.0.1:50106".into());
+    setup_network(network).await?;
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50105".into(), "127.0.0.1:50106".into())?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
@@ -407,8 +413,8 @@ pub async fn resolve_lt_mtu() -> Result<()> {
             data_dir: populate_tmp_dir("hello".to_string(), 0, size).await?,
         },
     ];
-    setup_network(network).await;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50098".into(), "127.0.0.1:50107".into());
+    setup_network(network).await?;
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50098".into(), "127.0.0.1:50107".into())?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
@@ -435,8 +441,8 @@ pub async fn resolve_gt_mtu_two_nodes() -> Result<()> {
             data_dir: generate_random_dir_name().await.into_os_string().into_string().unwrap(),
         },
     ];
-    setup_network(network).await;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50103".into(), "127.0.0.1:50108".into());
+    setup_network(network).await?;
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50103".into(), "127.0.0.1:50108".into())?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
@@ -463,8 +469,8 @@ pub async fn resolve_lt_mtu_two_nodes() -> Result<()> {
             data_dir: generate_random_dir_name().await.into_os_string().into_string().unwrap(),
         },
     ];
-    setup_network(network).await;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50110".into(), "127.0.0.1:50111".into());
+    setup_network(network).await?;
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50110".into(), "127.0.0.1:50111".into())?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();

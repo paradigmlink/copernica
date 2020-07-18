@@ -25,7 +25,11 @@ use {
     log::{trace},
 };
 
-fn handle_inbound_packets(whitelist_ref: Arc<Mutex<HashSet<Sdri>>>, rs_ref: Arc<Mutex<ResponseStore>>, transport_packet_receiver: Receiver<TransportPacket>) {
+fn handle_inbound_packets(
+    whitelist_ref: Arc<Mutex<HashSet<Sdri>>>,
+    rs_ref: Arc<Mutex<ResponseStore>>,
+    transport_packet_receiver: Receiver<TransportPacket>)
+        -> Result<()> {
     loop {
         let tp: TransportPacket = transport_packet_receiver.recv().unwrap();
         let packet: NarrowWaist = tp.payload();
@@ -39,7 +43,7 @@ fn handle_inbound_packets(whitelist_ref: Arc<Mutex<HashSet<Sdri>>>, rs_ref: Arc<
                 trace!("RESPONSE PACKET ARRIVED: {:?} {}/{}", sdri, count, total-1);
                 if whitelist_ref.lock().unwrap().contains(&sdri) {
                     let mut rs_guard = rs_ref.lock().unwrap();
-                    rs_guard.insert_packet(packet);
+                    rs_guard.insert_packet(packet)?;
                 }
             },
         }
@@ -58,18 +62,18 @@ pub struct CopernicaRequestor {
 }
 
 impl CopernicaRequestor {
-    pub fn new(listen_addr: String, remote_addr: String) -> CopernicaRequestor {
+    pub fn new(listen_addr: String, remote_addr: String) -> Result<CopernicaRequestor> {
         let listen_addr = ReplyTo::Udp(listen_addr.parse().unwrap());
         let remote_addr = ReplyTo::Udp(remote_addr.parse().unwrap());
-        CopernicaRequestor {
+        Ok(CopernicaRequestor {
             remote_addr,
             listen_addr,
             transport_packet_receiver: None,
             transport_packet_sender: None,
             transport_response_sender: None,
             whitelist_sdri: Arc::new(Mutex::new(HashSet::new())),
-            response_store: Arc::new(Mutex::new(ResponseStore::new(1000))),
-        }
+            response_store: Arc::new(Mutex::new(ResponseStore::new(1000)?)),
+        })
     }
     pub fn start_polling(&mut self) {
         let listen_addr_1 = self.listen_addr.clone();

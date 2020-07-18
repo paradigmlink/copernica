@@ -15,7 +15,6 @@ path = "src/main.rs"
 [dependencies]
 rand = "0.7.2"
 bitvec = "^0.17"
-bincode = "1"
 logger = { path = "../logger" }
 log = "0.4"
 lru = "0.5"

@@ -1,55 +1,17 @@
 use {
-    bincode,
-//    base64,
-    crate::{TransportPacket},
+    crate::{
+        TransportPacket,
+        borsh::{BorshDeserialize, BorshSerialize},
+    },
+    anyhow::{Result},
 };
 
-pub fn serialize(packet: &TransportPacket) -> Vec<u8> {
-    let packet: Vec<u8> = bincode::serialize(&packet).unwrap();
-//    let packet: String = base64::encode(&packet);
-//    let packet: Vec<u8> = bincode::serialize(&packet).unwrap();
-    packet
-}
-
-pub fn deserialize(packet: &[u8]) -> Result<TransportPacket, bincode::Error> {
-//    let packet: String = bincode::deserialize(&packet)?;
-//    let packet: Vec<u8> = base64::decode(&packet).unwrap();
-    let packet: TransportPacket = bincode::deserialize(&packet)?;
+pub fn serialize(packet: &TransportPacket) -> Result<Vec<u8>> {
+    let packet: Vec<u8> = packet.try_to_vec()?;
     Ok(packet)
 }
 
-/*
-#[cfg(test)]
-mod serdeser {
-    use {
-        super::*,
-        crate::{
-            narrow_waist::{NarrowWaist, mk_response_packet},
-            transport::{TransportPacket, ReplyTo},
-        },
-    };
-
-    #[test]
-    fn test_serialize() {
-        let expected: Vec<u8> = vec![84, 0, 0, 0, 0, 0, 0, 0, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 66, 47, 65, 65, 65, 66, 110, 66, 56, 66, 65, 65, 65, 65, 66, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 69, 65, 87, 81, 68, 53, 65, 84, 69, 66, 119, 65, 65, 65, 81, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 61, 61];
-
-        let packet: NarrowWaist = mk_response_packet("hello".to_string(), vec![0u8; 1], 0, 0);
-        let interface: ReplyTo = ReplyTo::Udp("127.0.0.1:8092".parse().unwrap());
-        let packet: TransportPacket = TransportPacket::new(interface, packet);
-        let actual = serialize(&packet);
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_deserialize() {
-        let expected: NarrowWaist = mk_response_packet("hello".to_string(), vec![0u8; 1], 0, 0);
-        let interface: ReplyTo = ReplyTo::Udp("127.0.0.1:8092".parse().unwrap());
-        let expected: TransportPacket = TransportPacket::new(interface, expected);
-
-        let packet: Vec<u8> = vec![84, 0, 0, 0, 0, 0, 0, 0, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 66, 47, 65, 65, 65, 66, 110, 66, 56, 66, 65, 65, 65, 65, 66, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 69, 65, 87, 81, 68, 53, 65, 84, 69, 66, 119, 65, 65, 65, 81, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 61, 61];
-        let actual: TransportPacket = deserialize(&packet).unwrap();
-        assert_eq!(actual, expected);
-    }
+pub fn deserialize(packet: &[u8]) -> Result<TransportPacket> {
+    let packet: TransportPacket = TransportPacket::try_from_slice(&packet)?;
+    Ok(packet)
 }
-
-*/

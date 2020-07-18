@@ -14,7 +14,7 @@ copernicafs = { path = "../copernicafs" }
 crossbeam = "0.7.3"
 structopt = "0.3.4"
 crossbeam-channel = "0.3"
-bincode = "1"
+borsh = "0.7.0"
 log = "0.4"
 rpassword = "4"
 async-std = "1.4"

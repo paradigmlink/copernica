@@ -13,6 +13,7 @@ use {
         Config, read_config_file,
     },
     anyhow::{Result},
+    borsh::{BorshDeserialize},
     rpassword::prompt_password_stdout,
     structopt::StructOpt,
     std::{
@@ -29,20 +30,20 @@ fn main() -> Result<()> {
     if let Some(config_path) = options.config {
         config = read_config_file(config_path).unwrap();
     }
-    let mut cr = CopernicaRequestor::new("127.0.0.1:8089".into(), "127.0.0.1:8088".into());
+    let mut cr = CopernicaRequestor::new("127.0.0.1:8089".into(), "127.0.0.1:8088".into())?;
     cr.start_polling();
     // stick in the config to the above
 
     if options.generate_id {
         let password = prompt_password_stdout("enter your new copernica password: ").unwrap();
-        generate_identity(password, &config);
+        generate_identity(password, &config)?;
     }
 
     if options.list_ids {
         let mut identity_dir = std::path::PathBuf::from(&config.data_dir);
         identity_dir.push(".copernica");
         identity_dir.push("identity");
-        let ids = load_named_responses(&identity_dir);
+        let ids = load_named_responses(&identity_dir)?;
         for (id, _res) in ids {
             println!("{}", id);
         }
@@ -52,7 +53,7 @@ fn main() -> Result<()> {
         let mut identity_dir = std::path::PathBuf::from(&config.data_dir);
         identity_dir.push(".copernica");
         identity_dir.push("identity");
-        let ids = load_named_responses(&identity_dir);
+        let ids = load_named_responses(&identity_dir)?;
         println!("available identities:");
         for (id, _res) in ids {
             println!("{}", id);
@@ -102,7 +103,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn load_named_responses(dir: &Path) -> HashMap<String, NarrowWaist> {
+fn load_named_responses(dir: &Path) -> Result<HashMap<String, NarrowWaist>> {
     let mut resps: HashMap<String, NarrowWaist> = HashMap::new();
     for entry in std::fs::read_dir(dir).unwrap() {
         let entry = entry.unwrap();
@@ -110,11 +111,11 @@ fn load_named_responses(dir: &Path) -> HashMap<String, NarrowWaist> {
         if path.is_dir() {
             continue
         } else {
-            let contents = std::fs::read(path.clone()).unwrap();
-            let packet: NarrowWaist = bincode::deserialize(&contents).unwrap();
+            let contents = std::fs::read(path.clone())?;
+            let packet: NarrowWaist = NarrowWaist::try_from_slice(&contents)?;
             let name = &path.file_stem().unwrap();
             resps.insert(name.to_os_string().into_string().unwrap(), packet);
         }
     }
-    resps
+    Ok(resps)
 }

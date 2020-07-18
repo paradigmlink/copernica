@@ -2,6 +2,7 @@ use {
     crate::{
         narrow_waist::{NarrowWaist},
         response_store::{Response},
+        borsh::{BorshSerialize, BorshDeserialize},
     },
     std::{
         net::{SocketAddr},
@@ -10,14 +11,14 @@ use {
 
 pub type Hertz = u32;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub enum ReplyTo {
     Udp(SocketAddr),
     Sdr(Hertz), // Software Defined Radio (not Sparse Distributed Representation)
 }
 
 // Does go over the wire
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct TransportPacket {
     pub reply_to: ReplyTo,
     pub payload: NarrowWaist,
@@ -39,7 +40,7 @@ impl TransportPacket {
 }
 
 /// Doesn't go over the wire
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct TransportResponse {
     pub reply_to: ReplyTo,
     pub payload: Response,

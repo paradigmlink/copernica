@@ -3,6 +3,7 @@ use {
         //identity::{decrypt_identity},
         node::router::{Config},
         narrow_waist::{mk_response_packet},
+        borsh::{BorshSerialize},
     },
     cryptoxide::{
         sha2::{
@@ -12,7 +13,6 @@ use {
     },
     anyhow::{Result},
     chain_crypto::{Ed25519, PublicKey, SecretKey},
-    bincode::{serialize},
     std::{
         collections::HashSet,
     },
@@ -34,8 +34,8 @@ pub fn add_trusted_identity(password: String, identity: Packet, addresses: Vec<S
 pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &PublicKey<Ed25519>) -> Result<String> {
     let mut hasher = Sha256::new();
     let tcs: HashSet<String> = HashSet::new();
-    let tcs_ser = &bincode::serialize(&tcs).unwrap();
-    let signature = sk.sign(tcs_ser);
+    let tcs_ser = tcs.try_to_vec()?;
+    let signature = sk.sign(&tcs_ser);
     println!("signature = {:?}", signature);
     let _res = signature.verify(&pk, &tcs_ser);
     // need to sign this with pk first, then encrypt with signature, to ensure my packet is unique otherwise everyone's inition thing will be the same
@@ -51,7 +51,7 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     tc_path.push("trusted_connections");
     let tc_path = tc_path.join(tc_hash.clone());
     println!("id = {:?}", tc_path);
-    let tc_ser = serialize(&tc_packet).unwrap();
+    let tc_ser = tc_packet.try_to_vec()?;
     std::fs::write(tc_path, tc_ser).unwrap();
     Ok(tc_hash)
 }

@@ -14,6 +14,7 @@ use {
         narrow_waist::{NarrowWaist, mk_response_packet, Bytes},
         sdri::{Sdri},
         constants,
+        borsh::{BorshSerialize, BorshDeserialize},
     }
 };
 
@@ -23,10 +24,10 @@ pub struct ResponseStore {
 }
 
 impl ResponseStore {
-    pub fn new(size: u64) -> ResponseStore {
-        ResponseStore {
+    pub fn new(size: u64) -> Result<ResponseStore> {
+        Ok(ResponseStore {
             lru:  Arc::new(Mutex::new(LruCache::new(size as usize))),
-        }
+        })
     }
     pub fn from_name_and_data(&mut self, name: String, data: Bytes) -> Result<()> {
         let chunks = data.chunks(constants::FRAGMENT_SIZE as usize);
@@ -92,29 +93,30 @@ impl ResponseStore {
         self.lru.lock().unwrap().put(response.sdri(), response);
     }
 
-    pub fn insert_packet(&mut self, packet: NarrowWaist) {
+    pub fn insert_packet(&mut self, packet: NarrowWaist) -> Result<()> {
         match packet.clone() {
             NarrowWaist::Response { sdri, ..} => {
                 let mut lru_guard = self.lru.lock().unwrap();
                 if let Some(response) = lru_guard.get_mut(&sdri) {
-                    response.insert_packet(packet);
+                    response.insert_packet(packet)?;
                 } else {
-                    let response = Response::from_response_packet(packet);
+                    let response = Response::from_response_packet(packet)?;
                     lru_guard.put(sdri, response);
                 }
             },
             NarrowWaist::Request { .. } => panic!("Request should never be inserted into a Response"),
         }
+        Ok(())
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub enum Got {
     Response(Response),
     NarrowWaist(NarrowWaist),
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Response {
     sdri: Sdri,
     length: u64,
@@ -166,7 +168,7 @@ impl Response {
             packets: data.clone(),
         })
     }
-    pub fn from_response_packet(packet: NarrowWaist) -> Response {
+    pub fn from_response_packet(packet: NarrowWaist) -> Result<Response> {
         match packet.clone() {
             NarrowWaist::Response { sdri, total, ..} => {
                 let mut response = Response {
@@ -174,12 +176,12 @@ impl Response {
                     packets: BTreeMap::new(),
                     length: total,
                 };
-                response.insert_packet(packet);
-                return response
+                response.insert_packet(packet)?;
+                return Ok(response)
             },
             NarrowWaist::Request { .. } => {
-                panic!("Cannot create a Response from a NarrowWaist::Request");
-             },
+                return Err(anyhow!("Cannot create a Response frome a NarrowWaist::Request"))
+            },
         }
     }    pub fn iter(&self) -> std::collections::btree_map::Iter<u64, NarrowWaist> {
         self.packets.iter()

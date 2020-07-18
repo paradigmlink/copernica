@@ -7,7 +7,6 @@ use {
             Sha512,
         },
     },
-    bincode::{serialize},
     getrandom::getrandom,
     chain_crypto::{Ed25519, PublicKey, SecretKey,
         bech32::Bech32,
@@ -26,6 +25,7 @@ use {
         node::router::{Config},
         response_store::{mk_response},
         constants,
+        borsh::{BorshSerialize},
     },
 };
 
@@ -91,7 +91,7 @@ pub fn generate_identity(password: String, config: &Config) -> Result<()> {
     identity_path.push("identity");
     println!("DATA_DIR: {:?}", identity_path);
     let identity_path = identity_path.join(id_name);
-    let id_ser = serialize(&id).unwrap();
+    let id_ser = id.try_to_vec()?;
     std::fs::write(identity_path, id_ser).unwrap();
     Ok(())
 }

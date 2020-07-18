@@ -4,9 +4,10 @@ use {
     logger::setup_logging,
     clap::{Arg, App},
     async_std::{ task, },
+    anyhow::{Result},
 };
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<()> {
     let matches = App::new("Copernica")
                     .version("0.1.0")
                     .author("Stewart Mackenzie <sjm@fractalide.com>")
@@ -30,8 +31,11 @@ fn main() -> std::io::Result<()> {
 
     trace!("copernica node started");
 
-    let mut r = Router::new_with_config(config);
-    task::block_on(async {r.run().await;});
+    let mut r = Router::new_with_config(config)?;
+    task::block_on(async {
+        r.run().await?;
+        Ok::<(), anyhow::Error>(())
+    })?;
     Ok(())
 }
 
