@@ -1,7 +1,7 @@
 use {
     crate::{
         narrow_waist::{NarrowWaist},
-        response_store::{Response},
+//        response_store::{Response},
         borsh::{BorshSerialize, BorshDeserialize},
     },
     std::{
@@ -18,7 +18,7 @@ pub enum ReplyTo {
 }
 
 // Does go over the wire
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub struct TransportPacket {
     pub reply_to: ReplyTo,
     pub payload: NarrowWaist,
@@ -38,7 +38,7 @@ impl TransportPacket {
         self.reply_to.clone()
     }
 }
-
+/*
 /// Doesn't go over the wire
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 pub struct TransportResponse {
@@ -61,3 +61,4 @@ impl TransportResponse {
     }
 }
 
+*/

@@ -1,24 +1,30 @@
 #![allow(dead_code)]
 use {
     copernica::{
-        Router, CopernicaRequestor,
+        Router,
+        client::{
+            Requestor,
+            file_sharing::{FileSharer, Manifest, FileManifest},
+        },
         Config,
         constants,
-        narrow_waist::{Bytes},
-        response_store::{Response, mk_response},
+        transport::{ReplyTo},
+        narrow_waist::{Data},
+        hbfi::{HBFI},
     },
     anyhow::{Result},
     borsh::{BorshSerialize},
     async_std::{ task, },
     std::{
         fs,
+        io::prelude::*,
         path::PathBuf,
         io::Write,
         thread::{spawn},
         collections::HashMap,
     },
     crate::{
-        common::{generate_random_dir_name},
+        common::{generate_random_dir_name, populate_tmp_dir, TestData},
     },
 };
 
@@ -54,6 +60,7 @@ fn router(config: Config) -> Result<()> {
     });
     Ok(())
 }
+
 #[allow(dead_code)]
 async fn setup_network(network: Vec<Config>) -> Result<()> {
     for node in network {
@@ -61,99 +68,87 @@ async fn setup_network(network: Vec<Config>) -> Result<()> {
     }
     Ok(())
 }
-async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: usize) -> Result<Vec<String>> {
-    let mut tmp_dirs: Vec<PathBuf> = Vec::with_capacity(node_count);
-    for _ in 0..node_count {
-        tmp_dirs.push(generate_random_dir_name().await);
-    }
-    let mut responses: HashMap<String, Response> = HashMap::new();
-    for n in 0..node_count {
-        let name = format!("hello{}", n.clone());
-        let value: Bytes = vec![n.clone() as u8; data_size];
-        let response = mk_response(name.clone(), value)?;
-        responses.insert(name.to_string(), response.clone());
-    }
-    let mut current_tmp_dir = 0;
-    for (name, packet) in &responses {
-        let file = tmp_dirs[current_tmp_dir].join(name.clone());
-        let mut f = fs::File::create(file).unwrap();
-        let response_ser = packet.try_to_vec()?;
-        f.write_all(&response_ser).unwrap();
-        f.sync_all().unwrap();
-        if current_tmp_dir == node_count -1 {
-            current_tmp_dir = 0;
-        } else {
-            current_tmp_dir += 1;
-        }
-    }
-    Ok(tmp_dirs.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<String>>())
-}
-async fn populate_tmp_dir(name: String, data: u8, size: usize) -> Result<String> {
-    let response = mk_response(name.clone().to_string(), vec![data; size])?;
-    let root_dir = generate_random_dir_name().await;
-    let dir = root_dir.join(name);
-    let mut f = fs::File::create(dir.clone()).unwrap();
-    let response_ser = response.try_to_vec()?;
-    f.write_all(&response_ser).unwrap();
-    f.sync_all().unwrap();
-    Ok(root_dir.clone().to_string_lossy().to_string())
-}
+
 
 pub async fn single_fetch() -> Result<()> {
-    let size0: usize = 1024;
-    let size1: usize = 1025;
-    let size2: usize = 1025;
-    let size3: usize = 1025;
+    let name0: String = "hello0".into();
+    let name1: String = "hello1".into();
+    let name2: String = "hello2".into();
+    let name3: String = "hello3".into();
+    let id0: String = "id0".into();
+    let id1: String = "id1".into();
+    let id2: String = "id2".into();
+    let id3: String = "id3".into();
+    let mut td0 = TestData::new();
+    td0.push(("0.txt".into(), 1, 1024));
+    let mut td1 = TestData::new();
+    td1.push(("1.txt".into(), 2, 2048));
+    let mut td2 = TestData::new();
+    td2.push(("2.txt".into(), 3, 1025));
+    let mut td3 = TestData::new();
+    td3.push(("3.txt".into(), 4, 10));
+    let (expected_data_dir0, actual_data_dir0) = populate_tmp_dir(name0.clone(), id0.clone(), td0).await?;
+    let (expected_data_dir1, actual_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), td1).await?;
+    let (expected_data_dir2, actual_data_dir2) = populate_tmp_dir(name2.clone(), id2.clone(), td2).await?;
+    let (expected_data_dir3, actual_data_dir3) = populate_tmp_dir(name3.clone(), id3.clone(), td3).await?;
+
     let network: Vec<Config> = vec![
         Config {
             listen_addr: "127.0.0.1:50100".parse().unwrap(),
             content_store_size: 50,
             peers: Some(vec!["127.0.0.1:50101".into()]),
-            data_dir: populate_tmp_dir("hello0".to_string(), 0, size0).await?,
+            data_dir: actual_data_dir0,
         },
         Config {
             listen_addr: "127.0.0.1:50101".parse().unwrap(),
             content_store_size: 50,
             peers: Some(vec!["127.0.0.1:50102".into()]),
-            data_dir: populate_tmp_dir("hello1".to_string(), 1, size1).await?,
+            data_dir: actual_data_dir1,
         },
         Config {
             listen_addr: "127.0.0.1:50102".parse().unwrap(),
             content_store_size: 50,
             peers: Some(vec!["127.0.0.1:50103".into()]),
-            data_dir: populate_tmp_dir("hello2".to_string(), 2, size2).await?,
+            data_dir: actual_data_dir2,
         },
         Config {
             listen_addr: "127.0.0.1:50103".parse().unwrap(),
             content_store_size: 50,
             peers: None,
-            data_dir: populate_tmp_dir("hello3".to_string(), 3, size3).await?,
+            data_dir: actual_data_dir3,
         }
     ];
     setup_network(network).await?;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50099".into(), "127.0.0.1:50100".into())?;
-    let retries: u8 = 4;
-    let timeout_per_retry: u64 = 4000;
-    cc.start_polling();
+    let data_dir = generate_random_dir_name().await;
+    let rs = sled::open(data_dir)?;
+    let listen = ReplyTo::Udp("127.0.0.1:50099".parse()?);
+    let remote = ReplyTo::Udp("127.0.0.1:50100".parse()?);
+    let mut fs: FileSharer = Requestor::new(rs, listen, remote);
+    fs.start_polling();
 
-    let expected_hello0 = mk_response("hello0".to_string(), vec![0; size0])?;
-    let actual_hello0 = cc.request("hello0".to_string(), retries, timeout_per_retry).await?;
-    assert_eq!(actual_hello0, expected_hello0);
-
-    let expected_hello1 = mk_response("hello1".to_string(), vec![1; size1])?;
-    let actual_hello1 = cc.request("hello1".to_string(), retries, timeout_per_retry).await?;
+    let hbfi0: HBFI = HBFI::new(&name0, &id0)?;
+    let files = fs.file_names(hbfi0.clone())?;
+    for file_name in files {
+        let actual_file = fs.file(hbfi0.clone(), file_name.clone())?;
+        let expected_file_path = expected_data_dir0.join(file_name);
+        let mut expected_file = fs::File::open(&expected_file_path)?;
+        let mut expected_buffer = Vec::new();
+        expected_file.read_to_end(&mut expected_buffer)?;
+        assert_eq!(actual_file, expected_buffer);
+    }
+/*
+    let actual_hello1 = fs.request("hello1".to_string())?;
     assert_eq!(actual_hello1, expected_hello1);
 
-    let expected_hello2 = mk_response("hello2".to_string(), vec![2; size2])?;
-    let actual_hello2 = cc.request("hello2".to_string(), retries, timeout_per_retry).await?;
+    let actual_hello2 = fs.request("hello2".to_string())?;
     assert_eq!(actual_hello2, expected_hello2);
 
-    let expected_hello3 = mk_response("hello3".to_string(), vec![3; size3])?;
-    let actual_hello3 = cc.request("hello3".to_string(), retries, timeout_per_retry).await?;
+    let actual_hello3 = fs.request("hello3".to_string())?;
     assert_eq!(actual_hello3, expected_hello3);
+*/
     Ok(())
 }
-
+/*
 pub async fn small_world_graph_lt_mtu() -> Result<()> {
     // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
     // node0 is 12 o'clock, node1 is 1 o'clock, etc.
@@ -241,13 +236,14 @@ pub async fn small_world_graph_lt_mtu() -> Result<()> {
                  data_dir: populate_tmp_dir("hello11".to_string(), 11, constants::FRAGMENT_SIZE as usize ).await?,
     }];
     setup_network(network).await?;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:49999".into(), "127.0.0.1:50004".into())?;
+    let data_dir = generate_random_dir_name().await.into_os_string().into_string().unwrap();
+    let mut cc = CopernicaRequestor::new("127.0.0.1:49999".into(), "127.0.0.1:50004".into(), &data_dir)?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
     for n in 0..11 {
         let expected = mk_response(format!("hello{}", n), vec![n; constants::FRAGMENT_SIZE as usize ])?;
-        let actual = cc.request(format!("hello{}", n), retries, timeout_per_retry).await?;
+        let actual = cc.request(format!("hello{}", n))?;
         assert_eq!(actual, expected);
     }
     Ok(())
@@ -343,7 +339,8 @@ pub async fn small_world_graph_gt_mtu() -> Result<()> {
                  data_dir: tmp_dirs[11].clone(),
     }];
     setup_network(network).await?;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50019".into(), "127.0.0.1:50024".into())?;
+    let data_dir = generate_random_dir_name().await.into_os_string().into_string().unwrap();
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50019".into(), "127.0.0.1:50024".into(), &data_dir)?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
@@ -356,7 +353,7 @@ pub async fn small_world_graph_gt_mtu() -> Result<()> {
     for n in 0..11 {
         let name: String = format!("hello{}", n);
         let expected = mk_response(name.clone(), vec![n; size])?;
-        let actual = cc.request(name.clone(), retries, timeout_per_retry).await?;
+        let actual = cc.request(name.clone())?;
         assert_eq!(actual, expected.clone(), "\n=================\nTesting {}\n=================\n", name);
     }
     Ok(())
@@ -393,12 +390,13 @@ pub async fn resolve_gt_mtu() -> Result<()> {
         },
     ];
     setup_network(network).await?;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50105".into(), "127.0.0.1:50106".into())?;
+    let data_dir = generate_random_dir_name().await.into_os_string().into_string().unwrap();
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50105".into(), "127.0.0.1:50106".into(), &data_dir)?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
     let expected: Response = mk_response("hello0".to_string(), vec![0; size])?;
-    let actual = cc.request("hello0".to_string(), retries, timeout_per_retry).await?;
+    let actual = cc.request("hello0".to_string())?;
     assert_eq!(actual, expected);
     Ok(())
 }
@@ -414,12 +412,13 @@ pub async fn resolve_lt_mtu() -> Result<()> {
         },
     ];
     setup_network(network).await?;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50098".into(), "127.0.0.1:50107".into())?;
+    let data_dir = generate_random_dir_name().await.into_os_string().into_string().unwrap();
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50098".into(), "127.0.0.1:50107".into(), &data_dir)?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
     let expected: Response = mk_response("hello".to_string(), vec![0; size])?;
-    let actual = cc.request("hello".to_string(), retries, timeout_per_retry).await?;
+    let actual = cc.request("hello".to_string())?;
     assert_eq!(actual, expected);
     Ok(())
 }
@@ -442,11 +441,12 @@ pub async fn resolve_gt_mtu_two_nodes() -> Result<()> {
         },
     ];
     setup_network(network).await?;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50103".into(), "127.0.0.1:50108".into())?;
+    let data_dir = generate_random_dir_name().await.into_os_string().into_string().unwrap();
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50103".into(), "127.0.0.1:50108".into(), &data_dir)?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
-    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), retries, timeout_per_retry).await?;
+    let actual = cc.request("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string())?;
     std::thread::sleep(std::time::Duration::from_millis(3));
     let expected: Response = mk_response("ceo1q0te4aj3u2llwl4mxuxnjm9skj897hncanvgcnz0gf3x57ap6h7gk4dw8nv::hello0".to_string(), vec![0; size])?;
     assert_eq!(actual, expected);
@@ -470,11 +470,12 @@ pub async fn resolve_lt_mtu_two_nodes() -> Result<()> {
         },
     ];
     setup_network(network).await?;
-    let mut cc = CopernicaRequestor::new("127.0.0.1:50110".into(), "127.0.0.1:50111".into())?;
+    let data_dir = generate_random_dir_name().await.into_os_string().into_string().unwrap();
+    let mut cc = CopernicaRequestor::new("127.0.0.1:50110".into(), "127.0.0.1:50111".into(), &data_dir)?;
     let retries: u8 = 2;
     let timeout_per_retry: u64 = 1000;
     cc.start_polling();
-    let actual = cc.request("hello0".to_string(), retries, timeout_per_retry).await?;
+    let actual = cc.request("hello0".to_string())?;
     let expected: Response = mk_response("hello0".to_string(), vec![0; size])?;
     assert_eq!(actual, expected);
     Ok(())
@@ -531,3 +532,4 @@ mod network_regressions {
         })
     }
 }
+*/

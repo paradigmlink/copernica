@@ -3,22 +3,23 @@ extern crate serde_json;
 
 use {
     copernica::{
-        client::{CopernicaRequestor},
+        client::{Requestor, FileSharer, FilePacker},
         narrow_waist::{NarrowWaist},
-        identity::{generate_identity,
+        transport::{ReplyTo},
+        //identity::{generate_identity,
           //decrypt_identity
-        },
-        packer::{Packer},
+        //},
         //web_of_trust::{add_trusted_identity},
         Config, read_config_file,
     },
+    sled,
     anyhow::{Result},
     borsh::{BorshDeserialize},
     rpassword::prompt_password_stdout,
     structopt::StructOpt,
     std::{
         collections::{HashMap},
-        path::{Path},
+        path::{Path, PathBuf},
         io,
     },
 };
@@ -30,15 +31,19 @@ fn main() -> Result<()> {
     if let Some(config_path) = options.config {
         config = read_config_file(config_path).unwrap();
     }
-    let mut cr = CopernicaRequestor::new("127.0.0.1:8089".into(), "127.0.0.1:8088".into())?;
+    let listen_addr = ReplyTo::Udp("127.0.0.1:8089".parse().unwrap());
+    let remote_addr = ReplyTo::Udp("127.0.0.1:8089".parse().unwrap());
+    let dir: PathBuf = config.data_dir.clone().into();
+    let rs: sled::Db = sled::open(dir)?;
+    let mut cr: FileSharer = Requestor::new(rs, listen_addr, remote_addr);
     cr.start_polling();
     // stick in the config to the above
-
+/*
     if options.generate_id {
         let password = prompt_password_stdout("enter your new copernica password: ").unwrap();
         generate_identity(password, &config)?;
     }
-
+*/
     if options.list_ids {
         let mut identity_dir = std::path::PathBuf::from(&config.data_dir);
         identity_dir.push(".copernica");
@@ -95,7 +100,7 @@ fn main() -> Result<()> {
             let publish_path= std::path::PathBuf::from(&publish_path);
             let destination_path = std::path::PathBuf::from(&destination);
 
-            let p = Packer::new(&publish_path, &destination_path)?;
+            let p = FilePacker::new(&publish_path, &destination_path)?;
             p.publish()?;
         }
     }

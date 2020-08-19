@@ -17,7 +17,8 @@ fn main() -> Result<()> {
         //router::small_world_graph_gt_mtu().await;
         //router::resolve_lt_mtu().await;
         //router::resolve_gt_mtu().await;
-        router::single_fetch().await;
+        //router::single_fetch().await;
+        copernicafs::packer_smoke_test().await;
         //copernicafs::single_file_less_than_fragment_size().await;
         if let Err(r) = r {
             println!("{}", r);

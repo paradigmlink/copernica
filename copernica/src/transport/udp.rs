@@ -1,7 +1,7 @@
 use {
     crate::{
         transport::packet::{
-            TransportPacket, TransportResponse, ReplyTo,
+            TransportPacket, ReplyTo,
         },
         serdeser::{serialize, deserialize},
     },
@@ -89,7 +89,7 @@ pub fn relay_transport_packet(listen_addr: ReplyTo, transport_packet_receiver: R
     })?;
     Ok(())
 }
-
+/*
 pub fn send_transport_response(listen_addr: ReplyTo, transport_response_receiver: Receiver<TransportResponse>) -> anyhow::Result<()> {
     task::block_on(async move {
         match UdpSocket::bind("127.0.0.1:0").await {
@@ -118,3 +118,4 @@ pub fn send_transport_response(listen_addr: ReplyTo, transport_response_receiver
     })?;
     Ok(())
 }
+*/

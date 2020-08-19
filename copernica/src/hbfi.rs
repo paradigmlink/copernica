@@ -13,60 +13,43 @@ use {
     }
 };
 
+type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
+
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
-pub struct Sdri {
-    pub id: BFI,
-    pub name: Option<BFI>,
-    pub seq: Option<u64>,
+// how to implement hierarchical routing...
+// it should be done at node level
+// if more than 1 link has an h3 then start route on h2
+// if more than 2 links have h2 then route on h1... think about this for a while.
+pub struct HBFI { // Hierarchical Bloom Filter Index
+    //pub h3: BFI,  // level 3 hierarchy - most coarse
+    //pub h2: BFI,  // level 2 hierarchy - comme ci, comme ça
+    pub h1: BFI,  // level 1 hierarchy - most fine
+    pub id: BFI,  // publisher id
+    pub os: u64,  // offset into h1 level of data
 }
 
-impl Sdri {
-    pub fn new(s: String) -> Result<Sdri> {
-        let sections = s.splitn(3,"::");
-        let sections: Vec<&str> = sections.collect();
-        let sdri: Sdri = match sections.len() {
-            3 => {
-                let name = format!("{}{}", sections[0], sections[1]);
-                let seq = sections[2].parse::<u64>().unwrap();
-                Sdri {
-                    id: bloom_filter_index(sections[0])?,
-                    name: Some(bloom_filter_index(name.as_str())?),
-                    seq: Some(seq),
-                }
-            }
-            2 => {
-                let name = format!("{}{}", sections[0], sections[1]);
-                Sdri {
-                    id: bloom_filter_index(sections[0])?,
-                    name: Some(bloom_filter_index(name.as_str())?),
-                    seq: None,
-                }
-            },
-            1 => {
-                Sdri {
-                    id: bloom_filter_index(sections[0])?,
-                    name: None,
-                    seq: None,
-                }
-            },
-            _ => unreachable!()
-        };
-        Ok(sdri)
+impl HBFI {
+    pub fn new(h1: &str, id: &str) -> Result<HBFI> {
+        Ok(HBFI {
+            h1: bloom_filter_index(h1)?,
+            id: bloom_filter_index(id)?,
+            os: 0,
+        })
     }
+    pub fn offset(mut self, os: u64) -> Self {
+        self.os = os;
+        self
+    }
+
 }
 
-impl fmt::Debug for Sdri {
+impl fmt::Debug for HBFI {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            Sdri { id, name: Some(name), seq: Some(seq) } => write!(f, "{:?}::{:?}::{:?}", id, name, seq),
-            Sdri { id, name: Some(name), seq: None } => write!(f, "{:?}::{:?}", id, name),
-            Sdri { id:_, name: None, seq: Some(_seq) } => write!(f, "Cannot have a Some(seq) with a None Name; ID::NONE::Seq"),
-            Sdri { id, name: None, seq: None } => write!(f, "{:?}", id),
+            HBFI { h1, id, os } =>  write!(f, "{:?}::{:?}::{:?}", h1, id, os),
         }
     }
 }
-
-type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
 
 fn bloom_filter_index(s: &str) -> Result<[u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]> {
     use std::str;
@@ -74,7 +57,7 @@ fn bloom_filter_index(s: &str) -> Result<[u16; constants::BLOOM_FILTER_INDEX_ELE
     hasher.input(s.as_bytes());
     let hash = hasher.result();
     let mut bloom_filter_index_array: BFI = [0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
-    let mut count: usize = 0;
+    let mut count = 0;
     for n in 0..constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH {
         let mut hasher = Sha3_512::new();
         hasher.input(format!("{:x}{}", hash, n));

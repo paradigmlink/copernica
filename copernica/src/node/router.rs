@@ -5,14 +5,13 @@ use {
         },
         narrow_waist::{NarrowWaist},
         transport::{
-            TransportPacket, TransportResponse, ReplyTo,
-            relay_transport_packet, send_transport_packet, send_transport_response, receive_transport_packet,
+            TransportPacket, ReplyTo,
+            relay_transport_packet, send_transport_packet, receive_transport_packet,
         },
-        response_store::{Response, ResponseStore, Got},
-        sdri::{Sdri},
-        borsh::{BorshDeserialize},
+        hbfi::{HBFI},
+        borsh::{BorshDeserialize, BorshSerialize},
     },
-    anyhow::{Result},
+    anyhow::{Result, anyhow},
     log::{trace},
     crossbeam_channel::{Sender, unbounded},
     std::{
@@ -34,7 +33,7 @@ pub struct Config {
     pub listen_addr: SocketAddr,
     pub content_store_size: u64,
     pub peers: Option<Vec<String>>,
-    pub data_dir: String,
+    pub data_dir: PathBuf,
 }
 
 impl Config {
@@ -45,7 +44,7 @@ impl Config {
             listen_addr: "127.0.0.1:8089".parse().unwrap(),
             content_store_size: 500,
             peers: Some(vec!["127.0.0.1:8090".into()]),
-            data_dir: data_dir.to_string_lossy().to_string(),
+            data_dir,
         }
     }
 }
@@ -61,17 +60,18 @@ pub fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error
 pub struct Router {
     listen_addr: ReplyTo,
     faces: HashMap<ReplyTo, Face>,
-    response_store:  ResponseStore,
+    data_dir: PathBuf,
 }
 
 impl Router {
     pub fn new() -> Result<Router> {
         let config: Config = Config::new();
         let listen_addr: ReplyTo = ReplyTo::Udp(config.listen_addr);
+        let data_dir: PathBuf = [config.data_dir.clone()].iter().collect();
         Ok(Router {
             listen_addr: listen_addr,
             faces: HashMap::new(),
-            response_store:  ResponseStore::new(config.content_store_size)?,
+            data_dir,
         })
     }
 
@@ -86,30 +86,11 @@ impl Router {
                 faces.insert(face_id.clone(), Face::new(face_id));
             }
         }
-        let mut response_store = ResponseStore::new(config.content_store_size)?;
-        let content_store: PathBuf = [config.data_dir.clone()].iter().collect();
-        let identity: PathBuf = [config.data_dir.clone(), "identity".to_string()].iter().collect();
-        let trusted_connections: PathBuf = [config.data_dir.clone(), "trusted_connections".to_string()].iter().collect();
-        let cs_dirs: Vec<PathBuf> = vec![content_store, identity, trusted_connections];
-        for dir in cs_dirs {
-            fs::create_dir_all(dir.clone()).unwrap();
-            for entry in std::fs::read_dir(dir.clone()).expect("directory not found") {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_dir() {
-                    continue
-                } else {
-                    let contents = std::fs::read(path.clone()).expect("file not found");
-                    let response: Response = Response::try_from_slice(&contents)?;
-                    trace!("[SETUP] router {:?} using {:?}: adding to content store", listen_addr, dir);
-                    response_store.insert_response(response);
-                }
-            }
-        }
+        let data_dir: PathBuf = [config.data_dir.clone()].iter().collect();
         Ok(Router {
             listen_addr,
             faces,
-            response_store,
+            data_dir,
         })
     }
 
@@ -118,15 +99,13 @@ impl Router {
         let listen_addr_1 = self.listen_addr.clone();
         let listen_addr_2 = self.listen_addr.clone();
         let listen_addr_3 = self.listen_addr.clone();
-        let listen_addr_4 = self.listen_addr.clone();
         let (receive_tp_sender, receive_tp_receiver) = unbounded::<TransportPacket>();
-        let (send_tr_sender, send_tr_receiver) = unbounded::<TransportResponse>();
         let (relay_tp_sender, relay_tp_receiver) = unbounded::<(ReplyTo, TransportPacket)>();
         let (send_tp_sender, send_tp_receiver) = unbounded::<TransportPacket>();
+        let db = sled::open(self.data_dir.clone())?;
         std::thread::spawn(move || receive_transport_packet(listen_addr_1, receive_tp_sender));
-        std::thread::spawn(move || send_transport_response(listen_addr_2, send_tr_receiver));
-        std::thread::spawn(move || relay_transport_packet(listen_addr_3, relay_tp_receiver));
-        std::thread::spawn(move || send_transport_packet(listen_addr_4, send_tp_receiver));
+        std::thread::spawn(move || relay_transport_packet(listen_addr_2, relay_tp_receiver));
+        std::thread::spawn(move || send_transport_packet(listen_addr_3, send_tp_receiver));
         loop {
             match receive_tp_receiver.recv() {
                 Ok(tp) => {
@@ -136,64 +115,59 @@ impl Router {
                         self.faces.insert(reply_to.clone(), Face::new(reply_to));
                     }
                     //all_faces_stats(&self.faces, &tp, &format!("ALL FACES STATS ON INBOUND for {:?}", self.listen_addr.clone()));
-                    self.handle_packet(&tp, send_tr_sender.clone(), relay_tp_sender.clone(), send_tp_sender.clone()).await?;
+                    self.handle_packet(&tp,
+                        relay_tp_sender.clone(),
+                        send_tp_sender.clone(),
+                        db.clone(),
+                        ).await?;
                     //all_faces_stats(&self.faces, &tp, &format!("ALL FACES STATS ON OUTBOUND for {:?}", self.listen_addr.clone()));
                 },
-                _ => {},
-                //Err(error) => { println!("Transport Packet Receive Error {}", error) },
+                Err(error) => return Err(anyhow!("{}", error))
             }
         };
     }
 
     async fn handle_packet(&mut self, transport_packet: &TransportPacket,
-            send_transport_response: Sender<TransportResponse>,
             relay_transport_packet: Sender<(ReplyTo, TransportPacket)>,
-            send_transport_packet: Sender<TransportPacket>) -> Result<()> {
-        let thin_waist_packet: NarrowWaist = transport_packet.payload();
+            send_transport_packet: Sender<TransportPacket>,
+            response_store: sled::Db,
+            ) -> Result<()> {
+        let narrow_waist_packet: NarrowWaist = transport_packet.payload();
         let packet_from: ReplyTo = transport_packet.reply_to();
         if let Some(this_face) = self.faces.get_mut(&packet_from) {
-            match thin_waist_packet.clone() {
-                NarrowWaist::Request { sdri } => {
-                    match self.response_store.get(&sdri).await {
+            match narrow_waist_packet.clone() {
+                NarrowWaist::Request { hbfi } => {
+                    match response_store.get(&hbfi.try_to_vec()?)? {
                         Some(response) => {
-                            match response {
-                                Got::Response(response) => {
-                                    let tr = TransportResponse::new(transport_packet.reply_to(), response);
-                                    outbound_stats(&transport_packet, &self.listen_addr,
-                                        this_face, "********* RESPONSE FOUND *********");
-                                    send_transport_response.send(tr).unwrap();
-                                },
-                                Got::NarrowWaist(narrow_waist) => {
-                                    let tp = TransportPacket::new(transport_packet.reply_to(), narrow_waist);
-                                    outbound_stats(&transport_packet, &self.listen_addr,
-                                        this_face, "********* RESPONSE PACKET FOUND *********");
-                                    send_transport_packet.send(tp).unwrap();
-                                },
-                            }
+                            let narrow_waist = NarrowWaist::try_from_slice(&response)?;
+                            outbound_stats(&transport_packet, &self.listen_addr,
+                                this_face, "********* RESPONSE PACKET FOUND *********");
+                            let tp = TransportPacket::new(transport_packet.reply_to(), narrow_waist);
+                            send_transport_packet.send(tp).unwrap();
                             return Ok(())
                         },
                         None => {
                             let mut is_forwarded = false;
                             let mut broadcast = Vec::new();
-                            this_face.create_pending_request(&sdri);
+                            this_face.create_pending_request(&hbfi);
                             inbound_stats(&transport_packet, &self.listen_addr,
                                 this_face, "Inserting pending request");
                             for (address, that_face) in self.faces.iter_mut() {
                                 if *address == packet_from {
                                     continue
                                 }
-                                if that_face.contains_forwarded_request(&sdri) > 51 {
+                                if that_face.contains_forwarded_request(&hbfi) > 51 {
                                     outbound_stats(&transport_packet, &self.listen_addr,
                                         that_face, "Don't send request upstream again");
                                     continue
                                 }
-                                if that_face.contains_pending_request(&sdri)   > 51 {
+                                if that_face.contains_pending_request(&hbfi)   > 51 {
                                     outbound_stats(&transport_packet, &self.listen_addr,
                                         that_face, "Don't send request downstream");
                                     continue
                                 }
-                                if that_face.contains_forwarding_hint(&sdri)   > 90 {
-                                    that_face.create_forwarded_request(&sdri);
+                                if that_face.contains_forwarding_hint(&hbfi)   > 90 {
+                                    that_face.create_forwarded_request(&hbfi);
                                     outbound_stats(&transport_packet, &self.listen_addr,
                                         that_face, "Sending request downstream based on forwarding hint");
                                     relay_transport_packet.send((address.clone(),
@@ -207,7 +181,7 @@ impl Router {
                             if !is_forwarded {
                                 for address in broadcast {
                                     if let Some(burst_face) = self.faces.get_mut(&address.clone()) {
-                                        burst_face.create_forwarded_request(&sdri);
+                                        burst_face.create_forwarded_request(&hbfi);
                                         outbound_stats(&transport_packet, &self.listen_addr,
                                             burst_face, "Bursting on face");
                                         relay_transport_packet.send((address.clone(),
@@ -218,19 +192,21 @@ impl Router {
                         },
                     }
                 },
-                NarrowWaist::Response { sdri, .. } => {
-                    if this_face.contains_forwarded_request(&sdri) > 15 {
-                        self.response_store.insert_packet(thin_waist_packet.clone())?;
+                NarrowWaist::Response { hbfi, .. } => {
+                    if this_face.contains_forwarded_request(&hbfi) > 15 {
+                        response_store.insert(hbfi.try_to_vec()?, narrow_waist_packet.clone().try_to_vec()?)?;
                         if this_face.forwarding_hint_decoherence() > 80 {
                             this_face.partially_forget_forwarding_hint();
                         }
-                        if self.response_store.complete(&sdri) {
-                            this_face.delete_forwarded_request(&sdri);
-                            this_face.create_forwarding_hint(&sdri);
+                        /*
+                        if response_store.complete(&hbfi) {
+                            this_face.delete_forwarded_request(&hbfi);
+                            this_face.create_forwarding_hint(&hbfi);
                         }
+                        */
                         for (address, that_face) in self.faces.iter_mut() {
                             if *address == packet_from { continue }
-                            if that_face.contains_pending_request(&sdri) > 50 {
+                            if that_face.contains_pending_request(&hbfi) > 50 {
                                 outbound_stats(&transport_packet, &self.listen_addr,
                                     that_face, "Send response upstream");
                                 relay_transport_packet.send((address.clone(),
@@ -282,19 +258,19 @@ fn all_faces_stats(faces: &HashMap<ReplyTo, Face>, packet: &TransportPacket, mes
 }
 
 fn face_stats(face: &Face, packet: &TransportPacket) -> String {
-    let sdri: Sdri = match packet.payload() {
-        NarrowWaist::Request{sdri} => sdri,
-        NarrowWaist::Response{sdri,..} => sdri,
+    let hbfi: HBFI = match packet.payload() {
+        NarrowWaist::Request{hbfi} => hbfi,
+        NarrowWaist::Response{hbfi,..} => hbfi,
     };
     format!(
-    "[pr{0: <3}d{1: <3}fr{2: <3}d{3: <3}fh{4: <3}d{5: <0}] faceid {6:?} sdri {7:?}",
-        face.contains_pending_request(&sdri),
+    "[pr{0: <3}d{1: <3}fr{2: <3}d{3: <3}fh{4: <3}d{5: <0}] faceid {6:?} hbfi {7:?}",
+        face.contains_pending_request(&hbfi),
         face.pending_request_decoherence(),
-        face.contains_forwarded_request(&sdri),
+        face.contains_forwarded_request(&hbfi),
         face.forwarded_request_decoherence(),
-        face.contains_forwarding_hint(&sdri),
+        face.contains_forwarding_hint(&hbfi),
         face.forwarding_hint_decoherence(),
         face.id(),
-        sdri)
+        hbfi)
 }
 

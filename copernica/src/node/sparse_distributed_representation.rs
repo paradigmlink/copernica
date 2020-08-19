@@ -4,7 +4,7 @@ use {
     bitvec::prelude::*,
     crate::{
         constants,
-        sdri::{Sdri}
+        hbfi::{HBFI}
     },
 };
 
@@ -20,26 +20,22 @@ impl SparseDistributedRepresentation {
         }
     }
 
-    pub fn insert(&mut self, packet: &Sdri) {
+    pub fn insert(&mut self, packet: &HBFI) {
         for id in &packet.id[..] {
             self.sdr.set(*id as usize, true);
         }
-        if let Some(names) = &packet.name {
-            for name in names {
-                self.sdr.set(*name as usize, true);
-            }
+        for h1 in &packet.h1[..]{
+            self.sdr.set(*h1 as usize, true);
         }
     }
 
-    pub fn contains(&self, packet: &Sdri) -> u8 {
+    pub fn contains(&self, packet: &HBFI) -> u8 {
         let mut sdr_vals: Vec<u32> = Vec::new();
         for id in &packet.id[..] {
             sdr_vals.push(*self.sdr.get(*id as usize).unwrap() as u32);
         }
-        if let Some(names) = &packet.name {
-            for name in names {
-                sdr_vals.push(*self.sdr.get(*name as usize).unwrap() as u32);
-            }
+        for h1 in &packet.h1[..]{
+            sdr_vals.push(*self.sdr.get(*h1 as usize).unwrap() as u32);
         }
         let hits = sdr_vals.iter().try_fold(0u32, |acc, &elem| acc.checked_add(elem));
         let percentage = (hits.unwrap() as f32 / sdr_vals.len() as f32) * 100f32;
@@ -47,14 +43,12 @@ impl SparseDistributedRepresentation {
         percentage as u8
     }
 
-    pub fn delete(&mut self, packet: &Sdri) {
+    pub fn delete(&mut self, packet: &HBFI) {
         for id in &packet.id[..] {
             self.sdr.set(*id as usize, false);
         }
-        if let Some(names) = &packet.name {
-            for name in names {
-                self.sdr.set(*name as usize, false);
-            }
+        for h1 in &packet.h1[..]{
+            self.sdr.set(*h1 as usize, false);
         }
     }
 

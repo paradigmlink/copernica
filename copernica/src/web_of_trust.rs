@@ -2,7 +2,7 @@ use {
     crate::{
         //identity::{decrypt_identity},
         node::router::{Config},
-        narrow_waist::{mk_response_packet},
+        narrow_waist::{NarrowWaist},
         borsh::{BorshSerialize},
     },
     cryptoxide::{
@@ -32,6 +32,7 @@ pub fn add_trusted_identity(password: String, identity: Packet, addresses: Vec<S
 }
 */
 pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &PublicKey<Ed25519>) -> Result<String> {
+    /*
     let mut hasher = Sha256::new();
     let tcs: HashSet<String> = HashSet::new();
     let tcs_ser = tcs.try_to_vec()?;
@@ -44,7 +45,8 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     //hasher.input_str("[]");
     let tc_hash = hasher.result_str();
     println!("tc_hash = {:?}", tc_hash.clone());
-    let tc_packet = mk_response_packet(tc_hash.clone(), tcs_ser.to_vec(), 0, 0)?;
+
+    let tc_packet = NarrowWaist::Response {tc_hash.clone(), tcs_ser.to_vec(), 0, 0)?;
 
     let mut tc_path = std::path::PathBuf::from(config.data_dir.clone());
     tc_path.push(".copernica");
@@ -54,5 +56,7 @@ pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &Publi
     let tc_ser = tc_packet.try_to_vec()?;
     std::fs::write(tc_path, tc_ser).unwrap();
     Ok(tc_hash)
+    */
+    Ok("blah".to_string())
 }
 

@@ -9,19 +9,28 @@ use {
 
 pub fn setup_logging(verbosity: u64, logpath: Option<&str>) -> Result<(), fern::InitError> {
     let mut base_config = fern::Dispatch::new();
-
     base_config = match verbosity {
-        0 => {
-            base_config
-                .level(log::LevelFilter::Info)
-                .level_for("async_std::task::block_on", log::LevelFilter::Warn)
-                .level_for("mio::poll", log::LevelFilter::Warn)
-        }
+        0 => base_config
+            .level(log::LevelFilter::Error)
+            .level_for("async_std::task::block_on", log::LevelFilter::Warn)
+            .level_for("sled::meta", log::LevelFilter::Error)
+            .level_for("sled::pagecache", log::LevelFilter::Error),
         1 => base_config
+            .level(log::LevelFilter::Warn)
+            .level_for("async_std::task::block_on", log::LevelFilter::Warn)
+            .level_for("sled::pagecache", log::LevelFilter::Warn),
+        2 => base_config
+            .level(log::LevelFilter::Info)
+            .level_for("async_std::task::block_on", log::LevelFilter::Warn)
+            .level_for("mio::poll", log::LevelFilter::Warn)
+            .level_for("sled::meta", log::LevelFilter::Info)
+            .level_for("sled::pagecache", log::LevelFilter::Info),
+        3 => base_config
             .level(log::LevelFilter::Debug)
+            .level_for("sled::pagecache", log::LevelFilter::Info)
+            .level_for("sled::meta", log::LevelFilter::Info)
             .level_for("mio::poll", log::LevelFilter::Info),
-        2 => base_config.level(log::LevelFilter::Debug),
-        _3_or_more => base_config
+        _4_or_more => base_config
             .level(log::LevelFilter::Trace)
             .level_for("mio::poll", log::LevelFilter::Info)
             .level_for("async_std::task::block_on", log::LevelFilter::Warn),
