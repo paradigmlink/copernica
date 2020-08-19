@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use {
     anyhow::{Result},
-    crate::common::{generate_random_dir_name, populate_tmp_dir, TestData },
+    crate::common::{populate_tmp_dir, TestData },
     sled,
     std::{
         io::prelude::*,
@@ -29,10 +29,10 @@ pub async fn packer_smoke_test() -> Result<()> {
     let rs = sled::open(packaged_data_dir)?;
     let inbound  = ReplyTo::Udp("127.0.0.1:8089".parse()?);
     let outbound = ReplyTo::Udp("127.0.0.1:8090".parse()?);
-    let mut fs: FileSharer = Requestor::new(rs, inbound, outbound);
+    let fs: FileSharer = Requestor::new(rs, inbound, outbound);
     let hbfi: HBFI = HBFI::new(&name, &id)?;
-    let manifest: Manifest = fs.manifest(hbfi.clone())?;
-    let file_manifest: FileManifest = fs.file_manifest(hbfi.clone())?;
+    let _manifest: Manifest = fs.manifest(hbfi.clone())?;
+    let _file_manifest: FileManifest = fs.file_manifest(hbfi.clone())?;
     let files = fs.file_names(hbfi.clone())?;
     for file_name in files {
         let actual_file = fs.file(hbfi.clone(), file_name.clone())?;

@@ -75,7 +75,7 @@ impl FileSharer {
     pub fn file_names(&self, hbfi: HBFI) -> Result<Vec<String>> {
         let file_manifest: FileManifest = self.file_manifest(hbfi.clone())?;
         let mut names: Vec<String> = vec![];
-        for (path, (start, end)) in file_manifest.files {
+        for (path, (_, _)) in file_manifest.files {
             names.push(path);
         }
         Ok(names)
@@ -246,7 +246,7 @@ impl FilePacker {
             current_offset += 1;
         }
 
-        let mut manifest = Manifest { start: file_manifest_start, end: file_manifest_end }.try_to_vec()?;
+        let manifest = Manifest { start: file_manifest_start, end: file_manifest_end }.try_to_vec()?;
         let resp = create_response(hbfi.clone(), &manifest, 0, total_offset)?.try_to_vec()?;
         rs.insert(hbfi.try_to_vec()?, resp)?;
 
@@ -276,7 +276,7 @@ fn offset(current_offset: u64, size: u64, chunk_size: u64) -> Result<(u64, u64, 
         s if (s > 0) && (s <= chunk_size) => {
             return Ok((current_offset, current_offset, 1));
         },
-        s if (size > 0) && (size > chunk_size) => {
+        s if (s > 0) && (s > chunk_size) => {
             let remainder = size % chunk_size;
             let mut offset: f64 = (size / chunk_size) as f64;
             if remainder > 0 {

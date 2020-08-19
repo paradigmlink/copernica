@@ -65,6 +65,7 @@ impl Face {
     pub fn contains_forwarded_request(&self, request_hbfi: &HBFI) -> u8 {
         self.forwarded_request.contains(request_hbfi)
     }
+    #[allow(dead_code)]
     pub fn delete_forwarded_request(&mut self, request_hbfi: &HBFI) {
         self.forwarded_request.delete(request_hbfi);
     }
@@ -80,6 +81,7 @@ impl Face {
     // Forwarding Hint Sparse Distributed Representation
     // Used to determine if a request can be satisfied on this face.
     // There's a subtle difference between Pending Request
+    #[allow(dead_code)]
     pub fn create_forwarding_hint(&mut self, data_hbfi: &HBFI) {
         self.forwarding_hint.insert(&data_hbfi);
     }

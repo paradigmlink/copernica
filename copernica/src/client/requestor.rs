@@ -4,21 +4,17 @@ use {
         transport::{TransportPacket, ReplyTo,
             send_transport_packet, receive_transport_packet,
         },
-        hbfi::{HBFI},
         borsh::{BorshSerialize},
     },
     std::{
         thread,
-        path::{
-            PathBuf,
-        },
     },
     sled::{Db},
     crossbeam_channel::{
         unbounded,
         Sender,
     },
-    anyhow::{Result, anyhow},
+    anyhow::{Result},
     log::{trace},
 };
 
@@ -29,6 +25,7 @@ pub trait Requestor {
     fn response_store(&self) -> Db;
     fn get_sender(&self) -> Option<Sender<TransportPacket>>;
     fn set_sender(&mut self, sender: Option<Sender<TransportPacket>>);
+    #[allow(unreachable_code)]
     fn start_polling(&mut self) -> Result<()> {
         let inbound = self.inbound();
         let outbound = self.outbound();
@@ -49,7 +46,6 @@ pub trait Requestor {
                         continue
                     },
                     NarrowWaist::Response { hbfi, offset, total, .. } => {
-                        println!("HAZZAH");
                         trace!("RESPONSE PACKET ARRIVED: {:?} {}/{}", hbfi, offset, total-1);
                         rs.insert(hbfi.try_to_vec()?, packet.clone().try_to_vec()?)?;
                     },
@@ -58,11 +54,5 @@ pub trait Requestor {
             Ok::<(), anyhow::Error>(())
         });
         Ok(())
-    }
-
-    fn request(&mut self, _hbfi: HBFI) -> Result<NarrowWaist> {
-        if let Some(_sender) = self.get_sender() {
-        }
-        Err(anyhow!("Error: Transport Packet Sender not initialized"))
     }
 }

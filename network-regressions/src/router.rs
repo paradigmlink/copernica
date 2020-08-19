@@ -4,24 +4,24 @@ use {
         Router,
         client::{
             Requestor,
-            file_sharing::{FileSharer, Manifest, FileManifest},
+            file_sharing::{FileSharer},
         },
         Config,
-        constants,
+        //constants,
         transport::{ReplyTo},
-        narrow_waist::{Data},
+        //narrow_waist::{Data},
         hbfi::{HBFI},
     },
     anyhow::{Result},
-    borsh::{BorshSerialize},
+    //borsh::{BorshSerialize},
     async_std::{ task, },
     std::{
         fs,
         io::prelude::*,
-        path::PathBuf,
-        io::Write,
+        //path::PathBuf,
+        //io::Write,
         thread::{spawn},
-        collections::HashMap,
+        //collections::HashMap,
     },
     crate::{
         common::{generate_random_dir_name, populate_tmp_dir, TestData},
@@ -88,9 +88,9 @@ pub async fn single_fetch() -> Result<()> {
     let mut td3 = TestData::new();
     td3.push(("3.txt".into(), 4, 10));
     let (expected_data_dir0, actual_data_dir0) = populate_tmp_dir(name0.clone(), id0.clone(), td0).await?;
-    let (expected_data_dir1, actual_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), td1).await?;
-    let (expected_data_dir2, actual_data_dir2) = populate_tmp_dir(name2.clone(), id2.clone(), td2).await?;
-    let (expected_data_dir3, actual_data_dir3) = populate_tmp_dir(name3.clone(), id3.clone(), td3).await?;
+    let (_expected_data_dir1, actual_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), td1).await?;
+    let (_expected_data_dir2, actual_data_dir2) = populate_tmp_dir(name2.clone(), id2.clone(), td2).await?;
+    let (_expected_data_dir3, actual_data_dir3) = populate_tmp_dir(name3.clone(), id3.clone(), td3).await?;
 
     let network: Vec<Config> = vec![
         Config {
@@ -123,8 +123,8 @@ pub async fn single_fetch() -> Result<()> {
     let rs = sled::open(data_dir)?;
     let listen = ReplyTo::Udp("127.0.0.1:50099".parse()?);
     let remote = ReplyTo::Udp("127.0.0.1:50100".parse()?);
-    let mut fs: FileSharer = Requestor::new(rs, listen, remote);
-    fs.start_polling();
+    let fs: FileSharer = Requestor::new(rs, listen, remote);
+    //fs.start_polling();
 
     let hbfi0: HBFI = HBFI::new(&name0, &id0)?;
     let files = fs.file_names(hbfi0.clone())?;

@@ -1,21 +1,27 @@
 use {
     crate::{
+    /*
         //identity::{decrypt_identity},
-        node::router::{Config},
         narrow_waist::{NarrowWaist},
         borsh::{BorshSerialize},
+    */
+        node::router::{Config},
     },
+    /*
     cryptoxide::{
         sha2::{
             Sha256,
         },
         digest::Digest,
     },
+    */
     anyhow::{Result},
     chain_crypto::{Ed25519, PublicKey, SecretKey},
+    /*
     std::{
         collections::HashSet,
     },
+    */
 };
 /*
 pub fn add_trusted_identity(password: String, identity: Packet, addresses: Vec<String>)  {
@@ -31,7 +37,7 @@ pub fn add_trusted_identity(password: String, identity: Packet, addresses: Vec<S
     };
 }
 */
-pub fn new_trusted_identity(config: &Config, sk: &SecretKey<Ed25519>, pk: &PublicKey<Ed25519>) -> Result<String> {
+pub fn new_trusted_identity(_config: &Config, _sk: &SecretKey<Ed25519>, _pk: &PublicKey<Ed25519>) -> Result<String> {
     /*
     let mut hasher = Sha256::new();
     let tcs: HashSet<String> = HashSet::new();

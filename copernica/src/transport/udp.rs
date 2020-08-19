@@ -89,33 +89,3 @@ pub fn relay_transport_packet(listen_addr: ReplyTo, transport_packet_receiver: R
     })?;
     Ok(())
 }
-/*
-pub fn send_transport_response(listen_addr: ReplyTo, transport_response_receiver: Receiver<TransportResponse>) -> anyhow::Result<()> {
-    task::block_on(async move {
-        match UdpSocket::bind("127.0.0.1:0").await {
-            Ok(socket) => {
-                loop {
-                    match transport_response_receiver.recv() {
-                        Ok(tr) => {
-                            let reply_to: ReplyTo = tr.reply_to();
-                            match reply_to {
-                                ReplyTo::Udp(remote_addr) => {
-                                    for (_seq, narrow_waist_packet) in tr.payload().iter() {
-                                        let transport_packet = TransportPacket::new(listen_addr.clone(), narrow_waist_packet.clone());
-                                        let transport_packet = serialize(&transport_packet)?;
-                                        socket.send_to(&transport_packet, remote_addr).await?;
-                                    }
-                                },
-                                _ => {},
-                            }
-                        },
-                        Err(error) => return Err(anyhow!("{}", error)),
-                    }
-                }
-            },
-            Err(error) => return Err(anyhow!("{}", error)),
-        }
-    })?;
-    Ok(())
-}
-*/

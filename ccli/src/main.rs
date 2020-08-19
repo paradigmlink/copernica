@@ -3,7 +3,10 @@ extern crate serde_json;
 
 use {
     copernica::{
-        client::{Requestor, FileSharer, FilePacker},
+        client::{
+            Requestor,
+            file_sharing::{FileSharer, FilePacker},
+        },
         narrow_waist::{NarrowWaist},
         transport::{ReplyTo},
         //identity::{generate_identity,
@@ -36,7 +39,7 @@ fn main() -> Result<()> {
     let dir: PathBuf = config.data_dir.clone().into();
     let rs: sled::Db = sled::open(dir)?;
     let mut cr: FileSharer = Requestor::new(rs, listen_addr, remote_addr);
-    cr.start_polling();
+    cr.start_polling()?;
     // stick in the config to the above
 /*
     if options.generate_id {
@@ -99,8 +102,9 @@ fn main() -> Result<()> {
         if let Some(destination) = options.destination {
             let publish_path= std::path::PathBuf::from(&publish_path);
             let destination_path = std::path::PathBuf::from(&destination);
-
-            let p = FilePacker::new(&publish_path, &destination_path)?;
+            let name: String = "namable".into();
+            let id: String = "namable_id".into();
+            let p = FilePacker::new(&publish_path, &destination_path, name, id)?;
             p.publish()?;
         }
     }

@@ -9,7 +9,6 @@ use {
     anyhow::{Result},
     copernica::{
         client::file_sharing::{FilePacker},
-        constants,
     },
 };
 
@@ -55,7 +54,7 @@ async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: u64) ->
         let router_data_dir = generate_random_dir_name().await;
         tmp_dirs.push((source_data_dir.clone(), router_data_dir.clone()));
         let name = format!("hello{}", n.clone());
-        let value = vec![n.clone() as u8; constants::FRAGMENT_SIZE as usize];
+        let value = vec![n.clone() as u8; data_size as usize];
 
         let source_file_name = source_data_dir.join(name.clone());
         let mut source_file = fs::File::create(source_file_name).unwrap();
