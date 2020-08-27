@@ -1,11 +1,7 @@
-
 use {
+    copernica::{NarrowWaist, Data, HBFI, copernica_constants, LinkId, TransportPacket},
     crate::{
-        narrow_waist::{ NarrowWaist, Data },
-        transport::{ TransportPacket, ReplyTo },
-        client::{ Requestor },
-        constants,
-        hbfi::{HBFI},
+        Requestor
     },
     std::{
         path::{Path, PathBuf},
@@ -13,10 +9,8 @@ use {
         io::prelude::*,
         fs,
     },
+    crossbeam_channel::{ Sender },
     sled::{Db},
-    crossbeam_channel::{
-        Sender,
-    },
     borsh::{BorshSerialize, BorshDeserialize},
     walkdir::{WalkDir},
     anyhow::{Result, anyhow},
@@ -24,13 +18,12 @@ use {
 
 #[derive(Clone)]
 pub struct FileSharer {
-    rs:       Db,
-    inbound:  ReplyTo,
-    outbound: ReplyTo,
-    sender:   Option<Sender<TransportPacket>>,
+    rs: Db,
+    sender: Option<Sender<(LinkId, TransportPacket)>>,
+    link_id: Option<LinkId>,
 }
 
-impl FileSharer {
+impl<'a> FileSharer {
     pub fn manifest(&self, hbfi: HBFI) -> Result<Manifest> {
         let hbfi = hbfi.clone().offset(0);
         match self.rs.get(hbfi.clone().try_to_vec()?)? {
@@ -45,6 +38,19 @@ impl FileSharer {
                     }
                 }
             }
+            /*None => {
+
+                match self.sender.clone() {
+                    Some(sender) => {
+                        if let Some(link_id) = self.link_id.clone() {
+                            sender.send((link_id.clone(), TransportPacket::new(link_id.reply_to(), NarrowWaist::Request { hbfi })));
+                            return Ok(None)
+                        }
+                        return Err(anyhow!("Please run FileSharer.start() first"))
+                    }
+                    None => return Err(anyhow!("Please run FileSharer.start() first")),
+                }
+            }*/
             None => return Err(anyhow!("Manifest not present")),
         }
     }
@@ -109,29 +115,23 @@ impl FileSharer {
     }
 }
 
-impl Requestor for FileSharer {
-    fn new(rs: Db, inbound: ReplyTo, outbound: ReplyTo) -> FileSharer {
+impl<'a> Requestor<'a> for FileSharer
+ {
+    fn new(rs: Db) -> FileSharer {
         FileSharer {
             rs,
-            inbound,
-            outbound,
             sender: None,
+            link_id: None,
         }
-    }
-    fn inbound(&self) -> ReplyTo {
-        self.inbound.clone()
-    }
-    fn outbound(&self) -> ReplyTo {
-        self.outbound.clone()
     }
     fn response_store(&self) -> Db {
         self.rs.clone()
     }
-    fn set_sender(&mut self, sender: Option<Sender<TransportPacket>>) {
+    fn set_sender(&mut self, sender: Option<Sender<(LinkId, TransportPacket)>>) {
         self.sender = sender;
     }
-    fn get_sender(&self) -> Option<Sender<TransportPacket>> {
-        self.sender.clone()
+    fn set_link_id(&mut self, link_id: Option<LinkId>) {
+        self.link_id = link_id;
     }
 }
 
@@ -163,7 +163,7 @@ impl FilePacker {
         let src_dir = source_dir.clone().to_path_buf();
         let dest_dir = dest_dir.to_path_buf();
         Ok(Self {
-            chunk_size: constants::FRAGMENT_SIZE,
+            chunk_size: copernica_constants::FRAGMENT_SIZE,
             src_dir,
             dest_dir,
             name,
@@ -255,10 +255,10 @@ impl FilePacker {
 }
 
 fn create_response(hbfi: HBFI, chunk: &[u8], offset: u64, total_offset: u64) -> Result<NarrowWaist> {
-    let mut data = [0; constants::FRAGMENT_SIZE as usize];
+    let mut data = [0; copernica_constants::FRAGMENT_SIZE as usize];
     let len = chunk.len() as u16;
-    if len < constants::FRAGMENT_SIZE {
-        let padded_chunk = [chunk, &vec![0; (constants::FRAGMENT_SIZE - len) as usize][..]].concat();
+    if len < copernica_constants::FRAGMENT_SIZE {
+        let padded_chunk = [chunk, &vec![0; (copernica_constants::FRAGMENT_SIZE - len) as usize][..]].concat();
         data.copy_from_slice(&padded_chunk);
     } else {
         data.copy_from_slice(&*chunk);

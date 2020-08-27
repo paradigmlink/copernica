@@ -1,22 +1,22 @@
-// https://numenta.com/assets/pdf/biological-and-machine-intelligence/BaMI-SDR.pdf
 use {
     rand::Rng,
     bitvec::prelude::*,
     crate::{
-        constants,
+        copernica_constants,
         hbfi::{HBFI}
     },
 };
 
 #[derive(Debug, Clone)]
-pub struct SparseDistributedRepresentation {
+pub struct BloomFilter {
     sdr: BitVec,
 }
 
-impl SparseDistributedRepresentation {
+impl BloomFilter {
+    #[allow(dead_code)]
     pub fn new() -> Self {
-        SparseDistributedRepresentation {
-            sdr: bitvec![0; constants::BLOOM_FILTER_LENGTH as usize],
+        BloomFilter {
+            sdr: bitvec![0; copernica_constants::BLOOM_FILTER_LENGTH as usize],
         }
     }
 
@@ -29,6 +29,7 @@ impl SparseDistributedRepresentation {
         }
     }
 
+    #[allow(dead_code)]
     pub fn contains(&self, packet: &HBFI) -> u8 {
         let mut sdr_vals: Vec<u32> = Vec::new();
         for id in &packet.id[..] {
@@ -43,6 +44,7 @@ impl SparseDistributedRepresentation {
         percentage as u8
     }
 
+    #[allow(dead_code)]
     pub fn delete(&mut self, packet: &HBFI) {
         for id in &packet.id[..] {
             self.sdr.set(*id as usize, false);
@@ -52,6 +54,7 @@ impl SparseDistributedRepresentation {
         }
     }
 
+    #[allow(dead_code)]
     pub fn partially_forget(&mut self) {
         let mut rng = rand::thread_rng();
         for _ in 0 .. 2048 {
@@ -59,6 +62,7 @@ impl SparseDistributedRepresentation {
         }
     }
 
+    #[allow(dead_code)]
     pub fn decoherence(&self) -> u8 {
         let hits = self.sdr.iter().try_fold(0u32, |acc, elem| acc.checked_add(*elem as u32));
         let percentage = (hits.unwrap() as f32 / self.sdr.len() as f32) * 100f32;
@@ -68,8 +72,8 @@ impl SparseDistributedRepresentation {
 
 }
 
-impl PartialEq for SparseDistributedRepresentation {
-    fn eq(&self, other: &SparseDistributedRepresentation) -> bool {
+impl PartialEq for BloomFilter {
+    fn eq(&self, other: &BloomFilter) -> bool {
         self.sdr == other.sdr
     }
 }

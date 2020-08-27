@@ -1,0 +1,22 @@
+[package]
+name = "copernica-apps"
+version = "0.1.0"
+authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "copernica"
+path = "src/copernica.rs"
+
+[dependencies]
+clap = "2.33.0"
+log = "0.4"
+anyhow = "1.0"
+logger = { path = "../logger" }
+copernica = { path = "../copernica" }
+transport = { path = "../transport" }
+async-std = "1.4.0"
+rand = "0.7.2"
+sled = "0.32.0"

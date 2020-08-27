@@ -1,34 +1,36 @@
 use {
     crate::{
-        node::sparse_distributed_representation::{
-            SparseDistributedRepresentation
+        bloom_filter::{
+            BloomFilter
         },
-        transport::{ReplyTo},
+        channel::{LinkId},
         hbfi::{HBFI},
     },
 };
 
 #[derive(Debug, Clone)]
-pub struct Face {
-    id:                ReplyTo,
-    pending_request:   SparseDistributedRepresentation,
-    forwarding_hint:   SparseDistributedRepresentation,
-    forwarded_request: SparseDistributedRepresentation,
+pub struct Link {
+    link_id:           LinkId,
+    pending_request:   BloomFilter,
+    forwarding_hint:   BloomFilter,
+    forwarded_request: BloomFilter,
 
 }
 
-impl Face {
-    pub fn new(id: ReplyTo) -> Face {
-        Face {
-            id,
-            pending_request:    SparseDistributedRepresentation::new(),
-            forwarding_hint:    SparseDistributedRepresentation::new(),
-            forwarded_request:  SparseDistributedRepresentation::new(),
+impl Link {
+    #[allow(dead_code)]
+    pub fn new(link_id: LinkId) -> Self {
+        Self {
+            link_id,
+            pending_request:    BloomFilter::new(),
+            forwarding_hint:    BloomFilter::new(),
+            forwarded_request:  BloomFilter::new(),
         }
     }
 
-    pub fn id(&self) -> ReplyTo {
-        self.id.clone()
+    #[allow(dead_code)]
+    pub fn link_id(&self) -> LinkId {
+        self.link_id.clone()
     }
     // Pending Request Sparse Distributed Representation
     // Used to determine the direction of upstream and shouldn't be conflated
@@ -45,6 +47,7 @@ impl Face {
     pub fn delete_pending_request(&mut self, request_hbfi: &HBFI) {
         self.pending_request.delete(request_hbfi);
     }
+    #[allow(dead_code)]
     pub fn pending_request_decoherence(&self) -> u8 {
         self.pending_request.decoherence()
     }
@@ -69,6 +72,7 @@ impl Face {
     pub fn delete_forwarded_request(&mut self, request_hbfi: &HBFI) {
         self.forwarded_request.delete(request_hbfi);
     }
+    #[allow(dead_code)]
     pub fn forwarded_request_decoherence(&self) -> u8 {
         self.forwarded_request.decoherence()
     }

@@ -1,0 +1,17 @@
+[package]
+name = "client-libs"
+version = "0.1.0"
+authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+copernica = { path = "../copernica" }
+transport = { path = "../transport" }
+log = "0.4"
+anyhow = "1.0"
+sled = "0.32.0"
+borsh = "0.7.0"
+crossbeam-channel = "0.3"
+walkdir = "2.3.1"

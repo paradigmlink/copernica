@@ -6,10 +6,10 @@ use {
         path::PathBuf,
         io::Write,
     },
-    anyhow::{Result},
-    copernica::{
-        client::file_sharing::{FilePacker},
+    client_libs::{
+        file_sharing::{FilePacker},
     },
+    anyhow::{Result},
 };
 
 pub async fn generate_random_dir_name() -> PathBuf {

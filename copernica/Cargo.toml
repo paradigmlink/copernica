@@ -8,10 +8,6 @@ edition = "2018"
 name = "copernica"
 path = "src/lib.rs"
 
-[[bin]]
-name = "copernica"
-path = "src/main.rs"
-
 [dependencies]
 rand = "0.7.2"
 bitvec = "^0.17"
@@ -35,7 +31,6 @@ async-std = "1.4.0"
 borsh = "0.7.0"
 walkdir = "2.3.1"
 anyhow = "1.0"
-clap = "2.33.0"
 fern = "0.5.9"
 chrono = "0.4.9"
 sled = "0.32.0"

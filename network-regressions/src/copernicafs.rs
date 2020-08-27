@@ -7,17 +7,17 @@ use {
         io::prelude::*,
         fs,
     },
-    copernica::{
-        client::{
-            Requestor,
-            file_sharing::{FileSharer, Manifest, FileManifest},
-        },
-        transport::{ReplyTo},
-        hbfi::{HBFI},
+    client_libs::{
+        Requestor,
+        file_sharing::{FileSharer, Manifest, FileManifest},
     },
+    copernica::{
+        ReplyTo, HBFI, Copernica, LinkId
+    },
+    transport::{Transport, MpscChannel},
 };
 
-pub async fn packer_smoke_test() -> Result<()> {
+pub async fn smoke_test() -> Result<()> {
     let mut test_data = TestData::new();
     test_data.push(("1.txt".into(), 1, 1024));
     test_data.push(("2.txt".into(), 2, 2048));
@@ -26,10 +26,15 @@ pub async fn packer_smoke_test() -> Result<()> {
     let name: String = "namable".into();
     let id: String = "namable_id".into();
     let (raw_data_dir, packaged_data_dir) = populate_tmp_dir(name.clone(), id.clone(), test_data).await?;
+
     let rs = sled::open(packaged_data_dir)?;
-    let inbound  = ReplyTo::Udp("127.0.0.1:8089".parse()?);
-    let outbound = ReplyTo::Udp("127.0.0.1:8090".parse()?);
-    let fs: FileSharer = Requestor::new(rs, inbound, outbound);
+    let mut c = Copernica::new();
+    let lid = LinkId::new(ReplyTo::Mpsc, 0);
+    let udpip: MpscChannel = Transport::new(lid.clone(), c.create_link(lid)?)?;
+    let ts: Vec<Box<dyn Transport>> = vec![Box::new(udpip)];
+    let mut fs: FileSharer = Requestor::new(rs);
+    fs.start(c, ts)?;
+
     let hbfi: HBFI = HBFI::new(&name, &id)?;
     let _manifest: Manifest = fs.manifest(hbfi.clone())?;
     let _file_manifest: FileManifest = fs.file_manifest(hbfi.clone())?;
@@ -50,9 +55,9 @@ mod copernicafs {
     use super::*;
 
     #[test]
-    fn test_packer_smoke_test() {
+    fn test_smoke_test() {
         task::block_on(async {
-            packer_smoke_test().await;
+            smoke_test().await;
         })
     }
 }

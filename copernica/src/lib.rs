@@ -10,22 +10,18 @@ extern crate borsh;
 #[cfg(test)]
 extern crate bitvec;
 
-pub mod node;
-pub mod client;
-pub mod transport;
-//pub mod identity;
-pub mod web_of_trust;
-pub mod constants;
-pub mod hbfi;
-pub mod serdeser;
-pub mod narrow_waist;
+mod bloom_filter;
+mod hbfi;
+mod channel;
+mod router;
+mod link;
+mod packets;
+mod copernica;
+pub mod copernica_constants;
 pub use crate::{
-    node::router::{
-        Router,
-        Config,
-        read_config_file,
-    },
-    transport::{
-        TransportPacket,
-    },
+    copernica::{Copernica},
+    router::{Router},
+    hbfi::{HBFI},
+    packets::{TransportPacket, NarrowWaist, Data},
+    channel::{LinkId, ReplyTo},
 };

@@ -3,9 +3,12 @@
 members = [
     "copernica",
     "ccli",
+    "client-libs",
     "network-regressions",
     "logger",
     "copernicafs",
+    "transport",
+    "copernica-apps",
 ]
 
 exclude = [

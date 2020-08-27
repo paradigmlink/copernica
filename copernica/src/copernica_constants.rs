@@ -1,10 +1,4 @@
-use {
-    chain_addr,
-};
 
-pub const DISCRIMINATION: chain_addr::Discrimination = chain_addr::Discrimination::Production;
-pub const ADDRESS_PREFIX: &str = "ceo";
-pub const HEX : [&str; 16] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
 /// Maximum transmission unit of the payload.
 ///
 /// Derived from ethernet_mtu - ipv6_header_size - udp_header_size

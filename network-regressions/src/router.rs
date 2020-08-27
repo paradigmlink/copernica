@@ -1,18 +1,9 @@
 #![allow(dead_code)]
 use {
+/*
     copernica::{
-        Router,
-        client::{
-            Requestor,
-            file_sharing::{FileSharer},
-        },
-        Config,
-        //constants,
-        transport::{ReplyTo},
-        //narrow_waist::{Data},
-        hbfi::{HBFI},
+        ReplyTo, HBFI,
     },
-    anyhow::{Result},
     //borsh::{BorshSerialize},
     async_std::{ task, },
     std::{
@@ -23,9 +14,14 @@ use {
         thread::{spawn},
         //collections::HashMap,
     },
+*/
+    anyhow::{Result},
     crate::{
-        common::{generate_random_dir_name, populate_tmp_dir, TestData},
+        common::{
+            //generate_random_dir_name,
+            populate_tmp_dir, TestData},
     },
+
 };
 
 //const TIMEOUT: u64 = 1000;
@@ -48,6 +44,7 @@ const MB100: usize  = 104857600;
 const MB500: usize  = 524288000;
 const MB1000: usize = 1048576000;
 
+/*
 #[allow(dead_code)]
 fn router(config: Config) -> Result<()> {
     let mut router = Router::new_with_config(config)?;
@@ -68,8 +65,15 @@ async fn setup_network(network: Vec<Config>) -> Result<()> {
     }
     Ok(())
 }
+*/
+pub async fn fetch_from_self() -> Result<()> {
+    let mut td = TestData::new();
+    td.push(("0.txt".into(), 1, 1024));
+    let (_expected_data_dir, _actual_data_dir) = populate_tmp_dir("namable".into(), "namable_id".into(), td).await?;
+    Ok(())
+}
 
-
+/*
 pub async fn single_fetch() -> Result<()> {
     let name0: String = "hello0".into();
     let name1: String = "hello1".into();
@@ -136,7 +140,7 @@ pub async fn single_fetch() -> Result<()> {
         expected_file.read_to_end(&mut expected_buffer)?;
         assert_eq!(actual_file, expected_buffer);
     }
-/*
+
     let actual_hello1 = fs.request("hello1".to_string())?;
     assert_eq!(actual_hello1, expected_hello1);
 
@@ -145,10 +149,10 @@ pub async fn single_fetch() -> Result<()> {
 
     let actual_hello3 = fs.request("hello3".to_string())?;
     assert_eq!(actual_hello3, expected_hello3);
-*/
+
     Ok(())
 }
-/*
+
 pub async fn small_world_graph_lt_mtu() -> Result<()> {
     // https://en.wikipedia.org/wiki/File:Small-world-network-example.png
     // node0 is 12 o'clock, node1 is 1 o'clock, etc.
