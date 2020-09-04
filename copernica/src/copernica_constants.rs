@@ -1,4 +1,3 @@
-
 /// Maximum transmission unit of the payload.
 ///
 /// Derived from ethernet_mtu - ipv6_header_size - udp_header_size

@@ -1,15 +1,13 @@
 use {
     crate::{
-        router::{Router},
-        packets::{InterLinkPacket},
-        link::{Link, LinkId, Blooms},
-    },
-    crossbeam_channel::{Sender, Receiver, unbounded},
-    std::{
-        collections::{HashMap},
+        link::{Blooms, Link, LinkId},
+        packets::InterLinkPacket,
+        router::Router,
     },
     anyhow::{anyhow, Result},
-    log::{trace, error},
+    crossbeam_channel::{unbounded, Receiver, Sender},
+    log::{error, trace},
+    std::collections::HashMap,
 };
 
 #[derive(Clone)]
@@ -17,10 +15,13 @@ pub struct Copernica {
     // t = transport, c = copernica, r = router
     t2c_tx: Sender<InterLinkPacket>,   // give to transports
     t2c_rx: Receiver<InterLinkPacket>, // keep in copernica
-    c2t   : HashMap<LinkId, (
-             Sender<InterLinkPacket>,  // keep in copernica
-             Receiver<InterLinkPacket> // give to transports
-            )>,
+    c2t: HashMap<
+        LinkId,
+        (
+            Sender<InterLinkPacket>,   // keep in copernica
+            Receiver<InterLinkPacket>, // give to transports
+        ),
+    >,
     r2c_tx: Sender<InterLinkPacket>,   // give to router
     r2c_rx: Receiver<InterLinkPacket>, // keep in copernica
     blooms: HashMap<Link, Blooms>,
@@ -32,14 +33,22 @@ impl Copernica {
         let (r2c_tx, r2c_rx) = unbounded::<InterLinkPacket>();
         let c2t = HashMap::new();
         let blooms = HashMap::new();
-        Self { t2c_tx, t2c_rx, r2c_tx, r2c_rx, c2t, blooms }
+        Self {
+            t2c_tx,
+            t2c_rx,
+            r2c_tx,
+            r2c_rx,
+            c2t,
+            blooms,
+        }
     }
 
-    pub fn peer(&mut self, link: Link) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
+    pub fn peer(
+        &mut self,
+        link: Link,
+    ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
         match self.blooms.get(&link) {
-            Some(_) => {
-                Err(anyhow!("Channel already initialized"))
-            }
+            Some(_) => Err(anyhow!("Channel already initialized")),
             None => {
                 let (c2t_tx, c2t_rx) = unbounded::<InterLinkPacket>();
                 self.c2t.insert(link.id(), (c2t_tx.clone(), c2t_rx.clone()));
@@ -72,10 +81,10 @@ impl Copernica {
                                 c2t_tx.send(ilp)?;
                             }
                         }
-                    },
-                    Err(error) => error!("{}", anyhow!("{}", error))
+                    }
+                    Err(error) => error!("{}", anyhow!("{}", error)),
                 }
-            };
+            }
             Ok::<(), anyhow::Error>(())
         });
         Ok(())

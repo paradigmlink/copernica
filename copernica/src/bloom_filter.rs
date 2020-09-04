@@ -1,10 +1,7 @@
 use {
-    rand::Rng,
+    crate::{copernica_constants, hbfi::HBFI},
     bitvec::prelude::*,
-    crate::{
-        copernica_constants,
-        hbfi::{HBFI}
-    },
+    rand::Rng,
 };
 
 #[derive(Clone)]
@@ -24,7 +21,7 @@ impl BloomFilter {
         for id in &packet.id[..] {
             self.bloom.set(*id as usize, true);
         }
-        for h1 in &packet.h1[..]{
+        for h1 in &packet.h1[..] {
             self.bloom.set(*h1 as usize, true);
         }
     }
@@ -35,10 +32,12 @@ impl BloomFilter {
         for id in &packet.id[..] {
             bloom_vals.push(*self.bloom.get(*id as usize).unwrap() as u32);
         }
-        for h1 in &packet.h1[..]{
+        for h1 in &packet.h1[..] {
             bloom_vals.push(*self.bloom.get(*h1 as usize).unwrap() as u32);
         }
-        let hits = bloom_vals.iter().try_fold(0u32, |acc, &elem| acc.checked_add(elem));
+        let hits = bloom_vals
+            .iter()
+            .try_fold(0u32, |acc, &elem| acc.checked_add(elem));
         let percentage = (hits.unwrap() as f32 / bloom_vals.len() as f32) * 100f32;
         //println!("hits: {:?}, length: {:?}, percentage: {}", hits.unwrap(), vals.len(), percentage);
         percentage as u8
@@ -49,7 +48,7 @@ impl BloomFilter {
         for id in &packet.id[..] {
             self.bloom.set(*id as usize, false);
         }
-        for h1 in &packet.h1[..]{
+        for h1 in &packet.h1[..] {
             self.bloom.set(*h1 as usize, false);
         }
     }
@@ -57,19 +56,21 @@ impl BloomFilter {
     #[allow(dead_code)]
     pub fn partially_forget(&mut self) {
         let mut rng = rand::thread_rng();
-        for _ in 0 .. 2048 {
+        for _ in 0..2048 {
             self.bloom.set(rng.gen_range(0, 2048), false);
         }
     }
 
     #[allow(dead_code)]
     pub fn decoherence(&self) -> u8 {
-        let hits = self.bloom.iter().try_fold(0u32, |acc, elem| acc.checked_add(*elem as u32));
+        let hits = self
+            .bloom
+            .iter()
+            .try_fold(0u32, |acc, elem| acc.checked_add(*elem as u32));
         let percentage = (hits.unwrap() as f32 / self.bloom.len() as f32) * 100f32;
         //println!("hits: {:?}, length: {:?}, percentage: {}", hits.unwrap(), vals.len(), percentage);
         percentage as u8
     }
-
 }
 
 impl PartialEq for BloomFilter {
@@ -77,4 +78,3 @@ impl PartialEq for BloomFilter {
         self.bloom == other.bloom
     }
 }
-

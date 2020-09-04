@@ -1,22 +1,19 @@
 use {
     crate::{
-        borsh::{BorshSerialize, BorshDeserialize},
-        bloom_filter::{
-            BloomFilter
-        },
-        hbfi::{HBFI},
+        bloom_filter::BloomFilter,
+        borsh::{BorshDeserialize, BorshSerialize},
+        hbfi::HBFI,
     },
     rand::Rng,
-    std::{
-        net::{SocketAddr},
-        fmt,
-    }
+    std::{fmt, net::SocketAddr},
 };
 
 pub type Hertz = u32;
 pub type LinkId = u64;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
+#[derive(
+    Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
+)]
 pub enum ReplyTo {
     UdpIp(SocketAddr),
     Rf(Hertz),
@@ -45,14 +42,20 @@ impl Link {
 
 #[derive(Clone)]
 pub struct Blooms {
-    pending_request:   BloomFilter,
-    forwarding_hint:   BloomFilter,
+    pending_request: BloomFilter,
+    forwarding_hint: BloomFilter,
     forwarded_request: BloomFilter,
 }
 
 impl fmt::Debug for Blooms {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "(pr:{}, fh:{}, fr:{})", self.pending_request.decoherence(), self.forwarding_hint.decoherence(), self.forwarded_request.decoherence())
+        write!(
+            f,
+            "(pr:{}, fh:{}, fr:{})",
+            self.pending_request.decoherence(),
+            self.forwarding_hint.decoherence(),
+            self.forwarded_request.decoherence()
+        )
     }
 }
 
@@ -60,9 +63,9 @@ impl Blooms {
     #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
-            pending_request:    BloomFilter::new(),
-            forwarding_hint:    BloomFilter::new(),
-            forwarded_request:  BloomFilter::new(),
+            pending_request: BloomFilter::new(),
+            forwarding_hint: BloomFilter::new(),
+            forwarded_request: BloomFilter::new(),
         }
     }
 
@@ -90,7 +93,6 @@ impl Blooms {
         self.pending_request.partially_forget();
     }
 
-
     // Forwarded Request Sparse Distributed Representation
     // Used to determine if a request has been forwarded on this face so as
     // not to forward the request on the face again. It's easy to get
@@ -115,7 +117,6 @@ impl Blooms {
         self.forwarded_request.partially_forget();
     }
 
-
     // Forwarding Hint Sparse Distributed Representation
     // Used to determine if a request can be satisfied on this face.
     // There's a subtle difference between Pending Request
@@ -133,4 +134,3 @@ impl Blooms {
         self.forwarding_hint.partially_forget();
     }
 }
-

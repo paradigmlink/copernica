@@ -1,32 +1,27 @@
 use {
     crate::{
-        link::{Blooms, Link, LinkId, ReplyTo},
-        packets::{
-            InterLinkPacket, WirePacket, NarrowWaist
-        },
         //hbfi::{HBFI},
         borsh::{BorshDeserialize, BorshSerialize},
+        link::{Blooms, Link, LinkId, ReplyTo},
+        packets::{InterLinkPacket, NarrowWaist, WirePacket},
     },
-    anyhow::{Result},
+    anyhow::Result,
     //log::{trace},
-    crossbeam_channel::{Sender},
-    std::{
-        collections::{HashMap},
-    },
-    log::{debug},
+    crossbeam_channel::Sender,
+    log::debug,
+    std::collections::HashMap,
 };
 
 #[derive(Clone)]
-pub struct Router {
-}
+pub struct Router {}
 
 impl Router {
     pub fn handle_packet(
-        ilp: &InterLinkPacket
-        , r2c_tx: Sender<InterLinkPacket>
-        , response_store: sled::Db
-        , blooms: &mut HashMap::<Link, Blooms>
-        ) -> Result<()> {
+        ilp: &InterLinkPacket,
+        r2c_tx: Sender<InterLinkPacket>,
+        response_store: sled::Db,
+        blooms: &mut HashMap<Link, Blooms>,
+    ) -> Result<()> {
         let this_link: Link = ilp.link();
         let this_link_id: LinkId = ilp.link().id();
         let wp: WirePacket = ilp.wire_packet();
@@ -43,8 +38,8 @@ impl Router {
                             let wp = WirePacket::new(rt, narrow_waist);
                             let ilp = InterLinkPacket::new(this_link.clone(), wp);
                             r2c_tx.send(ilp).unwrap();
-                            return Ok(())
-                        },
+                            return Ok(());
+                        }
                         None => {
                             debug!("********* NO   RESPONSE   FOUND *********");
                             let mut is_forwarded = false;
@@ -53,38 +48,43 @@ impl Router {
                             //inbound_stats(&ilp, &self.listen_addr, this_bloom, "Inserting pending request");
                             for (that_link, that_bloom) in blooms.iter_mut() {
                                 if that_link.id() == this_link_id {
-                                    continue
+                                    continue;
                                 }
                                 if that_bloom.contains_forwarded_request(&hbfi) > 51 {
                                     //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Don't send request upstream again");
-                                    continue
+                                    continue;
                                 }
-                                if that_bloom.contains_pending_request(&hbfi)   > 51 {
+                                if that_bloom.contains_pending_request(&hbfi) > 51 {
                                     //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Don't send request downstream");
-                                    continue
+                                    continue;
                                 }
-                                if that_bloom.contains_forwarding_hint(&hbfi)   > 90 {
+                                if that_bloom.contains_forwarding_hint(&hbfi) > 90 {
                                     that_bloom.create_forwarded_request(&hbfi);
                                     //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Sending request downstream based on forwarding hint");
-                                    r2c_tx.send(ilp.change_destination(that_link.clone())).unwrap();
+                                    r2c_tx
+                                        .send(ilp.change_destination(that_link.clone()))
+                                        .unwrap();
                                     is_forwarded = true;
-                                    continue
+                                    continue;
                                 }
                                 broadcast.push(that_link.clone())
-
                             }
                             if !is_forwarded {
                                 for broadcast_link in broadcast {
-                                    if let Some(burst_bloom) = blooms.get_mut(&broadcast_link.clone()) {
+                                    if let Some(burst_bloom) =
+                                        blooms.get_mut(&broadcast_link.clone())
+                                    {
                                         burst_bloom.create_forwarded_request(&hbfi);
                                         //outbound_stats(&ilp, &self.listen_addr, burst_link, "Bursting on face");
-                                        r2c_tx.send(ilp.change_destination(broadcast_link.clone())).unwrap();
+                                        r2c_tx
+                                            .send(ilp.change_destination(broadcast_link.clone()))
+                                            .unwrap();
                                     }
                                 }
                             }
-                        },
+                        }
                     }
-                },
+                }
                 NarrowWaist::Response { hbfi, .. } => {
                     if this_bloom.contains_forwarded_request(&hbfi) > 15 {
                         response_store.insert(hbfi.try_to_vec()?, nw.clone().try_to_vec()?)?;
@@ -94,10 +94,14 @@ impl Router {
                         this_bloom.delete_forwarded_request(&hbfi);
                         this_bloom.create_forwarding_hint(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {
-                            if that_link.id() == this_link_id { continue }
+                            if that_link.id() == this_link_id {
+                                continue;
+                            }
                             if that_bloom.contains_pending_request(&hbfi) > 50 {
                                 //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Send response upstream");
-                                r2c_tx.send(ilp.change_destination(that_link.clone())).unwrap();
+                                r2c_tx
+                                    .send(ilp.change_destination(that_link.clone()))
+                                    .unwrap();
                             }
                         }
                     }

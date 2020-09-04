@@ -1,13 +1,11 @@
 use {
     crate::{
-        borsh::{BorshSerialize, BorshDeserialize},
-        link::{Link, ReplyTo},
+        borsh::{BorshDeserialize, BorshSerialize},
         copernica_constants,
-        hbfi::{HBFI},
+        hbfi::HBFI,
+        link::{Link, ReplyTo},
     },
-    std::{
-        fmt,
-    },
+    std::fmt,
 };
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
@@ -18,16 +16,27 @@ pub struct Data {
 
 #[derive(Clone, BorshSerialize, BorshDeserialize)]
 pub enum NarrowWaist {
-    Request     { hbfi: HBFI },
-    Response    { hbfi: HBFI, data: Data, offset: u64, total: u64 },
+    Request {
+        hbfi: HBFI,
+    },
+    Response {
+        hbfi: HBFI,
+        data: Data,
+        offset: u64,
+        total: u64,
+    },
 }
 
 impl fmt::Debug for NarrowWaist {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
             NarrowWaist::Request { hbfi } => write!(f, "REQ{:?}", hbfi),
-            NarrowWaist::Response { hbfi, offset, total, .. } =>
-                write!(f, "RES{:?} {}/{}", hbfi, offset, total)
+            NarrowWaist::Response {
+                hbfi,
+                offset,
+                total,
+                ..
+            } => write!(f, "RES{:?} {}/{}", hbfi, offset, total),
         }
     }
 }
@@ -40,10 +49,7 @@ pub struct WirePacket {
 
 impl WirePacket {
     pub fn new(reply_to: ReplyTo, nw: NarrowWaist) -> Self {
-        Self {
-            reply_to,
-            nw,
-        }
+        Self { reply_to, nw }
     }
     pub fn reply_to(&self) -> ReplyTo {
         self.reply_to.clone()
