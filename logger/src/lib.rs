@@ -32,8 +32,11 @@ pub fn setup_logging(verbosity: u64, logpath: Option<&str>) -> Result<(), fern::
             .level_for("mio::poll", log::LevelFilter::Info),
         _4_or_more => base_config
             .level(log::LevelFilter::Trace)
-            .level_for("mio::poll", log::LevelFilter::Info)
-            .level_for("async_std::task::block_on", log::LevelFilter::Warn),
+            .level_for("mio::poll", log::LevelFilter::Error)
+            .level_for("sled::pagecache", log::LevelFilter::Error)
+            .level_for("sled::meta", log::LevelFilter::Error)
+            .level_for("sled::tree", log::LevelFilter::Error)
+            .level_for("async_std::task::block_on", log::LevelFilter::Error),
     };
 
     // Separate file config so we can include year, month and day in file logs

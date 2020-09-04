@@ -51,6 +51,14 @@ impl fmt::Debug for HBFI {
     }
 }
 
+impl fmt::Display for HBFI {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &*self {
+            HBFI { h1, id, os } =>  write!(f, "{:?}::{:?}::{:?}", h1, id, os),
+        }
+    }
+}
+
 fn bloom_filter_index(s: &str) -> Result<[u16; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]> {
     use std::str;
     let mut hasher = Sha3_512::new();

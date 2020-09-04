@@ -1,37 +1,71 @@
 use {
     crate::{
+        borsh::{BorshSerialize, BorshDeserialize},
         bloom_filter::{
             BloomFilter
         },
-        channel::{LinkId},
         hbfi::{HBFI},
     },
+    rand::Rng,
+    std::{
+        net::{SocketAddr},
+        fmt,
+    }
 };
 
-#[derive(Debug, Clone)]
-pub struct Link {
-    link_id:           LinkId,
-    pending_request:   BloomFilter,
-    forwarding_hint:   BloomFilter,
-    forwarded_request: BloomFilter,
+pub type Hertz = u32;
+pub type LinkId = u64;
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
+pub enum ReplyTo {
+    UdpIp(SocketAddr),
+    Rf(Hertz),
+    Mpsc,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Link {
+    link_id: LinkId,
+    reply_to: ReplyTo,
 }
 
 impl Link {
+    pub fn new(reply_to: ReplyTo) -> Self {
+        let mut rng = rand::thread_rng();
+        let link_id: u64 = rng.gen();
+        Self { link_id, reply_to }
+    }
+    pub fn reply_to(&self) -> ReplyTo {
+        self.reply_to.clone()
+    }
+    pub fn id(&self) -> LinkId {
+        self.link_id.clone()
+    }
+}
+
+#[derive(Clone)]
+pub struct Blooms {
+    pending_request:   BloomFilter,
+    forwarding_hint:   BloomFilter,
+    forwarded_request: BloomFilter,
+}
+
+impl fmt::Debug for Blooms {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(pr:{}, fh:{}, fr:{})", self.pending_request.decoherence(), self.forwarding_hint.decoherence(), self.forwarded_request.decoherence())
+    }
+}
+
+impl Blooms {
     #[allow(dead_code)]
-    pub fn new(link_id: LinkId) -> Self {
+    pub fn new() -> Self {
         Self {
-            link_id,
             pending_request:    BloomFilter::new(),
             forwarding_hint:    BloomFilter::new(),
             forwarded_request:  BloomFilter::new(),
         }
     }
 
-    #[allow(dead_code)]
-    pub fn link_id(&self) -> LinkId {
-        self.link_id.clone()
-    }
     // Pending Request Sparse Distributed Representation
     // Used to determine the direction of upstream and shouldn't be conflated
     // with Forwarded Request which determines which faces are downstream nodes,
@@ -98,6 +132,5 @@ impl Link {
     pub fn partially_forget_forwarding_hint(&mut self) {
         self.forwarding_hint.partially_forget();
     }
-
-
 }
+

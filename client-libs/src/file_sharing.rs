@@ -1,5 +1,5 @@
 use {
-    copernica::{NarrowWaist, Data, HBFI, copernica_constants, LinkId, TransportPacket},
+    copernica::{NarrowWaist, Data, HBFI, copernica_constants, Link, InterLinkPacket},
     crate::{
         Requestor
     },
@@ -14,124 +14,68 @@ use {
     borsh::{BorshSerialize, BorshDeserialize},
     walkdir::{WalkDir},
     anyhow::{Result, anyhow},
+    log::{debug},
 };
 
 #[derive(Clone)]
 pub struct FileSharer {
+    link: Option<Link>,
     rs: Db,
-    sender: Option<Sender<(LinkId, TransportPacket)>>,
-    link_id: Option<LinkId>,
+    sender: Option<Sender<InterLinkPacket>>,
 }
 
 impl<'a> FileSharer {
-    pub fn manifest(&self, hbfi: HBFI) -> Result<Manifest> {
+    pub fn manifest(&mut self, hbfi: HBFI) -> Result<Manifest> {
         let hbfi = hbfi.clone().offset(0);
-        match self.rs.get(hbfi.clone().try_to_vec()?)? {
-            Some(resp) => {
-                let nw = NarrowWaist::try_from_slice(&resp)?;
-                match nw {
-                    NarrowWaist::Request {..} => return Err(anyhow!("Didn't find Manifest but found a Request")),
-                    NarrowWaist::Response { data, ..} => {
-                        let (manifest, _) = data.data.split_at(data.len.into());
-                        let manifest = Manifest::try_from_slice(&manifest)?;
-                        return Ok(manifest);
-                    }
-                }
-            }
-            /*None => {
-
-                match self.sender.clone() {
-                    Some(sender) => {
-                        if let Some(link_id) = self.link_id.clone() {
-                            sender.send((link_id.clone(), TransportPacket::new(link_id.reply_to(), NarrowWaist::Request { hbfi })));
-                            return Ok(None)
-                        }
-                        return Err(anyhow!("Please run FileSharer.start() first"))
-                    }
-                    None => return Err(anyhow!("Please run FileSharer.start() first")),
-                }
-            }*/
-            None => return Err(anyhow!("Manifest not present")),
-        }
+        debug!("File Sharer to Requestor:\t{:?}", hbfi);
+        let manifest = self.get(hbfi, 0, 0)?;
+        Ok(Manifest::try_from_slice(&manifest)?)
     }
-    pub fn file_manifest(&self, hbfi: HBFI) -> Result<FileManifest> {
+    pub fn file_manifest(&mut self, hbfi: HBFI) -> Result<FileManifest> {
         let manifest: Manifest = self.manifest(hbfi.clone())?;
-        let mut counter = manifest.start;
-        let mut reconstruct: Vec<u8> = vec![];
-        while counter <= manifest.end {
-            let hbfi = hbfi.clone().offset(counter);
-            match self.rs.get(hbfi.try_to_vec()?)? {
-                Some(resp) => {
-                    let nw = NarrowWaist::try_from_slice(&resp)?;
-                    match nw {
-                        NarrowWaist::Request {..} => return Err(anyhow!("Didn't find FileManifest but found a Request")),
-                        NarrowWaist::Response { data, ..} => {
-                            let (file_manifest_chunk, _) = data.data.split_at(data.len.into());
-                            let mut vec = file_manifest_chunk.to_vec();
-                            reconstruct.append(&mut vec);
-                        }
-                    }
-                }
-                None => return Err(anyhow!("FileManifest not present")),
-            }
-            counter += 1;
-        }
-        Ok(FileManifest::try_from_slice(&reconstruct)?)
+        let file_manifest = self.get(hbfi, manifest.start, manifest.end)?;
+        Ok(FileManifest::try_from_slice(&file_manifest)?)
     }
-    pub fn file_names(&self, hbfi: HBFI) -> Result<Vec<String>> {
+    pub fn file_names(&mut self, hbfi: HBFI) -> Result<Vec<String>> {
         let file_manifest: FileManifest = self.file_manifest(hbfi.clone())?;
         let mut names: Vec<String> = vec![];
-        for (path, (_, _)) in file_manifest.files {
+        for (path, _) in file_manifest.files {
             names.push(path);
         }
         Ok(names)
     }
-    pub fn file(&self, hbfi: HBFI, name: String) -> Result<Vec<u8>> {
+    pub fn file(&mut self, hbfi: HBFI, name: String) -> Result<Vec<u8>> {
         let file_manifest: FileManifest = self.file_manifest(hbfi.clone())?;
         if let Some((start, end)) = file_manifest.files.get(&name) {
-            let mut reconstruct: Vec<u8> = vec![];
-            let mut counter = *start;
-            while counter <= *end {
-                let hbfi = hbfi.clone().offset(counter);
-                match self.rs.get(hbfi.try_to_vec()?)? {
-                    Some(resp) => {
-                        let nw = NarrowWaist::try_from_slice(&resp)?;
-                        match nw {
-                            NarrowWaist::Request {..} => return Err(anyhow!("Didn't find FileManifest but found a Request")),
-                            NarrowWaist::Response { data, ..} => {
-                                let (file_manifest_chunk, _) = data.data.split_at(data.len.into());
-                                let mut vec = file_manifest_chunk.to_vec();
-                                reconstruct.append(&mut vec);
-                            }
-                        }
-                    }
-                    None => return Err(anyhow!("File not present")),
-                }
-                counter += 1;
-            }
-            return Ok(reconstruct)
+            let file = self.get(hbfi.clone(), *start, *end)?;
+            return Ok(file);
         }
         return Err(anyhow!("File not present"))
     }
 }
 
-impl<'a> Requestor<'a> for FileSharer
- {
+impl<'a> Requestor<'a> for FileSharer {
     fn new(rs: Db) -> FileSharer {
         FileSharer {
-            rs,
+            link: None,
             sender: None,
-            link_id: None,
+            rs,
         }
     }
     fn response_store(&self) -> Db {
         self.rs.clone()
     }
-    fn set_sender(&mut self, sender: Option<Sender<(LinkId, TransportPacket)>>) {
+    fn set_sender(&mut self, sender: Option<Sender<InterLinkPacket>>) {
         self.sender = sender;
     }
-    fn set_link_id(&mut self, link_id: Option<LinkId>) {
-        self.link_id = link_id;
+    fn get_sender(&mut self) -> Option<Sender<InterLinkPacket>> {
+        self.sender.clone()
+    }
+    fn get_link(&mut self) -> Option<Link> {
+        self.link.clone()
+    }
+    fn set_link(&mut self, link: Link) {
+        self.link = Some(link);
     }
 }
 

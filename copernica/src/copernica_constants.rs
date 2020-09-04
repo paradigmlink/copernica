@@ -13,4 +13,4 @@
 /// using datatye u16 because this information is communicated in the Response Manifest.
 pub const FRAGMENT_SIZE: u16 = 1024;
 pub const BLOOM_FILTER_LENGTH: u64 = u16::MAX as u64;
-pub const BLOOM_FILTER_INDEX_ELEMENT_LENGTH: u16 = 8;
+pub const BLOOM_FILTER_INDEX_ELEMENT_LENGTH: u16 = 4;

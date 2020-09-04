@@ -1,7 +1,7 @@
 use {
     crate::{
         borsh::{BorshSerialize, BorshDeserialize},
-        channel::{ReplyTo},
+        link::{Link, ReplyTo},
         copernica_constants,
         hbfi::{HBFI},
     },
@@ -32,23 +32,65 @@ impl fmt::Debug for NarrowWaist {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
-pub struct TransportPacket {
-    pub reply_to: ReplyTo,
-    pub payload: NarrowWaist,
+#[derive(BorshSerialize, Debug, BorshDeserialize, Clone)]
+pub struct WirePacket {
+    reply_to: ReplyTo,
+    nw: NarrowWaist,
 }
 
-impl TransportPacket {
-    pub fn new(reply_to: ReplyTo, payload: NarrowWaist) -> TransportPacket {
-        TransportPacket {
+impl WirePacket {
+    pub fn new(reply_to: ReplyTo, nw: NarrowWaist) -> Self {
+        Self {
             reply_to,
-            payload,
+            nw,
         }
-    }
-    pub fn payload(&self) -> NarrowWaist {
-        self.payload.clone()
     }
     pub fn reply_to(&self) -> ReplyTo {
         self.reply_to.clone()
+    }
+    pub fn narrow_waist(&self) -> NarrowWaist {
+        self.nw.clone()
+    }
+    pub fn change_reply_to(&self, reply_to: ReplyTo) -> Self {
+        Self {
+            reply_to,
+            nw: self.nw.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct InterLinkPacket {
+    pub link: Link,
+    pub wp: WirePacket,
+}
+
+impl InterLinkPacket {
+    pub fn new(link: Link, wp: WirePacket) -> Self {
+        Self { link, wp }
+    }
+    pub fn link(&self) -> Link {
+        self.link.clone()
+    }
+    pub fn wire_packet(&self) -> WirePacket {
+        self.wp.clone()
+    }
+    pub fn reply_to(&self) -> ReplyTo {
+        self.wp.reply_to()
+    }
+    pub fn narrow_waist(&self) -> NarrowWaist {
+        self.wp.narrow_waist()
+    }
+    pub fn change_destination(&self, link: Link) -> Self {
+        Self {
+            link: link.clone(),
+            wp: self.wp.change_reply_to(link.reply_to()),
+        }
+    }
+    pub fn change_origination(&self, link: Link) -> Self {
+        Self {
+            link: link.clone(),
+            wp: self.wp.change_reply_to(link.reply_to()),
+        }
     }
 }

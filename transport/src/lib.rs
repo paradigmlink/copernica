@@ -1,6 +1,6 @@
 use {
     copernica::{
-        TransportPacket, LinkId
+        InterLinkPacket, Link
     },
     crossbeam_channel::{Sender, Receiver},
     anyhow::{Result},
@@ -13,6 +13,8 @@ pub use {
 };
 
 pub trait Transport<'a> {
-    fn new(link_id: LinkId, router_in_and_out: ( Sender<(LinkId, TransportPacket)> , Receiver<(LinkId, TransportPacket)> ) ) -> Result<Self> where Self: Sized;
+    //fn bind(&mut self) -> Receiver<TransportPacket>;
+    //fn bind_with(&mut self, copernica_to_transport_rx: Receiver<TransportPacket>);
     fn run(&self) -> Result<()>;
+    fn new(link: Link, router_in_and_out: ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> ) ) -> Result<Self> where Self: Sized;
 }

@@ -12,7 +12,6 @@ extern crate bitvec;
 
 mod bloom_filter;
 mod hbfi;
-mod channel;
 mod router;
 mod link;
 mod packets;
@@ -22,6 +21,6 @@ pub use crate::{
     copernica::{Copernica},
     router::{Router},
     hbfi::{HBFI},
-    packets::{TransportPacket, NarrowWaist, Data},
-    channel::{LinkId, ReplyTo},
+    packets::{InterLinkPacket, WirePacket, NarrowWaist, Data},
+    link::{Link, ReplyTo, LinkId},
 };

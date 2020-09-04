@@ -1,19 +1,19 @@
 use {
     crate::{
-        link::{Link},
-        channel::{LinkId},
+        link::{Blooms, Link, LinkId, ReplyTo},
         packets::{
-            TransportPacket, NarrowWaist
+            InterLinkPacket, WirePacket, NarrowWaist
         },
         //hbfi::{HBFI},
         borsh::{BorshDeserialize, BorshSerialize},
     },
     anyhow::{Result},
     //log::{trace},
-    crossbeam_channel::{Sender, Receiver},
+    crossbeam_channel::{Sender},
     std::{
         collections::{HashMap},
     },
+    log::{debug},
 };
 
 #[derive(Clone)]
@@ -22,57 +22,63 @@ pub struct Router {
 
 impl Router {
     pub fn handle_packet(
-        link_id: &LinkId
-        , transport_packet: &TransportPacket
-        , outbound_tx: Sender<(LinkId, TransportPacket)>
+        ilp: &InterLinkPacket
+        , r2c_tx: Sender<InterLinkPacket>
         , response_store: sled::Db
-        , links: &mut HashMap::<LinkId, (Link, (Sender<(LinkId, TransportPacket)>, Receiver<(LinkId, TransportPacket)>))>
+        , blooms: &mut HashMap::<Link, Blooms>
         ) -> Result<()> {
-        let narrow_waist_packet: NarrowWaist = transport_packet.payload();
-        if let Some((this_link, _)) = links.get_mut(&link_id) {
-            match narrow_waist_packet.clone() {
+        let this_link: Link = ilp.link();
+        let this_link_id: LinkId = ilp.link().id();
+        let wp: WirePacket = ilp.wire_packet();
+        let rt: ReplyTo = wp.reply_to();
+        let nw: NarrowWaist = wp.narrow_waist();
+        if let Some(this_bloom) = blooms.get_mut(&this_link) {
+            match nw.clone() {
                 NarrowWaist::Request { hbfi } => {
                     match response_store.get(&hbfi.try_to_vec()?)? {
                         Some(response) => {
                             let narrow_waist = NarrowWaist::try_from_slice(&response)?;
-                            //outbound_stats(&transport_packet, &self.listen_addr, this_link, "********* RESPONSE PACKET FOUND *********");
-                            let tp = TransportPacket::new(transport_packet.reply_to(), narrow_waist);
-                            outbound_tx.send((link_id.clone(), tp)).unwrap();
+                            //outbound_stats(&ilp, &self.listen_addr, this_bloom, "********* RESPONSE PACKET FOUND *********");
+                            debug!("********* RESPONSE PACKET FOUND *********");
+                            let wp = WirePacket::new(rt, narrow_waist);
+                            let ilp = InterLinkPacket::new(this_link.clone(), wp);
+                            r2c_tx.send(ilp).unwrap();
                             return Ok(())
                         },
                         None => {
+                            debug!("********* NO   RESPONSE   FOUND *********");
                             let mut is_forwarded = false;
                             let mut broadcast = Vec::new();
-                            this_link.create_pending_request(&hbfi);
-                            //inbound_stats(&transport_packet, &self.listen_addr, this_link, "Inserting pending request");
-                            for (that_link_id, (that_link, _)) in links.iter_mut() {
-                                if *that_link_id == *link_id {
+                            this_bloom.create_pending_request(&hbfi);
+                            //inbound_stats(&ilp, &self.listen_addr, this_bloom, "Inserting pending request");
+                            for (that_link, that_bloom) in blooms.iter_mut() {
+                                if that_link.id() == this_link_id {
                                     continue
                                 }
-                                if that_link.contains_forwarded_request(&hbfi) > 51 {
-                                    //outbound_stats(&transport_packet, &self.listen_addr, that_link, "Don't send request upstream again");
+                                if that_bloom.contains_forwarded_request(&hbfi) > 51 {
+                                    //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Don't send request upstream again");
                                     continue
                                 }
-                                if that_link.contains_pending_request(&hbfi)   > 51 {
-                                    //outbound_stats(&transport_packet, &self.listen_addr, that_link, "Don't send request downstream");
+                                if that_bloom.contains_pending_request(&hbfi)   > 51 {
+                                    //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Don't send request downstream");
                                     continue
                                 }
-                                if that_link.contains_forwarding_hint(&hbfi)   > 90 {
-                                    that_link.create_forwarded_request(&hbfi);
-                                    //outbound_stats(&transport_packet, &self.listen_addr, that_link, "Sending request downstream based on forwarding hint");
-                                    outbound_tx.send((that_link_id.clone(), transport_packet.clone())).unwrap();
+                                if that_bloom.contains_forwarding_hint(&hbfi)   > 90 {
+                                    that_bloom.create_forwarded_request(&hbfi);
+                                    //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Sending request downstream based on forwarding hint");
+                                    r2c_tx.send(ilp.change_destination(that_link.clone())).unwrap();
                                     is_forwarded = true;
                                     continue
                                 }
-                                broadcast.push(that_link_id.clone())
+                                broadcast.push(that_link.clone())
 
                             }
                             if !is_forwarded {
-                                for broadcast_link_id in broadcast {
-                                    if let Some((burst_link, _)) = links.get_mut(&broadcast_link_id.clone()) {
-                                        burst_link.create_forwarded_request(&hbfi);
-                                        //outbound_stats(&transport_packet, &self.listen_addr, burst_link, "Bursting on face");
-                                        outbound_tx.send((broadcast_link_id.clone(), transport_packet.clone())).unwrap();
+                                for broadcast_link in broadcast {
+                                    if let Some(burst_bloom) = blooms.get_mut(&broadcast_link.clone()) {
+                                        burst_bloom.create_forwarded_request(&hbfi);
+                                        //outbound_stats(&ilp, &self.listen_addr, burst_link, "Bursting on face");
+                                        r2c_tx.send(ilp.change_destination(broadcast_link.clone())).unwrap();
                                     }
                                 }
                             }
@@ -80,22 +86,18 @@ impl Router {
                     }
                 },
                 NarrowWaist::Response { hbfi, .. } => {
-                    if this_link.contains_forwarded_request(&hbfi) > 15 {
-                        response_store.insert(hbfi.try_to_vec()?, narrow_waist_packet.clone().try_to_vec()?)?;
-                        if this_link.forwarding_hint_decoherence() > 80 {
-                            this_link.partially_forget_forwarding_hint();
+                    if this_bloom.contains_forwarded_request(&hbfi) > 15 {
+                        response_store.insert(hbfi.try_to_vec()?, nw.clone().try_to_vec()?)?;
+                        if this_bloom.forwarding_hint_decoherence() > 80 {
+                            this_bloom.partially_forget_forwarding_hint();
                         }
-                        /*
-                        if response_store.complete(&hbfi) {
-                            this_link.delete_forwarded_request(&hbfi);
-                            this_link.create_forwarding_hint(&hbfi);
-                        }
-                        */
-                        for (that_link_id, (that_link, _)) in links.iter_mut() {
-                            if *that_link_id == *link_id { continue }
-                            if that_link.contains_pending_request(&hbfi) > 50 {
-                                //outbound_stats(&transport_packet, &self.listen_addr, that_link, "Send response upstream");
-                                outbound_tx.send((that_link_id.clone(), transport_packet.clone())).unwrap();
+                        this_bloom.delete_forwarded_request(&hbfi);
+                        this_bloom.create_forwarding_hint(&hbfi);
+                        for (that_link, that_bloom) in blooms.iter_mut() {
+                            if that_link.id() == this_link_id { continue }
+                            if that_bloom.contains_pending_request(&hbfi) > 50 {
+                                //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Send response upstream");
+                                r2c_tx.send(ilp.change_destination(that_link.clone())).unwrap();
                             }
                         }
                     }
@@ -106,7 +108,7 @@ impl Router {
     }
 }
 /*
-fn inbound_stats(packet: &TransportPacket, router_id: &ReplyTo, face: &Link, message: &str) {
+fn inbound_stats(packet: &InterLinkPacket, router_id: &ReplyTo, face: &Link, message: &str) {
     let print = format!(
         "INBOUND PACKET for {:?}\n\t{:?}\n\tFrom {:?} => To {:?}\n\t{}\n\t\t{}",
         router_id,
@@ -119,7 +121,7 @@ fn inbound_stats(packet: &TransportPacket, router_id: &ReplyTo, face: &Link, mes
     trace!("{}", print);
 }
 
-fn outbound_stats(packet: &TransportPacket, router_id: &ReplyTo, face: &Link, message: &str) {
+fn outbound_stats(packet: &InterLinkPacket, router_id: &ReplyTo, face: &Link, message: &str) {
     let print = format!(
         "OUTBOUND PACKET for {:?}\n\t{:?}\n\tFrom {:?} => To {:?}\n\t{}\n\t\t{}",
         router_id,
@@ -133,16 +135,16 @@ fn outbound_stats(packet: &TransportPacket, router_id: &ReplyTo, face: &Link, me
 }
 
 #[allow(dead_code)]
-fn all_links_stats(links: &HashMap<ReplyTo, Link>, packet: &TransportPacket, message: &str) {
+fn all_links_stats(links: &HashMap<ReplyTo, Link>, packet: &InterLinkPacket, message: &str) {
     let mut s: String = message.to_string();
-    for (_link_id, face) in links {
+    for (_link, face) in links {
         s.push_str(&format!("\n\t"));
         s.push_str(&face_stats(face, packet));
     }
     trace!("{}",s);
 }
 
-fn face_stats(face: &Link, packet: &TransportPacket) -> String {
+fn face_stats(face: &Link, packet: &InterLinkPacket) -> String {
     let hbfi: HBFI = match packet.payload() {
         NarrowWaist::Request{hbfi} => hbfi,
         NarrowWaist::Response{hbfi,..} => hbfi,
