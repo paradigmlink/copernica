@@ -7,7 +7,7 @@ use {
         io::Write,
     },
     client_libs::{
-        file_sharing::{FilePacker},
+        FilePacker,
     },
     anyhow::{Result},
 };

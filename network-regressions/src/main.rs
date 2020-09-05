@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 mod router;
-mod copernicafs;
+mod sharing;
 mod common;
 use {
     async_std::{ task, },
@@ -19,7 +19,8 @@ fn main() -> Result<()> {
         //router::resolve_gt_mtu().await;
         //router::fetch_from_self().await;
         //router::single_fetch().await;
-        copernicafs::smoke_test().await;
+        //sharing::smoke_test().await;
+        sharing::two_hops().await;
         //copernicafs::single_file_less_than_fragment_size().await;
         if let Err(r) = r {
             println!("{}", r);
