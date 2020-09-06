@@ -1,7 +1,7 @@
 use {
     crate::{Transport},
     copernica::{
-        InterLinkPacket, WirePacket, Link, ReplyTo
+        InterLinkPacket, Link, ReplyTo, NarrowWaist
     },
     borsh::{BorshDeserialize, BorshSerialize},
     anyhow::{anyhow, Result},
@@ -47,8 +47,8 @@ impl Transport<'_> for UdpIp {
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
                                             // https://docs.rs/reed-solomon/0.2.1/reed_solomon/
-                                            let wp = WirePacket::try_from_slice(&buf[..n])?;
-                                            let ilp = InterLinkPacket::new(link.clone(), wp);
+                                            let nw = NarrowWaist::try_from_slice(&buf[..n])?;
+                                            let ilp = InterLinkPacket::new(link.clone(), nw);
                                             let _r = t2c_tx.send(ilp)?;
                                         },
                                         Err(error) => return Err(anyhow!("{}", error)),
@@ -63,7 +63,6 @@ impl Transport<'_> for UdpIp {
                 Ok::<(), anyhow::Error>(())
             })
         });
-        let link = self.link.clone();
         let c2t_rx = self.c2t_rx.clone();
         std::thread::spawn(move || {
             task::block_on(async move {
@@ -74,9 +73,8 @@ impl Transport<'_> for UdpIp {
                                 Ok(ilp) => {
                                     match ilp.reply_to() {
                                         ReplyTo::UdpIp(remote_addr) => {
-                                            let wire_packet = WirePacket::new(link.reply_to(), ilp.narrow_waist());
-                                            let wire_packet: Vec<u8> = wire_packet.try_to_vec()?;
-                                            socket.send_to(&wire_packet, remote_addr).await?;
+                                            let nw: Vec<u8> = ilp.narrow_waist().try_to_vec()?;
+                                            socket.send_to(&nw, remote_addr).await?;
                                         },
                                         _ => {},
                                     }

@@ -1,35 +1,35 @@
-use futures::future::try_join_all;
-use rand::{thread_rng, Rng, Error};
-use rand::distributions::Alphanumeric;
-use std::result;
+use reed_solomon::Encoder;
+use reed_solomon::Decoder;
 
-type Result<T> = result::Result<T, Error>;
+fn main() {
+    let data = b"1111111111111111111111111111";
 
-async fn add_two(num: &u8) -> Result<&u8> {
+    // Length of error correction code
+    let ecc_len = 8;
 
-    Ok(num)
-}
+    // Create encoder and decoder with
+    let enc = Encoder::new(ecc_len);
+    let dec = Decoder::new(ecc_len);
 
-#[tokio::main]
-async fn main() {
+    // Encode data
+    let encoded = enc.encode(&data[..]);
 
-    let mut rng = rand::thread_rng();
-    let numbers: Vec<i32> = (0..10).map(|_| {
-        rng.gen_range(1, 10)
-    }).collect();
+    // Simulate some transmission errors
+    let mut corrupted = *encoded;
+    for i in 0..4 {
+        corrupted[i] = 0x0;
+    }
 
-    let rand_string: String = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(5)
-        .collect();
+    // Try to recover data
+    let known_erasures = [0];
+    let recovered = dec.correct(&mut corrupted, Some(&known_erasures)).unwrap();
 
-    let num_futures = rand_string
-        .as_bytes()
-        .iter()
-        .map(|x| add_two(x))
-        .collect::<Vec<_>>();
+    let orig_str = std::str::from_utf8(data).unwrap();
+    let recv_str = std::str::from_utf8(recovered.data()).unwrap();
 
-    let new_nums: Vec<&u8> = try_join_all(num_futures).await.unwrap();
-    println!("hello");
-    println!("{:?}", &new_nums)
+    println!("message:               {:?}", orig_str);
+    println!("original data:         {:?}", data);
+    println!("error correction code: {:?}", encoded.ecc());
+    println!("corrupted:             {:?}", corrupted);
+    println!("repaired:              {:?}", recv_str);
 }

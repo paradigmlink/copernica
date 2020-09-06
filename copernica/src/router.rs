@@ -2,8 +2,8 @@ use {
     crate::{
         //hbfi::{HBFI},
         borsh::{BorshDeserialize, BorshSerialize},
-        link::{Blooms, Link, LinkId, ReplyTo},
-        packets::{InterLinkPacket, NarrowWaist, WirePacket},
+        link::{Blooms, Link, LinkId},
+        packets::{InterLinkPacket, NarrowWaist},
     },
     anyhow::Result,
     //log::{trace},
@@ -24,19 +24,16 @@ impl Router {
     ) -> Result<()> {
         let this_link: Link = ilp.link();
         let this_link_id: LinkId = ilp.link().id();
-        let wp: WirePacket = ilp.wire_packet();
-        let rt: ReplyTo = wp.reply_to();
-        let nw: NarrowWaist = wp.narrow_waist();
+        let nw: NarrowWaist = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
                 NarrowWaist::Request { hbfi } => {
                     match response_store.get(&hbfi.try_to_vec()?)? {
                         Some(response) => {
-                            let narrow_waist = NarrowWaist::try_from_slice(&response)?;
+                            let nw = NarrowWaist::try_from_slice(&response)?;
                             //outbound_stats(&ilp, &self.listen_addr, this_bloom, "********* RESPONSE PACKET FOUND *********");
                             debug!("********* RESPONSE PACKET FOUND *********");
-                            let wp = WirePacket::new(rt, narrow_waist);
-                            let ilp = InterLinkPacket::new(this_link.clone(), wp);
+                            let ilp = InterLinkPacket::new(this_link.clone(), nw);
                             r2c_tx.send(ilp).unwrap();
                             return Ok(());
                         }

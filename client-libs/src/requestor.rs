@@ -1,5 +1,5 @@
 use {
-    copernica::{Copernica, Link, ReplyTo, NarrowWaist, WirePacket, InterLinkPacket, HBFI},
+    copernica::{Copernica, Link, ReplyTo, NarrowWaist, InterLinkPacket, HBFI},
     transport::{Transport},
     borsh::{BorshSerialize, BorshDeserialize},
     std::{
@@ -35,8 +35,8 @@ pub trait Requestor<'a> {
                     match packet.clone() {
                         NarrowWaist::Request { hbfi } => {
                             if let Some(nw) = rs.get(hbfi.try_to_vec()?)? {
-                                let wp = WirePacket::new(link.reply_to(), NarrowWaist::try_from_slice(&nw)?);
-                                app_outbound_tx.send(InterLinkPacket::new(ilp.link(), wp))?;
+                                let nw = NarrowWaist::try_from_slice(&nw)?;
+                                app_outbound_tx.send(InterLinkPacket::new(ilp.link(), nw))?;
                             } else { continue }
                         },
                         NarrowWaist::Response { hbfi, .. } => {
@@ -71,7 +71,7 @@ pub trait Requestor<'a> {
                 None => {
                     if let Some(sender) = sender.clone() {
                         if let Some(link) = link.clone() {
-                            let ilp = InterLinkPacket::new(link.clone(), WirePacket::new(link.reply_to(), NarrowWaist::Request{ hbfi: hbfi.clone() }));
+                            let ilp = InterLinkPacket::new(link.clone(), NarrowWaist::Request{ hbfi: hbfi.clone() });
                             let subscriber = rs.watch_prefix(hbfi.try_to_vec()?);
                             sender.send(ilp)?;
                             /*while let Some(event) = (&mut subscriber).await {

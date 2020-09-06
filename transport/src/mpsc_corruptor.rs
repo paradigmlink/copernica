@@ -7,7 +7,7 @@ use {
     crossbeam_channel::{Sender, Receiver, unbounded},
 };
 
-pub struct MpscChannel {
+pub struct MpscCorruptor {
     link: Link,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
     t2c_tx: Sender<InterLinkPacket>,
@@ -17,7 +17,7 @@ pub struct MpscChannel {
     t2t1_tx: Option<Vec<Sender<Vec<u8>>>>,
 }
 
-impl MpscChannel {
+impl MpscCorruptor {
     pub fn male(&self) -> Sender<Vec<u8>> {
         self.t2t0_tx.clone()
     }
@@ -31,15 +31,15 @@ impl MpscChannel {
     }
 }
 
-impl<'a> Transport<'a> for MpscChannel {
+impl<'a> Transport<'a> for MpscCorruptor {
     fn new(link: Link
         , (t2c_tx, c2t_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
-        ) -> Result<MpscChannel> {
+        ) -> Result<MpscCorruptor> {
         match link.reply_to() {
             ReplyTo::Mpsc => {
                 let (t2t0_tx, t2t0_rx) = unbounded::<Vec<u8>>();
                 return Ok(
-                    MpscChannel {
+                    MpscCorruptor {
                         link,
                         t2c_tx,
                         c2t_rx,
@@ -48,7 +48,7 @@ impl<'a> Transport<'a> for MpscChannel {
                         t2t1_tx: None,
                     })
             }
-            _ => return Err(anyhow!("MpscChannel Transport expects a LinkId of type LinkId::Mpsc")),
+            _ => return Err(anyhow!("MpscCorruptor Transport expects a LinkId of type LinkId::Mpsc")),
         }
     }
 
@@ -83,8 +83,12 @@ impl<'a> Transport<'a> for MpscChannel {
                     match c2t_rx.recv(){
                         Ok(ilp) => {
                             let nw = encode(ilp)?;
+                            let mut corrupted = nw;
+                            for i in 4..10 {
+                                corrupted[i] = 0x0;
+                            }
                             for s in t2t1_tx.clone() {
-                                s.send(nw.clone())?;
+                                s.send(corrupted.clone())?;
                             }
                         },
                         Err(error) => return Err(anyhow!("{}", error)),

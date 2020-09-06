@@ -13,7 +13,7 @@ use {
     copernica::{
         HBFI, Copernica, Link, ReplyTo
     },
-    transport::{Transport, MpscChannel},
+    transport::{Transport, MpscChannel, MpscCorruptor },
     log::{debug},
 };
 
@@ -115,10 +115,10 @@ pub async fn two_hops() -> Result<()> {
     let lid1to2 = Link::new(ReplyTo::Mpsc);
     let lid2to1 = Link::new(ReplyTo::Mpsc);
 
-    let mut mpscchannel0: MpscChannel = Transport::new(lid0to1.clone(), c0.peer(lid0to1)?)?;
-    let mut mpscchannel1: MpscChannel = Transport::new(lid1to0.clone(), cr.peer(lid1to0)?)?;
-    let mut mpscchannel2: MpscChannel = Transport::new(lid1to2.clone(), cr.peer(lid1to2)?)?;
-    let mut mpscchannel3: MpscChannel = Transport::new(lid2to1.clone(), c1.peer(lid2to1)?)?;
+    let mut mpscchannel0: MpscCorruptor = Transport::new(lid0to1.clone(), c0.peer(lid0to1)?)?;
+    let mut mpscchannel1: MpscCorruptor = Transport::new(lid1to0.clone(), cr.peer(lid1to0)?)?;
+    let mut mpscchannel2: MpscChannel   = Transport::new(lid1to2.clone(), cr.peer(lid1to2)?)?;
+    let mut mpscchannel3: MpscChannel   = Transport::new(lid2to1.clone(), c1.peer(lid2to1)?)?;
 
     mpscchannel0.female(mpscchannel1.male());
     mpscchannel1.female(mpscchannel0.male());
