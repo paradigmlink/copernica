@@ -6,8 +6,11 @@ use {
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{unbounded, Receiver, Sender},
-    log::{error, trace},
     std::collections::HashMap,
+    log::{
+        error, trace,
+        //debug
+    },
 };
 
 #[derive(Clone)]
@@ -52,6 +55,7 @@ impl Copernica {
             None => {
                 let (c2t_tx, c2t_rx) = unbounded::<InterLinkPacket>();
                 self.c2t.insert(link.id(), (c2t_tx.clone(), c2t_rx.clone()));
+                trace!("ADDING REMOTE: {:?}", link);
                 self.blooms.insert(link, Blooms::new());
                 Ok((self.t2c_tx.clone(), c2t_rx))
             }

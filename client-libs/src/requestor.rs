@@ -1,5 +1,5 @@
 use {
-    copernica::{Copernica, Link, ReplyTo, NarrowWaist, InterLinkPacket, HBFI},
+    copernica::{Copernica, Link, ReplyTo, NarrowWaist, WirePacket, InterLinkPacket, HBFI},
     transport::{Transport},
     borsh::{BorshSerialize, BorshDeserialize},
     std::{
@@ -19,7 +19,7 @@ pub trait Requestor<'a> {
     fn set_link(&mut self, link: Link);
     #[allow(unreachable_code)]
     fn start(&mut self, mut c: Copernica, ts: Vec<Box<dyn Transport>>) -> Result<()> {
-        let link = Link::new(ReplyTo::Mpsc);
+        let link = Link::listen(ReplyTo::Mpsc);
         self.set_link(link.clone());
         let (app_outbound_tx, app_inbound_rx) = c.peer(link.clone())?;
         self.set_sender(Some(app_outbound_tx.clone()));
@@ -36,7 +36,8 @@ pub trait Requestor<'a> {
                         NarrowWaist::Request { hbfi } => {
                             if let Some(nw) = rs.get(hbfi.try_to_vec()?)? {
                                 let nw = NarrowWaist::try_from_slice(&nw)?;
-                                app_outbound_tx.send(InterLinkPacket::new(ilp.link(), nw))?;
+                                let wp = WirePacket::new(link.reply_to(), nw);
+                                app_outbound_tx.send(InterLinkPacket::new(ilp.link(), wp))?;
                             } else { continue }
                         },
                         NarrowWaist::Response { hbfi, .. } => {
@@ -71,7 +72,8 @@ pub trait Requestor<'a> {
                 None => {
                     if let Some(sender) = sender.clone() {
                         if let Some(link) = link.clone() {
-                            let ilp = InterLinkPacket::new(link.clone(), NarrowWaist::Request{ hbfi: hbfi.clone() });
+                            let wp = WirePacket::new(link.reply_to(), NarrowWaist::Request{ hbfi: hbfi.clone() });
+                            let ilp = InterLinkPacket::new(link.clone(), wp);
                             let subscriber = rs.watch_prefix(hbfi.try_to_vec()?);
                             sender.send(ilp)?;
                             /*while let Some(event) = (&mut subscriber).await {

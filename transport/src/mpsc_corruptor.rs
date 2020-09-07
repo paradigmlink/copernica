@@ -5,6 +5,7 @@ use {
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Sender, Receiver, unbounded},
+    log::{debug, error, trace},
 };
 
 pub struct MpscCorruptor {
@@ -54,20 +55,23 @@ impl<'a> Transport<'a> for MpscCorruptor {
 
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
-        let link = self.link.clone();
+        let this_link = self.link.clone();
+        trace!("Started {:?}:", this_link);
         let t2t0_rx = self.t2t0_rx.clone();
         let t2c_tx = self.t2c_tx.clone();
         std::thread::spawn(move || {
-            match link.reply_to() {
+            match this_link.reply_to() {
                 ReplyTo::Mpsc => {
                     loop {
                         match t2t0_rx.recv(){
                             Ok(msg) => {
-                                let nw = decode(msg)?;
-                                let ilp = InterLinkPacket::new(link.clone(), nw);
+                                let wp = decode(msg)?;
+                                let link = Link::new(this_link.id(), wp.reply_to());
+                                let ilp = InterLinkPacket::new(link, wp.clone());
+                                debug!("MpscCorruptor Recv on {:?} => {:?}", this_link, wp);
                                 let _r = t2c_tx.send(ilp)?;
                             },
-                            Err(error) => return Err(anyhow!("{}", error)),
+                            Err(error) => error!("{:?}: {}", this_link, error),
                         };
                     }
                 },
@@ -76,22 +80,25 @@ impl<'a> Transport<'a> for MpscCorruptor {
             Ok::<(), anyhow::Error>(())
         });
 
+        let this_link = self.link.clone();
         let c2t_rx = self.c2t_rx.clone();
         if let Some(t2t1_tx) = self.t2t1_tx.clone() {
             std::thread::spawn(move || {
                 loop {
                     match c2t_rx.recv(){
                         Ok(ilp) => {
-                            let nw = encode(ilp)?;
-                            let mut corrupted = nw;
+                            let wp = ilp.wire_packet().change_origination(this_link.reply_to());
+                            let enc = encode(wp.clone())?;
+                            let mut corrupted = enc;
                             for i in 4..10 {
                                 corrupted[i] = 0x0;
                             }
                             for s in t2t1_tx.clone() {
+                                debug!("MpscCorruptor Send on {:?} => {:?}", this_link, wp);
                                 s.send(corrupted.clone())?;
                             }
                         },
-                        Err(error) => return Err(anyhow!("{}", error)),
+                        Err(error) => error!("{:?}: {}", this_link, error),
                     }
                 }
                 Ok::<(), anyhow::Error>(())

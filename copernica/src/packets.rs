@@ -44,23 +44,48 @@ impl fmt::Debug for NarrowWaist {
 #[derive(Debug, Clone)]
 pub struct InterLinkPacket {
     pub link: Link,
-    pub nw: NarrowWaist,
+    pub wp: WirePacket,
 }
 
 impl InterLinkPacket {
-    pub fn new(link: Link, nw: NarrowWaist) -> Self {
-        Self { link, nw }
+    pub fn new(link: Link, wp: WirePacket) -> Self {
+        Self { link, wp }
     }
     pub fn link(&self) -> Link {
         self.link.clone()
     }
     pub fn change_destination(&self, link: Link) -> Self {
-        Self { link, nw: self.nw.clone() }
+        Self { link, wp: self.wp.clone() }
     }
     pub fn reply_to(&self) -> ReplyTo {
         self.link.reply_to()
     }
     pub fn narrow_waist(&self) -> NarrowWaist {
-        self.nw.clone()
+        self.wp.narrow_waist().clone()
+    }
+    pub fn wire_packet(&self) -> WirePacket {
+        self.wp.clone()
     }
 }
+
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+pub struct WirePacket {
+    pub reply_to: ReplyTo,
+    pub nw: NarrowWaist,
+}
+
+impl WirePacket {
+    pub fn new(reply_to: ReplyTo, nw: NarrowWaist) -> Self {
+        Self { reply_to , nw }
+    }
+    pub fn narrow_waist(&self) -> NarrowWaist {
+        self.nw.clone()
+    }
+    pub fn reply_to(&self) -> ReplyTo {
+        self.reply_to.clone()
+    }
+    pub fn change_origination(&self, reply_to: ReplyTo) -> Self {
+        Self { reply_to, nw: self.nw.clone() }
+    }
+}
+

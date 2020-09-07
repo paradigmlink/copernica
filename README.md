@@ -8,11 +8,15 @@ Install `rustup`.
 
 ## Building
 
-`$ rustup run nightly cargo build`
+`$ rustup run beta cargo build`
+
+## Running regressions
+
+`$ rustup run beta cargo run --bin network-regressions --release`
 
 ## Running the tests
 
-`$ rustup run nightly cargo test`
+`$ rustup run beta cargo test`
 
 ## Contributing
 

@@ -27,10 +27,16 @@ pub struct Link {
 }
 
 impl Link {
-    pub fn new(reply_to: ReplyTo) -> Self {
+    pub fn new(link_id: LinkId, reply_to: ReplyTo) -> Self {
+        Self { link_id, reply_to }
+    }
+    pub fn listen(reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
         let link_id: u64 = rng.gen();
         Self { link_id, reply_to }
+    }
+    pub fn remote(&self, reply_to: ReplyTo) -> Self {
+        Self { link_id: self.link_id.clone(), reply_to }
     }
     pub fn reply_to(&self) -> ReplyTo {
         self.reply_to.clone()

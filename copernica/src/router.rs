@@ -3,7 +3,7 @@ use {
         //hbfi::{HBFI},
         borsh::{BorshDeserialize, BorshSerialize},
         link::{Blooms, Link, LinkId},
-        packets::{InterLinkPacket, NarrowWaist},
+        packets::{InterLinkPacket, WirePacket, NarrowWaist},
     },
     anyhow::Result,
     //log::{trace},
@@ -33,7 +33,8 @@ impl Router {
                             let nw = NarrowWaist::try_from_slice(&response)?;
                             //outbound_stats(&ilp, &self.listen_addr, this_bloom, "********* RESPONSE PACKET FOUND *********");
                             debug!("********* RESPONSE PACKET FOUND *********");
-                            let ilp = InterLinkPacket::new(this_link.clone(), nw);
+                            let wp = WirePacket::new(this_link.reply_to(), nw);
+                            let ilp = InterLinkPacket::new(this_link.clone(), wp);
                             r2c_tx.send(ilp).unwrap();
                             return Ok(());
                         }
@@ -96,6 +97,7 @@ impl Router {
                             }
                             if that_bloom.contains_pending_request(&hbfi) > 50 {
                                 //outbound_stats(&ilp, &self.listen_addr, that_bloom, "Send response upstream");
+                                debug!("********* RESPONSE DOWNSTREAM *********");
                                 r2c_tx
                                     .send(ilp.change_destination(that_link.clone()))
                                     .unwrap();

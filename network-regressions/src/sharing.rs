@@ -13,7 +13,7 @@ use {
     copernica::{
         HBFI, Copernica, Link, ReplyTo
     },
-    transport::{Transport, MpscChannel, MpscCorruptor },
+    transport::{Transport, MpscChannel, MpscCorruptor, UdpIp },
     log::{debug},
 };
 
@@ -35,8 +35,8 @@ pub async fn smoke_test() -> Result<()> {
     let rs1 = sled::open(packaged_data_dir1)?;
     let mut c0 = Copernica::new();
     let mut c1 = Copernica::new();
-    let lid0 = Link::new(ReplyTo::Mpsc);
-    let lid1 = Link::new(ReplyTo::Mpsc);
+    let lid0 = Link::listen(ReplyTo::Mpsc);
+    let lid1 = Link::listen(ReplyTo::Mpsc);
     let mut mpscchannel0: MpscChannel = Transport::new(lid0.clone(), c0.peer(lid0)?)?;
     let mut mpscchannel1: MpscChannel = Transport::new(lid1.clone(), c1.peer(lid1)?)?;
     mpscchannel0.female(mpscchannel1.male());
@@ -87,14 +87,15 @@ pub async fn smoke_test() -> Result<()> {
     Ok(())
 }
 
-pub async fn two_hops() -> Result<()> {
+pub async fn transports() -> Result<()> {
     let mut test_data0 = TestData::new();
-    test_data0.push(("0.txt".into(), 0, 1024));
+    test_data0.push(("0.txt".into(), 2, 2024));
     let name0: String = "namable0".into();
     let id0: String = "namable_id0".into();
     let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), id0.clone(), test_data0).await?;
 
-    let relay_data_dir = generate_random_dir_name().await;
+    let relay_data_dir0 = generate_random_dir_name().await;
+    let relay_data_dir1 = generate_random_dir_name().await;
 
     let mut test_data1 = TestData::new();
     test_data1.push(("1.txt".into(), 1, 1024));
@@ -102,44 +103,58 @@ pub async fn two_hops() -> Result<()> {
     let id1: String = "namable_id1".into();
     let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), test_data1).await?;
 
-    let rs0 = sled::open(packaged_data_dir0)?;
-    let rsr = sled::open(relay_data_dir)?;
-    let rs1 = sled::open(packaged_data_dir1)?;
+    let rs0  = sled::open(packaged_data_dir0)?;
+    let rsr0 = sled::open(relay_data_dir0)?;
+    let rsr1 = sled::open(relay_data_dir1)?;
+    let rs1  = sled::open(packaged_data_dir1)?;
 
     let mut c0 = Copernica::new();
-    let mut cr = Copernica::new();
+    let mut cr0 = Copernica::new();
+    let mut cr1 = Copernica::new();
     let mut c1 = Copernica::new();
 
-    let lid0to1 = Link::new(ReplyTo::Mpsc);
-    let lid1to0 = Link::new(ReplyTo::Mpsc);
-    let lid1to2 = Link::new(ReplyTo::Mpsc);
-    let lid2to1 = Link::new(ReplyTo::Mpsc);
+    let lid0to1 = Link::listen(ReplyTo::Mpsc);
+    let lid1to0 = Link::listen(ReplyTo::Mpsc);
+
+    let lid1to2 = Link::listen(ReplyTo::Mpsc);
+    let lid2to1 = Link::listen(ReplyTo::Mpsc);
+
+    let lid2to3_address = ReplyTo::UdpIp("127.0.0.1:50000".parse()?);
+    let lid3to2_address = ReplyTo::UdpIp("127.0.0.1:50001".parse()?);
+    let lid2to3 = Link::listen(lid2to3_address.clone());
+    let lid3to2 = Link::listen(lid3to2_address.clone());
 
     let mut mpscchannel0: MpscCorruptor = Transport::new(lid0to1.clone(), c0.peer(lid0to1)?)?;
-    let mut mpscchannel1: MpscCorruptor = Transport::new(lid1to0.clone(), cr.peer(lid1to0)?)?;
-    let mut mpscchannel2: MpscChannel   = Transport::new(lid1to2.clone(), cr.peer(lid1to2)?)?;
-    let mut mpscchannel3: MpscChannel   = Transport::new(lid2to1.clone(), c1.peer(lid2to1)?)?;
+    let mut mpscchannel1: MpscCorruptor = Transport::new(lid1to0.clone(), cr0.peer(lid1to0)?)?;
+    let mut mpscchannel2: MpscChannel   = Transport::new(lid1to2.clone(), cr0.peer(lid1to2)?)?;
+    let mut mpscchannel3: MpscChannel   = Transport::new(lid2to1.clone(), cr1.peer(lid2to1)?)?;
+    let udpip4:           UdpIp         = Transport::new(lid2to3.clone(), cr1.peer(lid2to3.remote(lid3to2_address))?)?;
+    let udpip5:           UdpIp         = Transport::new(lid3to2.clone(), c1.peer(lid3to2.remote(lid2to3_address))?)?;
 
     mpscchannel0.female(mpscchannel1.male());
     mpscchannel1.female(mpscchannel0.male());
     mpscchannel2.female(mpscchannel3.male());
     mpscchannel3.female(mpscchannel2.male());
 
-    let ts0: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel0)];
-    let tsr: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel1), Box::new(mpscchannel2)];
-    let ts1: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel3)];
+    let ts0:  Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel0)];
+    let tsr0: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel1), Box::new(mpscchannel2)];
+    let tsr1: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel3), Box::new(udpip4)];
+    let ts1:  Vec<Box<dyn Transport>> = vec![Box::new(udpip5)];
     let mut fs0: FileSharer = Requestor::new(rs0);
-    let mut rn : RelayNode  = Requestor::new(rsr);
+    let mut rn0: RelayNode  = Requestor::new(rsr0);
+    let mut rn1: RelayNode  = Requestor::new(rsr1);
     let mut fs1: FileSharer = Requestor::new(rs1);
+
     fs0.start(c0, ts0)?;
-    rn.start(cr, tsr)?;
+    rn0.start(cr0, tsr0)?;
+    rn1.start(cr1, tsr1)?;
     fs1.start(c1, ts1)?;
 
     let hbfi0: HBFI = HBFI::new(&name0, &id0)?;
     let hbfi1: HBFI = HBFI::new(&name1, &id1)?;
 
-    let manifest0: Manifest = fs1.manifest(hbfi0.clone())?;
     let manifest1: Manifest = fs0.manifest(hbfi1.clone())?;
+    let manifest0: Manifest = fs1.manifest(hbfi0.clone())?;
     debug!("manifest 0: {:?}", manifest0);
     debug!("manifest 1: {:?}", manifest1);
 

@@ -21,6 +21,6 @@ pub use crate::{
     copernica::Copernica,
     hbfi::HBFI,
     link::{Link, LinkId, ReplyTo},
-    packets::{Data, InterLinkPacket, NarrowWaist},
+    packets::{Data, InterLinkPacket, NarrowWaist, WirePacket},
     router::Router,
 };
