@@ -1,13 +1,11 @@
 [workspace]
 
 members = [
-    "copernica",
-    "ccli",
-    "client-libs",
-    "network-regressions",
-    "logger",
-    "copernicafs",
-    "transport",
+    "copernica-core",
+    "copernica-libs",
+    "copernica-tests",
+    "copernica-logger",
+    "copernica-links",
     "copernica-apps",
 ]
 

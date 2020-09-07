@@ -1,8 +1,8 @@
 use {
     log::{trace},
-    copernica::{Copernica, LinkId, ReplyTo},
-    transport::{MpscChannel, UdpIp, Transport},
-    logger::setup_logging,
+    copernica_core::{Copernica, Link, ReplyTo},
+    copernica_links::{MpscChannel, UdpIp, Transport},
+    copernica_logger::setup_logging,
     clap::{Arg, App},
     //async_std::{ task, },
     anyhow::{Result},
@@ -57,21 +57,21 @@ fn main() -> Result<()> {
     let mut c0 = Copernica::new();
     let mut c1 = Copernica::new();
 
-    let c0l0 = LinkId::new(ReplyTo::Mpsc, 0);
-    let c1l0 = LinkId::new(ReplyTo::Mpsc, 0);
-    let c1l1 = LinkId::new(ReplyTo::Mpsc, 0);
-    let c1l2 = LinkId::new(ReplyTo::UdpIp("127.0.0.1:50099".parse()?), 0);
+    let c0l0 = Link::listen(ReplyTo::Mpsc);
+    let c1l0 = Link::listen(ReplyTo::Mpsc);
+    let c1l1 = Link::listen(ReplyTo::Mpsc);
+    let c1l2 = Link::listen(ReplyTo::UdpIp("127.0.0.1:50099".parse()?));
 
-    let mut mpsc0: MpscChannel = Transport::new(c0l0.clone(), c0.create_link(c0l0)?);
-    let mut mpsc1: MpscChannel = Transport::new(c1l0.clone(), c1.create_link(c1l0)?);
-    let mut mpsc2: MpscChannel = Transport::new(c1l1.clone(), c1.create_link(c1l1)?);
-    let udpip: UdpIp       = Transport::new(c1l2.clone(), c1.create_link(c1l2)?);
+    let mut mpsc0: MpscChannel = Transport::new(c0l0.clone(), c0.peer(c0l0)?)?;
+    let mut mpsc1: MpscChannel = Transport::new(c1l0.clone(), c1.peer(c1l0)?)?;
+    let mut mpsc2: MpscChannel = Transport::new(c1l1.clone(), c1.peer(c1l1)?)?;
+    let udpip: UdpIp       = Transport::new(c1l2.clone(), c1.peer(c1l2)?)?;
 
-    mpsc0.peer_with(mpsc1.peer_info());
-    mpsc1.peer_with(mpsc0.peer_info());
+    mpsc0.female(mpsc1.male());
+    mpsc1.female(mpsc0.male());
 
-    mpsc0.peer_with(mpsc2.peer_info());
-    mpsc2.peer_with(mpsc0.peer_info());
+    mpsc0.female(mpsc2.male());
+    mpsc2.female(mpsc0.male());
 
     mpsc0.run()?;
     mpsc1.run()?;

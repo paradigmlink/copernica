@@ -10,13 +10,38 @@ edition = "2018"
 name = "copernica"
 path = "src/copernica.rs"
 
+[[bin]]
+name = "ccli"
+path = "src/ccli.rs"
+
+[[bin]]
+name = "takeaway"
+path = "src/takeaway.rs"
+
 [dependencies]
-clap = "2.33.0"
-log = "0.4"
-anyhow = "1.0"
-logger = { path = "../logger" }
-copernica = { path = "../copernica" }
-transport = { path = "../transport" }
+copernica-logger = { path = "../copernica-logger" }
+copernica-core = { path = "../copernica-core" }
+copernica-libs = { path = "../copernica-libs" }
+copernica-links = { path = "../copernica-links" }
 async-std = "1.4.0"
+anyhow = "1.0"
 rand = "0.7.2"
 sled = "0.32.0"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+chrono = "0.4.9"
+clap = { version = "2.33.0", features = ["yaml"] }
+config = "0.10.1"
+ctrlc = "3.1.4"
+fuse = "0.3"
+id_tree = "1.7"
+libc = "0.2"
+log = "0.4"
+pretty_env_logger = "0.4.0"
+time = "0.1.42"
+xdg = "2.2.0"
+itertools = "0.9.0"
+rpassword = "4"
+borsh = "0.7.0"
+structopt = "0.3.4"
