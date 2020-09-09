@@ -2,7 +2,7 @@ use {
     crate::{
         //hbfi::{HBFI},
         borsh::{BorshDeserialize, BorshSerialize},
-        link::{Blooms, Link, LinkId},
+        link::{Blooms, Nonce, LinkId},
         packets::{InterLinkPacket, WirePacket, NarrowWaist},
     },
     anyhow::Result,
@@ -20,10 +20,10 @@ impl Router {
         ilp: &InterLinkPacket,
         r2c_tx: Sender<InterLinkPacket>,
         response_store: sled::Db,
-        blooms: &mut HashMap<Link, Blooms>,
+        blooms: &mut HashMap<LinkId, Blooms>,
     ) -> Result<()> {
-        let this_link: Link = ilp.link();
-        let this_link_id: LinkId = ilp.link().id();
+        let this_link: LinkId = ilp.link_id();
+        let this_link_id: Nonce = ilp.link_id().nonce();
         let nw: NarrowWaist = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
@@ -45,7 +45,7 @@ impl Router {
                             this_bloom.create_pending_request(&hbfi);
                             //inbound_stats(&ilp, &self.listen_addr, this_bloom, "Inserting pending request");
                             for (that_link, that_bloom) in blooms.iter_mut() {
-                                if that_link.id() == this_link_id {
+                                if that_link.nonce() == this_link_id {
                                     continue;
                                 }
                                 if that_bloom.contains_forwarded_request(&hbfi) > 51 {
@@ -92,7 +92,7 @@ impl Router {
                         this_bloom.delete_forwarded_request(&hbfi);
                         this_bloom.create_forwarding_hint(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {
-                            if that_link.id() == this_link_id {
+                            if that_link.nonce() == this_link_id {
                                 continue;
                             }
                             if that_bloom.contains_pending_request(&hbfi) > 50 {
@@ -116,7 +116,7 @@ fn inbound_stats(packet: &InterLinkPacket, router_id: &ReplyTo, face: &Link, mes
         "INBOUND PACKET for {:?}\n\t{:?}\n\tFrom {:?} => To {:?}\n\t{}\n\t\t{}",
         router_id,
         packet,
-        face.id(),
+        face.nonce(),
         router_id,
         face_stats(face, packet),
         message,
@@ -130,7 +130,7 @@ fn outbound_stats(packet: &InterLinkPacket, router_id: &ReplyTo, face: &Link, me
         router_id,
         packet,
         router_id,
-        face.id(),
+        face.nonce(),
         face_stats(face, packet),
         message,
     );
@@ -160,7 +160,7 @@ fn face_stats(face: &Link, packet: &InterLinkPacket) -> String {
         face.forwarded_request_decoherence(),
         face.contains_forwarding_hint(&hbfi),
         face.forwarding_hint_decoherence(),
-        face.id(),
+        face.nonce(),
         hbfi)
 }
 

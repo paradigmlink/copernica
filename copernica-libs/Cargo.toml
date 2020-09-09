@@ -17,3 +17,7 @@ crossbeam-channel = "0.3"
 walkdir = "2.3.1"
 rand = "0.7.2"
 reed-solomon = "0.2"
+
+#fusefrontend
+fuse = "0.3.1"
+libc = "0.2.62"

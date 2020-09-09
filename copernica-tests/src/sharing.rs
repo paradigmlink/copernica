@@ -8,12 +8,12 @@ use {
         fs,
     },
     copernica_libs::{
-        Requestor, RelayNode, Manifest, FileManifest, FileSharer
+        CopernicaApp, RelayNode, Manifest, FileManifest, FileSharer
     },
     copernica_core::{
-        HBFI, Copernica, Link, ReplyTo
+        HBFI, Copernica, LinkId, ReplyTo
     },
-    copernica_links::{Transport, MpscChannel, MpscCorruptor, UdpIp },
+    copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp },
     log::{debug},
 };
 
@@ -35,16 +35,16 @@ pub async fn smoke_test() -> Result<()> {
     let rs1 = sled::open(packaged_data_dir1)?;
     let mut c0 = Copernica::new();
     let mut c1 = Copernica::new();
-    let lid0 = Link::listen(ReplyTo::Mpsc);
-    let lid1 = Link::listen(ReplyTo::Mpsc);
-    let mut mpscchannel0: MpscChannel = Transport::new(lid0.clone(), c0.peer(lid0)?)?;
-    let mut mpscchannel1: MpscChannel = Transport::new(lid1.clone(), c1.peer(lid1)?)?;
+    let lid0 = LinkId::listen(ReplyTo::Mpsc);
+    let lid1 = LinkId::listen(ReplyTo::Mpsc);
+    let mut mpscchannel0: MpscChannel = Link::new(lid0.clone(), c0.peer(lid0)?)?;
+    let mut mpscchannel1: MpscChannel = Link::new(lid1.clone(), c1.peer(lid1)?)?;
     mpscchannel0.female(mpscchannel1.male());
     mpscchannel1.female(mpscchannel0.male());
-    let ts0: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel0)];
-    let ts1: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel1)];
-    let mut fs0: FileSharer = Requestor::new(rs0);
-    let mut fs1: FileSharer = Requestor::new(rs1);
+    let ts0: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel0)];
+    let ts1: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel1)];
+    let mut fs0: FileSharer = CopernicaApp::new(rs0);
+    let mut fs1: FileSharer = CopernicaApp::new(rs1);
     fs0.start(c0, ts0)?;
     fs1.start(c1, ts1)?;
 
@@ -113,37 +113,37 @@ pub async fn transports() -> Result<()> {
     let mut cr1 = Copernica::new();
     let mut c1 = Copernica::new();
 
-    let lid0to1 = Link::listen(ReplyTo::Mpsc);
-    let lid1to0 = Link::listen(ReplyTo::Mpsc);
+    let lid0to1 = LinkId::listen(ReplyTo::Mpsc);
+    let lid1to0 = LinkId::listen(ReplyTo::Mpsc);
 
-    let lid1to2 = Link::listen(ReplyTo::Mpsc);
-    let lid2to1 = Link::listen(ReplyTo::Mpsc);
+    let lid1to2 = LinkId::listen(ReplyTo::Mpsc);
+    let lid2to1 = LinkId::listen(ReplyTo::Mpsc);
 
     let lid2to3_address = ReplyTo::UdpIp("127.0.0.1:50000".parse()?);
     let lid3to2_address = ReplyTo::UdpIp("127.0.0.1:50001".parse()?);
-    let lid2to3 = Link::listen(lid2to3_address.clone());
-    let lid3to2 = Link::listen(lid3to2_address.clone());
+    let lid2to3 = LinkId::listen(lid2to3_address.clone());
+    let lid3to2 = LinkId::listen(lid3to2_address.clone());
 
-    let mut mpscchannel0: MpscCorruptor = Transport::new(lid0to1.clone(), c0.peer(lid0to1)?)?;
-    let mut mpscchannel1: MpscCorruptor = Transport::new(lid1to0.clone(), cr0.peer(lid1to0)?)?;
-    let mut mpscchannel2: MpscChannel   = Transport::new(lid1to2.clone(), cr0.peer(lid1to2)?)?;
-    let mut mpscchannel3: MpscChannel   = Transport::new(lid2to1.clone(), cr1.peer(lid2to1)?)?;
-    let udpip4:           UdpIp         = Transport::new(lid2to3.clone(), cr1.peer(lid2to3.remote(lid3to2_address))?)?;
-    let udpip5:           UdpIp         = Transport::new(lid3to2.clone(), c1.peer(lid3to2.remote(lid2to3_address))?)?;
+    let mut mpscchannel0: MpscCorruptor = Link::new(lid0to1.clone(), c0.peer(lid0to1)?)?;
+    let mut mpscchannel1: MpscCorruptor = Link::new(lid1to0.clone(), cr0.peer(lid1to0)?)?;
+    let mut mpscchannel2: MpscChannel   = Link::new(lid1to2.clone(), cr0.peer(lid1to2)?)?;
+    let mut mpscchannel3: MpscChannel   = Link::new(lid2to1.clone(), cr1.peer(lid2to1)?)?;
+    let udpip4:           UdpIp         = Link::new(lid2to3.clone(), cr1.peer(lid2to3.remote(lid3to2_address))?)?;
+    let udpip5:           UdpIp         = Link::new(lid3to2.clone(), c1.peer(lid3to2.remote(lid2to3_address))?)?;
 
     mpscchannel0.female(mpscchannel1.male());
     mpscchannel1.female(mpscchannel0.male());
     mpscchannel2.female(mpscchannel3.male());
     mpscchannel3.female(mpscchannel2.male());
 
-    let ts0:  Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel0)];
-    let tsr0: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel1), Box::new(mpscchannel2)];
-    let tsr1: Vec<Box<dyn Transport>> = vec![Box::new(mpscchannel3), Box::new(udpip4)];
-    let ts1:  Vec<Box<dyn Transport>> = vec![Box::new(udpip5)];
-    let mut fs0: FileSharer = Requestor::new(rs0);
-    let mut rn0: RelayNode  = Requestor::new(rsr0);
-    let mut rn1: RelayNode  = Requestor::new(rsr1);
-    let mut fs1: FileSharer = Requestor::new(rs1);
+    let ts0:  Vec<Box<dyn Link>> = vec![Box::new(mpscchannel0)];
+    let tsr0: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel1), Box::new(mpscchannel2)];
+    let tsr1: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel3), Box::new(udpip4)];
+    let ts1:  Vec<Box<dyn Link>> = vec![Box::new(udpip5)];
+    let mut fs0: FileSharer = CopernicaApp::new(rs0);
+    let mut rn0: RelayNode  = CopernicaApp::new(rsr0);
+    let mut rn1: RelayNode  = CopernicaApp::new(rsr1);
+    let mut fs1: FileSharer = CopernicaApp::new(rs1);
 
     fs0.start(c0, ts0)?;
     rn0.start(cr0, tsr0)?;

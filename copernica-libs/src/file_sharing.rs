@@ -1,7 +1,7 @@
 use {
-    copernica_core::{HBFI, Link, InterLinkPacket},
+    copernica_core::{HBFI, LinkId, InterLinkPacket},
     crate::{
-        Requestor, Manifest, FileManifest,
+        CopernicaApp, Manifest, FileManifest,
     },
     crossbeam_channel::{ Sender },
     sled::{Db},
@@ -12,7 +12,7 @@ use {
 
 #[derive(Clone)]
 pub struct FileSharer {
-    link: Option<Link>,
+    link_id: Option<LinkId>,
     rs: Db,
     sender: Option<Sender<InterLinkPacket>>,
 }
@@ -20,7 +20,7 @@ pub struct FileSharer {
 impl<'a> FileSharer {
     pub fn manifest(&mut self, hbfi: HBFI) -> Result<Manifest> {
         let hbfi = hbfi.clone().offset(0);
-        debug!("File Sharer to Requestor:\t{:?}", hbfi);
+        debug!("File Sharer to CopernicaApp:\t{:?}", hbfi);
         let manifest = self.get(hbfi, 0, 0)?;
         Ok(Manifest::try_from_slice(&manifest)?)
     }
@@ -47,10 +47,10 @@ impl<'a> FileSharer {
     }
 }
 
-impl<'a> Requestor<'a> for FileSharer {
+impl<'a> CopernicaApp<'a> for FileSharer {
     fn new(rs: Db) -> FileSharer {
         FileSharer {
-            link: None,
+            link_id: None,
             sender: None,
             rs,
         }
@@ -64,11 +64,11 @@ impl<'a> Requestor<'a> for FileSharer {
     fn get_sender(&mut self) -> Option<Sender<InterLinkPacket>> {
         self.sender.clone()
     }
-    fn get_link(&mut self) -> Option<Link> {
-        self.link.clone()
+    fn get_link_id(&mut self) -> Option<LinkId> {
+        self.link_id.clone()
     }
-    fn set_link(&mut self, link: Link) {
-        self.link = Some(link);
+    fn set_link_id(&mut self, link_id: LinkId) {
+        self.link_id = Some(link_id);
     }
 }
 

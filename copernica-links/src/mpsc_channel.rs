@@ -1,7 +1,7 @@
 use {
-    crate::{Transport, decode, encode},
+    crate::{Link, decode, encode},
     copernica_core::{
-        InterLinkPacket, Link, ReplyTo
+        InterLinkPacket, LinkId, ReplyTo
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Sender, Receiver, unbounded},
@@ -9,7 +9,7 @@ use {
 };
 
 pub struct MpscChannel {
-    link: Link,
+    link_id: LinkId,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
     t2c_tx: Sender<InterLinkPacket>,
     c2t_rx: Receiver<InterLinkPacket>,
@@ -32,16 +32,16 @@ impl MpscChannel {
     }
 }
 
-impl<'a> Transport<'a> for MpscChannel {
-    fn new(link: Link
+impl<'a> Link<'a> for MpscChannel {
+    fn new(link_id: LinkId
         , (t2c_tx, c2t_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<MpscChannel> {
-        match link.reply_to() {
+        match link_id.reply_to() {
             ReplyTo::Mpsc => {
                 let (t2t0_tx, t2t0_rx) = unbounded::<Vec<u8>>();
                 return Ok(
                     MpscChannel {
-                        link,
+                        link_id,
                         t2c_tx,
                         c2t_rx,
                         t2t0_tx,
@@ -49,13 +49,13 @@ impl<'a> Transport<'a> for MpscChannel {
                         t2t1_tx: None,
                     })
             }
-            _ => return Err(anyhow!("MpscChannel Transport expects a LinkId of type LinkId::Mpsc")),
+            _ => return Err(anyhow!("MpscChannel Link expects a LinkId of type LinkId::Mpsc")),
         }
     }
 
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
-        let this_link = self.link.clone();
+        let this_link = self.link_id.clone();
         trace!("Started {:?}:", this_link);
         let t2t0_rx = self.t2t0_rx.clone();
         let t2c_tx = self.t2c_tx.clone();
@@ -66,8 +66,8 @@ impl<'a> Transport<'a> for MpscChannel {
                         match t2t0_rx.recv(){
                             Ok(msg) => {
                                 let wp = decode(msg)?;
-                                let link = Link::new(this_link.id(), wp.reply_to());
-                                let ilp = InterLinkPacket::new(link, wp.clone());
+                                let link_id = LinkId::new(this_link.nonce(), wp.reply_to());
+                                let ilp = InterLinkPacket::new(link_id, wp.clone());
                                 debug!("MpscChannel Recv on {:?} => {:?}", this_link, wp);
                                 let _r = t2c_tx.send(ilp)?;
                             },
@@ -80,7 +80,7 @@ impl<'a> Transport<'a> for MpscChannel {
             Ok::<(), anyhow::Error>(())
         });
 
-        let this_link = self.link.clone();
+        let this_link = self.link_id.clone();
         let c2t_rx = self.c2t_rx.clone();
         if let Some(t2t1_tx) = self.t2t1_tx.clone() {
             std::thread::spawn(move || {

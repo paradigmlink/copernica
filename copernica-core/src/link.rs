@@ -9,7 +9,7 @@ use {
 };
 
 pub type Hertz = u32;
-pub type LinkId = u64;
+pub type Nonce = u64;
 
 #[derive(
     Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
@@ -21,28 +21,28 @@ pub enum ReplyTo {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Link {
-    link_id: LinkId,
+pub struct LinkId {
+    nonce: Nonce,
     reply_to: ReplyTo,
 }
 
-impl Link {
-    pub fn new(link_id: LinkId, reply_to: ReplyTo) -> Self {
-        Self { link_id, reply_to }
+impl LinkId {
+    pub fn new(nonce: Nonce, reply_to: ReplyTo) -> Self {
+        Self { nonce, reply_to }
     }
     pub fn listen(reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
-        let link_id: u64 = rng.gen();
-        Self { link_id, reply_to }
+        let nonce: u64 = rng.gen();
+        Self { nonce, reply_to }
     }
     pub fn remote(&self, reply_to: ReplyTo) -> Self {
-        Self { link_id: self.link_id.clone(), reply_to }
+        Self { nonce: self.nonce.clone(), reply_to }
     }
     pub fn reply_to(&self) -> ReplyTo {
         self.reply_to.clone()
     }
-    pub fn id(&self) -> LinkId {
-        self.link_id.clone()
+    pub fn nonce(&self) -> Nonce {
+        self.nonce.clone()
     }
 }
 

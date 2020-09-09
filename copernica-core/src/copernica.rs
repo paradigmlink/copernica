@@ -1,6 +1,6 @@
 use {
     crate::{
-        link::{Blooms, Link, LinkId},
+        link::{Blooms, Nonce, LinkId},
         packets::InterLinkPacket,
         router::Router,
     },
@@ -19,7 +19,7 @@ pub struct Copernica {
     t2c_tx: Sender<InterLinkPacket>,   // give to transports
     t2c_rx: Receiver<InterLinkPacket>, // keep in copernica
     c2t: HashMap<
-        LinkId,
+        Nonce,
         (
             Sender<InterLinkPacket>,   // keep in copernica
             Receiver<InterLinkPacket>, // give to transports
@@ -27,7 +27,7 @@ pub struct Copernica {
     >,
     r2c_tx: Sender<InterLinkPacket>,   // give to router
     r2c_rx: Receiver<InterLinkPacket>, // keep in copernica
-    blooms: HashMap<Link, Blooms>,
+    blooms: HashMap<LinkId, Blooms>,
 }
 
 impl Copernica {
@@ -48,15 +48,15 @@ impl Copernica {
 
     pub fn peer(
         &mut self,
-        link: Link,
+        link_id: LinkId,
     ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
-        match self.blooms.get(&link) {
+        match self.blooms.get(&link_id) {
             Some(_) => Err(anyhow!("Channel already initialized")),
             None => {
                 let (c2t_tx, c2t_rx) = unbounded::<InterLinkPacket>();
-                self.c2t.insert(link.id(), (c2t_tx.clone(), c2t_rx.clone()));
-                trace!("ADDING REMOTE: {:?}", link);
-                self.blooms.insert(link, Blooms::new());
+                self.c2t.insert(link_id.nonce(), (c2t_tx.clone(), c2t_rx.clone()));
+                trace!("ADDING REMOTE: {:?}", link_id);
+                self.blooms.insert(link_id, Blooms::new());
                 Ok((self.t2c_tx.clone(), c2t_rx))
             }
         }
@@ -74,14 +74,14 @@ impl Copernica {
             loop {
                 match t2c_rx.recv() {
                     Ok(ilp) => {
-                        if !blooms.contains_key(&ilp.link()) {
+                        if !blooms.contains_key(&ilp.link_id()) {
                             trace!("ADDING {:?} to BLOOMS", ilp);
-                            blooms.insert(ilp.link(), Blooms::new());
+                            blooms.insert(ilp.link_id(), Blooms::new());
                         }
                         Router::handle_packet(&ilp, r2c_tx.clone(), db.clone(), &mut blooms)?;
                         while !r2c_rx.is_empty() {
                             let ilp = r2c_rx.recv()?;
-                            if let Some((c2t_tx, _)) = c2t.get(&ilp.link().id()) {
+                            if let Some((c2t_tx, _)) = c2t.get(&ilp.link_id().nonce()) {
                                 c2t_tx.send(ilp)?;
                             }
                         }

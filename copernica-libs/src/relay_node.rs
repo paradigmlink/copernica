@@ -1,7 +1,7 @@
 use {
-    copernica_core::{Link, InterLinkPacket},
+    copernica_core::{LinkId, InterLinkPacket},
     crate::{
-        Requestor
+        CopernicaApp
     },
     crossbeam_channel::{ Sender },
     sled::{Db},
@@ -10,15 +10,15 @@ use {
 
 #[derive(Clone)]
 pub struct RelayNode {
-    link: Option<Link>,
+    link_id: Option<LinkId>,
     rs: Db,
     sender: Option<Sender<InterLinkPacket>>,
 }
 
-impl<'a> Requestor<'a> for RelayNode {
+impl<'a> CopernicaApp<'a> for RelayNode {
     fn new(rs: Db) -> RelayNode {
         RelayNode {
-            link: None,
+            link_id: None,
             sender: None,
             rs,
         }
@@ -32,10 +32,10 @@ impl<'a> Requestor<'a> for RelayNode {
     fn get_sender(&mut self) -> Option<Sender<InterLinkPacket>> {
         self.sender.clone()
     }
-    fn get_link(&mut self) -> Option<Link> {
-        self.link.clone()
+    fn get_link_id(&mut self) -> Option<LinkId> {
+        self.link_id.clone()
     }
-    fn set_link(&mut self, link: Link) {
-        self.link = Some(link);
+    fn set_link_id(&mut self, link_id: LinkId) {
+        self.link_id = Some(link_id);
     }
 }

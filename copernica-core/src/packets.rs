@@ -3,7 +3,7 @@ use {
         borsh::{BorshDeserialize, BorshSerialize},
         copernica_constants,
         hbfi::HBFI,
-        link::{Link, ReplyTo},
+        link::{LinkId, ReplyTo},
     },
     std::fmt,
 };
@@ -43,22 +43,22 @@ impl fmt::Debug for NarrowWaist {
 
 #[derive(Debug, Clone)]
 pub struct InterLinkPacket {
-    pub link: Link,
+    pub link_id: LinkId,
     pub wp: WirePacket,
 }
 
 impl InterLinkPacket {
-    pub fn new(link: Link, wp: WirePacket) -> Self {
-        Self { link, wp }
+    pub fn new(link_id: LinkId, wp: WirePacket) -> Self {
+        Self { link_id, wp }
     }
-    pub fn link(&self) -> Link {
-        self.link.clone()
+    pub fn link_id(&self) -> LinkId {
+        self.link_id.clone()
     }
-    pub fn change_destination(&self, link: Link) -> Self {
-        Self { link, wp: self.wp.clone() }
+    pub fn change_destination(&self, link_id: LinkId) -> Self {
+        Self { link_id, wp: self.wp.clone() }
     }
     pub fn reply_to(&self) -> ReplyTo {
-        self.link.reply_to()
+        self.link_id.reply_to()
     }
     pub fn narrow_waist(&self) -> NarrowWaist {
         self.wp.narrow_waist().clone()

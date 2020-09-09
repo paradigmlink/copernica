@@ -1,7 +1,7 @@
 use {
-    crate::{Transport, encode, decode},
+    crate::{Link, encode, decode},
     copernica_core::{
-        InterLinkPacket, Link, ReplyTo, WirePacket
+        InterLinkPacket, LinkId, ReplyTo, WirePacket
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Sender, Receiver},
@@ -13,7 +13,7 @@ use {
 };
 
 pub struct UdpIp {
-    link: Link,
+    link_id: LinkId,
     t2c_tx: Sender<InterLinkPacket>,
     c2t_rx: Receiver<InterLinkPacket>,
 }
@@ -21,21 +21,21 @@ pub struct UdpIp {
 impl UdpIp {
 }
 
-impl Transport<'_> for UdpIp {
-    fn new(link: Link
+impl Link<'_> for UdpIp {
+    fn new(link_id: LinkId
         , (t2c_tx, c2t_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<UdpIp>
     {
-        trace!("LISTEN ON {:?}:", link);
-        match link.reply_to() {
-            ReplyTo::UdpIp(_) => return Ok(UdpIp { link, t2c_tx, c2t_rx }),
-            _ => return Err(anyhow!("UdpIp Transport expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
+        trace!("LISTEN ON {:?}:", link_id);
+        match link_id.reply_to() {
+            ReplyTo::UdpIp(_) => return Ok(UdpIp { link_id, t2c_tx, c2t_rx }),
+            _ => return Err(anyhow!("UdpIp Link expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
         }
     }
 
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
-        let this_link = self.link.clone();
+        let this_link = self.link_id.clone();
         let t2c_tx = self.t2c_tx.clone();
         std::thread::spawn(move || {
             task::block_on(async move {
@@ -49,8 +49,8 @@ impl Transport<'_> for UdpIp {
                                         Ok((n, _peer)) => {
                                             let wp: WirePacket = decode(buf[..n].to_vec())?;
                                             debug!("Udp Recv on {:?} => {:?}", this_link, wp);
-                                            let link = Link::new(this_link.id(), wp.reply_to());
-                                            let ilp = InterLinkPacket::new(link, wp);
+                                            let link_id = LinkId::new(this_link.nonce(), wp.reply_to());
+                                            let ilp = InterLinkPacket::new(link_id, wp);
                                             let _r = t2c_tx.send(ilp)?;
                                         },
                                         Err(error) => error!("{:?}: {}", this_link, error),
@@ -65,7 +65,7 @@ impl Transport<'_> for UdpIp {
                 Ok::<(), anyhow::Error>(())
             })
         });
-        let this_link = self.link.clone();
+        let this_link = self.link_id.clone();
         let c2t_rx = self.c2t_rx.clone();
         std::thread::spawn(move || {
             task::block_on(async move {

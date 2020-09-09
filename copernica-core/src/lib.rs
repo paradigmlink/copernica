@@ -20,7 +20,7 @@ mod router;
 pub use crate::{
     copernica::Copernica,
     hbfi::HBFI,
-    link::{Link, LinkId, ReplyTo},
+    link::{LinkId, Nonce, ReplyTo},
     packets::{Data, InterLinkPacket, NarrowWaist, WirePacket},
     router::Router,
 };
