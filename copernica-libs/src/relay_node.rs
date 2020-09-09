@@ -26,16 +26,16 @@ impl<'a> CopernicaApp<'a> for RelayNode {
     fn response_store(&self) -> Db {
         self.rs.clone()
     }
-    fn set_sender(&mut self, sender: Option<Sender<InterLinkPacket>>) {
+    fn set_app_link_tx(&mut self, sender: Option<Sender<InterLinkPacket>>) {
         self.sender = sender;
     }
-    fn get_sender(&mut self) -> Option<Sender<InterLinkPacket>> {
+    fn get_app_link_tx(&mut self) -> Option<Sender<InterLinkPacket>> {
         self.sender.clone()
     }
-    fn get_link_id(&mut self) -> Option<LinkId> {
+    fn get_app_link_id(&mut self) -> Option<LinkId> {
         self.link_id.clone()
     }
-    fn set_link_id(&mut self, link_id: LinkId) {
+    fn set_app_link_id(&mut self, link_id: LinkId) {
         self.link_id = Some(link_id);
     }
 }

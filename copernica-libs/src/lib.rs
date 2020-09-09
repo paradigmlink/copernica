@@ -3,10 +3,15 @@ mod file_sharing;
 mod relay_node;
 mod fuse_frontend;
 mod fuse;
-pub use self::relay_node::{RelayNode};
-pub use self::file_sharing::{FileSharer};
-pub use self::file_packing::{Manifest, FileManifest, FilePacker};
-pub use self::fuse_frontend::{FuseFrontend};
+
+pub use {
+    self::{
+        relay_node::{RelayNode},
+        file_sharing::{FileSharer},
+        file_packing::{Manifest, FileManifest, FilePacker},
+        fuse_frontend::{FuseFrontend},
+    },
+};
 
 use {
     copernica_core::{Copernica, LinkId, ReplyTo, NarrowWaist, WirePacket, InterLinkPacket, HBFI},
@@ -23,16 +28,16 @@ use {
 pub trait CopernicaApp<'a> {
     fn new(db: sled::Db) -> Self;
     fn response_store(&self) -> Db;
-    fn set_sender(&mut self, sender: Option<Sender<InterLinkPacket>>);
-    fn get_sender(&mut self) -> Option<Sender<InterLinkPacket>>;
-    fn get_link_id(&mut self) -> Option<LinkId>;
-    fn set_link_id(&mut self, link_id: LinkId);
+    fn get_app_link_tx(&mut self) -> Option<Sender<InterLinkPacket>>;
+    fn set_app_link_tx(&mut self, sender: Option<Sender<InterLinkPacket>>);
+    fn get_app_link_id(&mut self) -> Option<LinkId>;
+    fn set_app_link_id(&mut self, link_id: LinkId);
     #[allow(unreachable_code)]
     fn start(&mut self, mut c: Copernica, ts: Vec<Box<dyn Link>>) -> Result<()> {
         let link_id = LinkId::listen(ReplyTo::Mpsc);
-        self.set_link_id(link_id.clone());
+        self.set_app_link_id(link_id.clone());
         let (app_outbound_tx, app_inbound_rx) = c.peer(link_id.clone())?;
-        self.set_sender(Some(app_outbound_tx.clone()));
+        self.set_app_link_tx(Some(app_outbound_tx.clone()));
         for t in ts {
             t.run()?;
         }
@@ -64,8 +69,8 @@ pub trait CopernicaApp<'a> {
         let mut counter = start;
         let mut reconstruct: Vec<u8> = vec![];
         let rs = self.response_store();
-        let sender = self.get_sender();
-        let link_id = self.get_link_id();
+        let sender = self.get_app_link_tx();
+        let link_id = self.get_app_link_id();
         while counter <= end {
             let hbfi = hbfi.clone().offset(counter);
             match rs.get(hbfi.try_to_vec()?)? {
