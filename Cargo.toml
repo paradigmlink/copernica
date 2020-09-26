@@ -7,7 +7,7 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/primetype/unifi-ed"
 categories = ["cryptography"]
-keywords = ["cryptography", "crypto", "cryptoxide", "ed25519", "curve25519", "hd-ed25519", "AEAD", "Hierarchical", "Derivation", "ECDH"]
+keywords = ["cryptography", "crypto", "cryptoxide", "ed25519", "curve25519"]
 description = "General purpose key management and associated cryptographic protocols"
 exclude = [
     ".gitignore",
