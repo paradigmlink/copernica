@@ -75,9 +75,9 @@ encryption_context.process(message, &mut encrypted);
 
 */
 
-mod shared_secret;
 pub mod ed25519;
 pub mod ed25519_extended;
 pub mod ed25519_hd;
+mod shared_secret;
 
 pub use shared_secret::SharedSecret;

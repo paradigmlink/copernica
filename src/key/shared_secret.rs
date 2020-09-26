@@ -1,8 +1,8 @@
 use crate::memsec::{self, Scrubbed};
 use std::{
     cmp::Ordering,
-    hash::{Hash, Hasher},
     fmt::{self, Debug, Formatter},
+    hash::{Hash, Hasher},
 };
 
 /// A Shared Secret that can be used to generate a symmetric key

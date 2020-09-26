@@ -1,10 +1,11 @@
 use crate::memsec::Scrubbed;
-use cryptoxide::{
-    chacha20poly1305::ChaCha20Poly1305, hmac::Hmac, pbkdf2::pbkdf2,
-    sha2::Sha512,
-};
+use cryptoxide::{chacha20poly1305::ChaCha20Poly1305, hmac::Hmac, pbkdf2::pbkdf2, sha2::Sha512};
 use rand_core::{CryptoRng, RngCore};
-use std::io::Read;
+use std::{
+    fmt::{self, Display, Formatter},
+    io::Read,
+    str::FromStr,
+};
 
 const PASSWORD_DERIVATION_ITERATIONS: u32 = 10_000;
 const SALT_SIZE: usize = 16;
@@ -19,22 +20,10 @@ type Nonce = [u8; NONCE_SIZE];
 
 pub struct Shielded(Vec<u8>);
 
-impl AsRef<[u8]> for Shielded {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
-impl From<Vec<u8>> for Shielded {
-    fn from(v: Vec<u8>) -> Self {
-        Self(v)
-    }
-}
-
 pub(crate) fn encrypt<R, P>(mut rng: R, password: P, data: &[u8]) -> Vec<u8>
 where
     R: RngCore + CryptoRng,
-    P: AsRef<[u8]>
+    P: AsRef<[u8]>,
 {
     let salt = generate_salt(&mut rng);
     let nonce = generate_nonce(&mut rng);
@@ -103,4 +92,29 @@ where
     let mut nonce: Nonce = [0; NONCE_SIZE];
     rng.fill_bytes(&mut nonce);
     nonce
+}
+
+impl Display for Shielded {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        hex::encode(&self.0).fmt(f)
+    }
+}
+
+impl FromStr for Shielded {
+    type Err = hex::FromHexError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        hex::decode(s).map(Self)
+    }
+}
+
+impl AsRef<[u8]> for Shielded {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl From<Vec<u8>> for Shielded {
+    fn from(v: Vec<u8>) -> Self {
+        Self(v)
+    }
 }

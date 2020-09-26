@@ -1,4 +1,7 @@
-use crate::{key::SharedSecret, memsec::{self, Scrubbed as _}};
+use crate::{
+    key::SharedSecret,
+    memsec::{self, Scrubbed as _},
+};
 use cryptoxide::ed25519;
 use rand_core::{CryptoRng, RngCore};
 use std::{

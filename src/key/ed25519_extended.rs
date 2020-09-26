@@ -1,5 +1,11 @@
-use crate::{memsec::{self, Scrubbed as _}, key::SharedSecret};
-use cryptoxide::{ed25519, curve25519::{Fe, curve25519}};
+use crate::{
+    key::SharedSecret,
+    memsec::{self, Scrubbed as _},
+};
+use cryptoxide::{
+    curve25519::{curve25519, Fe},
+    ed25519,
+};
 use rand_core::{CryptoRng, RngCore};
 use std::{
     convert::TryFrom,
@@ -78,9 +84,7 @@ impl SecretKey {
         let ed_y = Fe::from_bytes(public_key.as_ref());
         let mont_x = edwards_to_montgomery_x(&ed_y);
 
-        SharedSecret::new(
-            curve25519(&self.0, &mont_x.to_bytes())
-        )
+        SharedSecret::new(curve25519(&self.0, &mont_x.to_bytes()))
     }
 
     /// create a `Signature` for the given message with this `SecretKey`.

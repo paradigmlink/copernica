@@ -1,4 +1,7 @@
-use crate::{key::{ed25519_extended, SharedSecret}, memsec::Scrubbed as _,};
+use crate::{
+    key::{ed25519_extended, SharedSecret},
+    memsec::Scrubbed as _,
+};
 use cryptoxide::{
     curve25519::{ge_scalarmult_base, GeP3},
     hmac::Hmac,
