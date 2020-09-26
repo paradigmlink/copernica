@@ -174,6 +174,11 @@ Now these 2 shared secrets (alice's and bob's) are both the **same**.
 assert_eq!(alice_shared_secret, bob_shared_secret);
 ```
 
+The `SharedSecret` can now be used to seed a symmetric cipher, [`ChaCha20`]
+for example (don't forget an extra random nonce to make the cipher more
+secure).
+
+[`ChaCha20`]: https://docs.rs/cryptoxide/0.2.1/cryptoxide/chacha20/index.html
 */
 
 #[cfg(test)]
