@@ -8,8 +8,8 @@ and APIs to use for different purpose
 
 The identity is the **pivot** component of the scheme. It is the root keys
 from which everything can be derived. There is a `PrivateIdentity` and a
-`PublicId`. The `PrivateIdentity` key needs to be kept private while the
-`PublicId` can be safely shared... "Publicly".
+`PublicIdentity`. The `PrivateIdentity` key needs to be kept private while the
+`PublicIdentity` can be safely shared... "Publicly".
 
 Conveniently, the `PrivateIdentity` exposes the `shield` method to safely
 password protect the content of the `PrivateIdentity`. The scheme uses
@@ -38,7 +38,7 @@ println!("Shielded Private Identity: {}", shielded_private_id);
 From the `PrivateIdentity` it is possible to "derive" the `PrivateSigningKey`.
 This key can then be used to sign messages that can be verified with the
 associated `VerifyPublicKey`. This key can be retrieved from the `PrivateSigningKey`
-or it can be derived from the `PublicId`.
+or it can be derived from the `PublicIdentity`.
 
 ```
 # use rand::thread_rng as secure_rng;
@@ -59,13 +59,13 @@ assert!(verify_key.verify(&signature, MESSAGE));
 ## Establishing secure stream
 
 Now it is possible to generate a `SharedSecret` between 2 `PrivateIdentity` owners
-so long they have each other's `PublicId`. To do so we will can generate keys
+so long they have each other's `PublicIdentity`. To do so we will can generate keys
 from the identity keys using an arbitrarily defined scheme to generate a
 derivation _path_.
 
 ### Alice's and Bob's generating each other's key
 
-First alice will generate her key and send the `PublicId` to Bob.
+First alice will generate her key and send the `PublicIdentity` to Bob.
 
 ```
 # use rand::thread_rng as secure_rng;
@@ -77,7 +77,7 @@ let alice_public_id = alice_private_id.public_id();
 // send `alice_public_id` to Bob
 ```
 
-Then Bob does the same and send the `PublicId` to Alice.
+Then Bob does the same and send the `PublicIdentity` to Alice.
 
 ```
 # use rand::thread_rng as secure_rng;
@@ -91,7 +91,7 @@ let bob_public_id = bob_private_id.public_id();
 
 ### Generating the keys to establish a shared secret
 
-Now that they both have each other's `PublicId` they can
+Now that they both have each other's `PublicIdentity` they can
 generate each other's public key. Let say Alice is the initiator
 of the channel and tells Bob to generate a `SharedSecret` to
 establish an encrypted connection with the nonce.
@@ -178,6 +178,53 @@ The `SharedSecret` can now be used to seed a symmetric cipher, [`ChaCha20`]
 for example (don't forget an extra random nonce to make the cipher more
 secure).
 
+# Understanding the link between Identity and the other keys
+
+We use the `PrivateIdentity` and `PublicIdentity` as root keys. From
+there we derive the other keys. It's much like with BIP32 and HD Wallet
+for cryptocurrencies except that instead of using 32bits integer as
+derivation index, we accept any array as derivation index. Allowing
+512bits of derivation possibilities per derivation levels.
+
+```text
++--------+                                              +--------+
+|Private +- - - - - - - - - - - - - - - - - - - - - - ->+Public  |
+|Identity|                                              |Identity|
+++-----+-+                                              +-+---+--+
+ |     |                                                  |   |
+ |     |                                                  |   |
+ |     |     +----------+              +---------+        |   |
+ |     |     |Private   |              |Public   |        |   |
+ |     +---->+SigningKey+- - - - - - ->+VerifyKey+<-------+   |
+ |           +----------+              +---------+            |
+ |                                                            |
+ |                                                            |
+ |                                                            |
+ |                                                            |
+ |     +-------+                             +-------+        |
+ |     |Private|                             |Public |        |
+ +---->+Key    +- - - - - - - - - - - - - -->+Key    +<-------+
+ |     +-------+                             +-------+        |
+ |                                                            |
+ |     +-------+                             +-------+        |
+ |     |Private|                             |Public |        |
+ +---->+Key    +- - - - - - - - - - - - - -->+Key    +<-------+
+ |     +-------+                             +-------+        |
+ |                                                            |
+ |     +-------+                             +-------+        |
+ |     |Private|                             |Public |        |
+ +---->+Key    +- - - - - - - - - - - - - -->+Key    <--------+
+       +-------+                             +-------+
+
+
+                                  +---------------------+
+                                  | +----->  Derivation |
+                                  |                     |
+                                  | - - -->  To Public  |
+                                  |                     |
+                                  +---------------------+
+```
+
 [`ChaCha20`]: https://docs.rs/cryptoxide/0.2.1/cryptoxide/chacha20/index.html
 */
 
@@ -223,12 +270,12 @@ pub struct PrivateIdentity(key::ed25519_hd::SecretKey);
 /// This key cannot be used for anything else, we restrict its usage
 /// to public derivation of different keys
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone)]
-pub struct PublicId(key::ed25519_hd::PublicKey);
+pub struct PublicIdentity(key::ed25519_hd::PublicKey);
 
 /// The Signing Key associated to your `PrivateIdentity`.
 ///
 /// This key is derived from the `PrivateIdentity`. Anyone with
-/// the `PublicId` key can derivate the associated `PublicVerifyKey`
+/// the `PublicIdentity` key can derivate the associated `PublicVerifyKey`
 /// and verify any signature generated with this key.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct PrivateSigningKey(key::ed25519_extended::SecretKey);
@@ -237,7 +284,7 @@ pub struct PrivateSigningKey(key::ed25519_extended::SecretKey);
 ///
 /// Any signature generated by the `PrivateSigningKey` can be
 /// verified with this key. It is not necessary to share this
-/// key as it can be derived from the `PublicId`.
+/// key as it can be derived from the `PublicIdentity`.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone)]
 pub struct PublicVerifyKey(key::ed25519::PublicKey);
 
@@ -250,10 +297,10 @@ pub struct SecretKey(key::ed25519_extended::SecretKey);
 
 /// Public key to use for key exchange
 ///
-/// This key is derived from the `PublicId` and is meant for
+/// This key is derived from the `PublicIdentity` and is meant for
 /// establishing a key exchange (Diffi-Hellman). It is not
 /// necessary to share this key as it can be derived from the
-/// `PublicId` (assuming the derivation path is known by both
+/// `PublicIdentity` (assuming the derivation path is known by both
 /// party).
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone)]
 pub struct PublicKey(key::ed25519::PublicKey);
@@ -310,8 +357,8 @@ impl PrivateIdentity {
         shielded
     }
 
-    pub fn public_id(&self) -> PublicId {
-        PublicId(self.0.public_key())
+    pub fn public_id(&self) -> PublicIdentity {
+        PublicIdentity(self.0.public_key())
     }
 
     #[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
@@ -330,7 +377,7 @@ impl PrivateIdentity {
     }
 }
 
-impl PublicId {
+impl PublicIdentity {
     pub const SIZE: usize = key::ed25519_hd::PublicKey::SIZE;
 
     #[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
@@ -389,7 +436,7 @@ impl PublicKey {
 
 /* Formatter *************************************************************** */
 
-impl Display for PublicId {
+impl Display for PublicIdentity {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
@@ -407,7 +454,7 @@ impl Display for PublicVerifyKey {
     }
 }
 
-impl FromStr for PublicId {
+impl FromStr for PublicIdentity {
     type Err = hex::FromHexError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.parse().map(Self)
@@ -430,7 +477,7 @@ impl FromStr for PublicKey {
 
 /* Conversion ************************************************************** */
 
-impl From<[u8; Self::SIZE]> for PublicId {
+impl From<[u8; Self::SIZE]> for PublicIdentity {
     fn from(bytes: [u8; Self::SIZE]) -> Self {
         Self(bytes.into())
     }
@@ -448,7 +495,7 @@ impl From<[u8; Self::SIZE]> for PublicKey {
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for PublicId {
+impl<'a> TryFrom<&'a [u8]> for PublicIdentity {
     type Error = key::ed25519_hd::PublicKeyError;
 
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
@@ -474,7 +521,7 @@ impl<'a> TryFrom<&'a [u8]> for PublicKey {
 
 /* AsRef ******************************************************************* */
 
-impl AsRef<[u8]> for PublicId {
+impl AsRef<[u8]> for PublicIdentity {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
     }
