@@ -103,8 +103,12 @@ impl SecretKey {
     ///
     /// be mindful that leaking the content of the internal signing key
     /// may result in losing the ultimate control of the signing key
-    pub(crate) fn leak_as_ref(&self) -> &[u8; Self::SIZE] {
+    pub fn leak_as_ref(&self) -> &[u8; Self::SIZE] {
         &self.0
+    }
+
+    pub fn leak_to_hex(&self) -> String {
+        hex::encode(self.0.as_ref())
     }
 }
 
@@ -291,7 +295,7 @@ mod tests {
 
     #[quickcheck]
     fn signing_key_from_str(signing_key: SecretKey) -> TestResult {
-        let s = hex::encode(&signing_key.leak_as_ref()[..]);
+        let s = signing_key.leak_to_hex();
 
         match s.parse::<SecretKey>() {
             Ok(decoded) => {

@@ -20,9 +20,10 @@ ChaCha20Poly1305 with a nonce of 12 bytes).
 ```
 # use rand::thread_rng as secure_rng;
 # const PASSWORD: &str = "Very Secure Password. This is important: it's my private identity!";
-use keynesis::PrivateIdentity;
+use keynesis::{PrivateIdentity, Seed};
 
-let private_id = PrivateIdentity::new(&mut secure_rng());
+let seed = Seed::generate(&mut secure_rng());
+let private_id = PrivateIdentity::from_seed(seed);
 let public_id = private_id.public_id();
 println!("Public Identity: {}", public_id);
 
@@ -42,9 +43,10 @@ or it can be derived from the `PublicIdentity`.
 
 ```
 # use rand::thread_rng as secure_rng;
-# use keynesis::PrivateIdentity;
+# use keynesis::{Seed, PrivateIdentity};
 #
-# let private_id = PrivateIdentity::new(&mut secure_rng());
+# let seed = Seed::generate(&mut secure_rng());
+# let private_id = PrivateIdentity::from_seed(seed);
 # let public_id = private_id.public_id();
 #
 # const MESSAGE: &str = "Important message to sign";
@@ -69,9 +71,9 @@ First alice will generate her key and send the `PublicIdentity` to Bob.
 
 ```
 # use rand::thread_rng as secure_rng;
-use keynesis::PrivateIdentity;
+use keynesis::{PrivateIdentity, Seed};
 
-let alice_private_id = PrivateIdentity::new(&mut secure_rng());
+let alice_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
 let alice_public_id = alice_private_id.public_id();
 
 // send `alice_public_id` to Bob
@@ -81,9 +83,9 @@ Then Bob does the same and send the `PublicIdentity` to Alice.
 
 ```
 # use rand::thread_rng as secure_rng;
-use keynesis::PrivateIdentity;
+use keynesis::{PrivateIdentity, Seed};
 
-let bob_private_id = PrivateIdentity::new(&mut secure_rng());
+let bob_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
 let bob_public_id = bob_private_id.public_id();
 
 // send `bob_public_id` to Alice
@@ -100,18 +102,18 @@ Alice will have generate the secret key as follow:
 
 ```
 # use rand::thread_rng as secure_rng;
-# use keynesis::PrivateIdentity;
+# use keynesis::{PrivateIdentity, Seed};
 #
 # const NONCE: &str = "A nonce for our secure communication channel";
 #
-# let alice_private_id = PrivateIdentity::new(&mut secure_rng());
+# let alice_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
 # let alice_public_id = alice_private_id.public_id();
 #
-# let bob_private_id = PrivateIdentity::new(&mut secure_rng());
+# let bob_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
 # let bob_public_id = bob_private_id.public_id();
 #
-let alice_path = format!("/keynesis/alice/bob/{}", NONCE);
-let bob_path = format!("/keynesis/bob/alice/{}", NONCE);
+let alice_path = format!("/example/alice/bob/{}", NONCE);
+let bob_path = format!("/example/bob/alice/{}", NONCE);
 
 let alice_private_key = alice_private_id.derive(&alice_path);
 let bob_public_key = bob_public_id.derive(&bob_path);
@@ -127,18 +129,18 @@ the appropriate key on her side:
 
 ```
 # use rand::thread_rng as secure_rng;
-# use keynesis::PrivateIdentity;
+# use keynesis::{PrivateIdentity, Seed};
 #
 # const NONCE: &str = "A nonce for our secure communication channel";
 #
-# let alice_private_id = PrivateIdentity::new(&mut secure_rng());
+# let alice_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
 # let alice_public_id = alice_private_id.public_id();
 #
-# let bob_private_id = PrivateIdentity::new(&mut secure_rng());
+# let bob_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
 # let bob_public_id = bob_private_id.public_id();
 #
-let alice_path = format!("/keynesis/alice/bob/{}", NONCE);
-let bob_path = format!("/keynesis/bob/alice/{}", NONCE);
+let alice_path = format!("/example/alice/bob/{}", NONCE);
+let bob_path = format!("/example/bob/alice/{}", NONCE);
 
 let bob_private_key = bob_private_id.derive(&bob_path);
 let alice_public_key = alice_public_id.derive(&alice_path);
@@ -153,18 +155,18 @@ Now these 2 shared secrets (alice's and bob's) are both the **same**.
 
 ```
 # use rand::thread_rng as secure_rng;
-# use keynesis::PrivateIdentity;
+# use keynesis::{PrivateIdentity, Seed};
 #
 # const NONCE: &str = "A nonce for our secure communication channel";
 #
-# let alice_private_id = PrivateIdentity::new(&mut secure_rng());
+# let alice_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
 # let alice_public_id = alice_private_id.public_id();
 #
-# let bob_private_id = PrivateIdentity::new(&mut secure_rng());
+# let bob_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
 # let bob_public_id = bob_private_id.public_id();
 #
-# let alice_path = format!("/keynesis/alice/bob/{}", NONCE);
-# let bob_path = format!("/keynesis/bob/alice/{}", NONCE);
+# let alice_path = format!("/example/alice/bob/{}", NONCE);
+# let bob_path = format!("/example/bob/alice/{}", NONCE);
 #
 # let bob_private_key = bob_private_id.derive(&bob_path);
 # let alice_private_key = alice_private_id.derive(&alice_path);
@@ -234,23 +236,29 @@ extern crate quickcheck_macros;
 
 pub mod key;
 pub mod memsec;
+pub mod passport;
+mod seed;
 mod shielded;
+mod time;
 
 use self::memsec::Scrubbed as _;
 pub use self::{
-    key::{ed25519_extended::Signature, SharedSecret},
+    key::{ed25519::Signature, SharedSecret},
+    passport::Passport,
+    seed::Seed,
     shielded::Shielded,
+    time::Time,
 };
 use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 use std::{
     convert::{TryFrom, TryInto as _},
     fmt::{self, Display, Formatter},
     str::FromStr,
 };
+use thiserror::Error;
 
-#[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
 const KEYNESIS_PATH_SIGNING_V1: &[u8] = b"/keynesis/v1/signing";
-#[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
 const KEYNESIS_PATH_EXCHANGE_V1_ROOT: &[u8] = b"/keynesis/v1/exchange";
 
 /// private identity, to keep close to you, privately and securely
@@ -269,7 +277,9 @@ pub struct PrivateIdentity(key::ed25519_hd::SecretKey);
 ///
 /// This key cannot be used for anything else, we restrict its usage
 /// to public derivation of different keys
-#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone)]
+///
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct PublicIdentity(key::ed25519_hd::PublicKey);
 
 /// The Signing Key associated to your `PrivateIdentity`.
@@ -291,14 +301,14 @@ pub struct PublicVerifyKey(key::ed25519::PublicKey);
 /// Secret key to use for key exchange
 ///
 /// This key is derived from the `PrivateIdentity` and are used
-/// to established a key exchange (Diffi-Hellman) with a `PublicKey`.
+/// to established a key exchange (Diffie-Hellman) with a `PublicKey`.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct SecretKey(key::ed25519_extended::SecretKey);
 
 /// Public key to use for key exchange
 ///
 /// This key is derived from the `PublicIdentity` and is meant for
-/// establishing a key exchange (Diffi-Hellman). It is not
+/// establishing a key exchange (Diffie-Hellman). It is not
 /// necessary to share this key as it can be derived from the
 /// `PublicIdentity` (assuming the derivation path is known by both
 /// party).
@@ -306,24 +316,15 @@ pub struct SecretKey(key::ed25519_extended::SecretKey);
 pub struct PublicKey(key::ed25519::PublicKey);
 
 impl PrivateIdentity {
-    /// create a new private identity. This will be the root of all
-    /// the other derived keys
+    /// build a private identity from the given `Seed`
     ///
-    /// Once generated it is possible to use the `shield` function to
-    /// password protect the secret key. Or, if you used a Pseudo
-    /// Random Generator, you can use the seed to reconstruct the
-    /// initial RNG and re-generate the key with this function
-    ///
-    pub fn new<RNG>(rng: &mut RNG) -> Self
-    where
-        RNG: CryptoRng + RngCore,
-    {
-        Self(key::ed25519_hd::SecretKey::new(rng))
+    pub fn from_seed(seed: Seed) -> Self {
+        let mut rng = seed.into_rand_chacha();
+        Self(key::ed25519_hd::SecretKey::new(&mut rng))
     }
 
     /// retrieve the `PrivateIdentity` from the shielded data
     /// and the given key
-    #[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
     pub fn unshield<K>(shielded: &Shielded, key: K) -> Option<Self>
     where
         K: AsRef<[u8]>,
@@ -340,7 +341,6 @@ impl PrivateIdentity {
     /// password protect the PrivateIdentity
     ///
     /// Use a strong password to protect your identity
-    #[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
     pub fn shield<RNG, K>(&self, rng: &mut RNG, key: K) -> Shielded
     where
         RNG: CryptoRng + RngCore,
@@ -361,12 +361,10 @@ impl PrivateIdentity {
         PublicIdentity(self.0.public_key())
     }
 
-    #[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
     pub fn signing_key(&self) -> PrivateSigningKey {
         PrivateSigningKey(self.0.derive(KEYNESIS_PATH_SIGNING_V1).into_key())
     }
 
-    #[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
     pub fn derive<P>(&self, purpose: P) -> SecretKey
     where
         P: AsRef<[u8]>,
@@ -380,12 +378,10 @@ impl PrivateIdentity {
 impl PublicIdentity {
     pub const SIZE: usize = key::ed25519_hd::PublicKey::SIZE;
 
-    #[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
     pub fn verify_key(&self) -> PublicVerifyKey {
         PublicVerifyKey(self.0.derive(KEYNESIS_PATH_SIGNING_V1).unwrap().into_key())
     }
 
-    #[deprecated = "currently unstable API, but now way to mark an API as unstable in the library..."]
     pub fn derive<P>(&self, purpose: P) -> PublicKey
     where
         P: AsRef<[u8]>,
@@ -393,6 +389,14 @@ impl PublicIdentity {
         let mut path = KEYNESIS_PATH_EXCHANGE_V1_ROOT.to_vec();
         path.extend_from_slice(purpose.as_ref());
         PublicKey(self.0.derive(path).unwrap().into_key())
+    }
+
+    pub(crate) fn key(&self) -> &key::ed25519_extended::PublicKey {
+        self.0.key()
+    }
+
+    pub(crate) fn chain_code(&self) -> &key::ed25519_hd::ChainCode {
+        self.0.chain_code()
     }
 }
 
@@ -438,7 +442,17 @@ impl PublicKey {
 
 impl Display for PublicIdentity {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        use bech32::ToBase32 as _;
+        let mut writer = bech32::Bech32Writer::new("id", f)?;
+
+        let mut bytes = self.0.key().as_ref().to_vec();
+        bytes.extend_from_slice(self.0.chain_code().as_ref());
+
+        // self.0.key().write_base32(&mut writer)?;
+        // self.0.chain_code().write_base32(&mut writer)?;
+        bytes.write_base32(&mut writer)?;
+
+        writer.finalize()
     }
 }
 
@@ -454,10 +468,38 @@ impl Display for PublicVerifyKey {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum PublicIdentityError {
+    #[error("Not a valid bech32 encoded PublicIdentity")]
+    InvalidBech32(
+        #[source]
+        #[from]
+        bech32::Error,
+    ),
+
+    #[error("Invalid key type prefix, expected 'id' but received {hrp}")]
+    InvalidHRP { hrp: String },
+
+    #[error("Invalid public key")]
+    InvalidKey(
+        #[source]
+        #[from]
+        key::ed25519_hd::PublicKeyError,
+    ),
+}
+
 impl FromStr for PublicIdentity {
-    type Err = hex::FromHexError;
+    type Err = PublicIdentityError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse().map(Self)
+        use bech32::FromBase32 as _;
+
+        let (hrp, data) = bech32::decode(s)?;
+        if hrp != "id" {
+            return Err(Self::Err::InvalidHRP { hrp });
+        }
+        let data = Vec::<u8>::from_base32(&data)?;
+        let pid = key::ed25519_hd::PublicKey::try_from(data.as_slice()).map(Self)?;
+        Ok(pid)
     }
 }
 
@@ -477,6 +519,12 @@ impl FromStr for PublicKey {
 
 /* Conversion ************************************************************** */
 
+impl From<PublicIdentity> for String {
+    fn from(pid: PublicIdentity) -> Self {
+        pid.to_string()
+    }
+}
+
 impl From<[u8; Self::SIZE]> for PublicIdentity {
     fn from(bytes: [u8; Self::SIZE]) -> Self {
         Self(bytes.into())
@@ -492,6 +540,21 @@ impl From<[u8; Self::SIZE]> for PublicVerifyKey {
 impl From<[u8; Self::SIZE]> for PublicKey {
     fn from(bytes: [u8; Self::SIZE]) -> Self {
         Self(bytes.into())
+    }
+}
+
+impl TryFrom<String> for PublicIdentity {
+    type Error = <Self as FromStr>::Err;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+impl<'a> TryFrom<&'a str> for PublicIdentity {
+    type Error = <Self as FromStr>::Err;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        value.parse()
     }
 }
 
@@ -519,22 +582,43 @@ impl<'a> TryFrom<&'a [u8]> for PublicKey {
     }
 }
 
-/* AsRef ******************************************************************* */
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{Arbitrary, Gen, TestResult};
 
-impl AsRef<[u8]> for PublicIdentity {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
+    impl Arbitrary for PrivateIdentity {
+        fn arbitrary<G: Gen>(g: &mut G) -> Self {
+            Self(Arbitrary::arbitrary(g))
+        }
     }
-}
 
-impl AsRef<[u8]> for PublicVerifyKey {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
+    impl Arbitrary for PublicIdentity {
+        fn arbitrary<G: Gen>(g: &mut G) -> Self {
+            PrivateIdentity::arbitrary(g).public_id()
+        }
     }
-}
 
-impl AsRef<[u8]> for PublicKey {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
+    #[quickcheck]
+    fn public_identity_to_from_str(public_id: PublicIdentity) -> TestResult {
+        let s = public_id.to_string();
+        dbg!(&s);
+        let pid = match s.parse::<PublicIdentity>() {
+            Ok(pid) => pid,
+            Err(error) => {
+                use std::error::Error as _;
+                return TestResult::error(format!("{}: {:?}", error.to_string(), error.source()));
+            }
+        };
+
+        TestResult::from_bool(pid == public_id)
+    }
+
+    #[quickcheck]
+    fn public_identity_to_from_serde_json(public_id: PublicIdentity) -> bool {
+        let e = serde_json::to_string(&public_id).unwrap();
+        let decoded = serde_json::from_str(&e).unwrap();
+
+        public_id == decoded
     }
 }

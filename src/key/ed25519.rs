@@ -4,6 +4,7 @@ use crate::{
 };
 use cryptoxide::ed25519;
 use rand_core::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     convert::TryFrom,
@@ -30,7 +31,8 @@ pub struct SecretKey([u8; Self::SIZE]);
 pub struct PublicKey([u8; Self::SIZE]);
 
 /// A signature that can be verified with a Ed25519 `PublicKey`
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct Signature([u8; Self::SIZE]);
 
 impl SecretKey {
@@ -100,9 +102,12 @@ impl SecretKey {
     ///
     /// be mindful that leaking the content of the internal signing key
     /// may result in losing the ultimate control of the signing key
-    #[cfg(test)] // only to use for testing the library
-    fn leak_as_ref(&self) -> &[u8; Self::SIZE] {
+    pub fn leak_as_ref(&self) -> &[u8; Self::SIZE] {
         &self.0
+    }
+
+    pub fn leak_to_hex(&self) -> String {
+        hex::encode(self.0.as_ref())
     }
 }
 
@@ -193,6 +198,18 @@ impl Debug for SecretKey {
 }
 
 /* Conversion ************************************************************** */
+
+impl<'a> From<&'a Signature> for String {
+    fn from(s: &'a Signature) -> Self {
+        s.to_string()
+    }
+}
+
+impl From<Signature> for String {
+    fn from(s: Signature) -> Self {
+        s.to_string()
+    }
+}
 
 impl From<[u8; Self::SIZE]> for SecretKey {
     fn from(bytes: [u8; Self::SIZE]) -> Self {
@@ -293,6 +310,20 @@ impl FromStr for Signature {
         let mut r = Self::zero();
         hex::decode_to_slice(s, &mut r.0)?;
         Ok(r)
+    }
+}
+
+impl TryFrom<String> for Signature {
+    type Error = <Self as FromStr>::Err;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl<'a> TryFrom<&'a str> for Signature {
+    type Error = <Self as FromStr>::Err;
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        s.parse()
     }
 }
 
@@ -515,7 +546,7 @@ mod tests {
 
     #[quickcheck]
     fn signing_key_from_str(signing_key: SecretKey) -> TestResult {
-        let s = hex::encode(signing_key.leak_as_ref());
+        let s = signing_key.leak_to_hex();
 
         match s.parse::<SecretKey>() {
             Ok(decoded) => {
@@ -559,5 +590,13 @@ mod tests {
             }
             Err(error) => TestResult::error(error.to_string()),
         }
+    }
+
+    #[quickcheck]
+    fn signature_to_from_serde_json(signature: Signature) -> bool {
+        let e = serde_json::to_string(&signature).unwrap();
+        let decoded = serde_json::from_str(&e).unwrap();
+
+        signature == decoded
     }
 }

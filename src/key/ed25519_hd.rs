@@ -109,6 +109,10 @@ impl SecretKey {
         self.key
     }
 
+    pub fn leak_to_hex(&self) -> String {
+        format!("{}{}", self.key.leak_to_hex(), self.chain())
+    }
+
     /// generate a shared secret between the owner of the given public key and
     /// ourselves.
     ///
@@ -128,45 +132,45 @@ impl SecretKey {
     where
         P: AsRef<[u8]>,
     {
-        let ekey = &self.key.leak_as_ref()[0..64];
-        let kl = &ekey[0..32];
-        let kr = &ekey[32..64];
+        let e_key = &self.key.leak_as_ref()[0..64];
+        let kl = &e_key[0..32];
+        let kr = &e_key[32..64];
         let chaincode = self.chain_code.as_ref();
 
-        let mut zmac = Hmac::new(Sha512::new(), &chaincode);
-        let mut imac = Hmac::new(Sha512::new(), &chaincode);
+        let mut z_mac = Hmac::new(Sha512::new(), &chaincode);
+        let mut i_mac = Hmac::new(Sha512::new(), &chaincode);
         let pk = self.public_key();
         let pk = pk.key().as_ref();
-        zmac.input(&[0x2]);
-        zmac.input(&pk);
-        zmac.input(path.as_ref());
-        imac.input(&[0x3]);
-        imac.input(&pk);
-        imac.input(path.as_ref());
+        z_mac.input(&[0x2]);
+        z_mac.input(&pk);
+        z_mac.input(path.as_ref());
+        i_mac.input(&[0x3]);
+        i_mac.input(&pk);
+        i_mac.input(path.as_ref());
 
-        let mut zout = [0u8; 64];
-        zmac.raw_result(&mut zout);
-        let zl = &zout[0..32];
-        let zr = &zout[32..64];
+        let mut z_out = [0u8; 64];
+        z_mac.raw_result(&mut z_out);
+        let zl = &z_out[0..32];
+        let zr = &z_out[32..64];
 
         // left = kl + 8 * trunc28(zl)
         let mut left = add_28_mul8(kl, zl);
         // right = zr + kr
         let mut right = add_256bits(kr, zr);
 
-        let mut iout = [0u8; 64];
-        imac.raw_result(&mut iout);
-        let cc = &iout[32..];
+        let mut i_out = [0u8; 64];
+        i_mac.raw_result(&mut i_out);
+        let cc = &i_out[32..];
 
         let mut out = [0u8; Self::SIZE];
         out[0..32].clone_from_slice(&left);
         out[32..64].clone_from_slice(&right);
         out[64..96].clone_from_slice(cc);
 
-        imac.reset();
-        zmac.reset();
+        i_mac.reset();
+        z_mac.reset();
 
-        zout.scrub();
+        z_out.scrub();
         left.scrub();
         right.scrub();
 
@@ -196,33 +200,33 @@ impl PublicKey {
         let pk = self.key().as_ref();
         let chaincode = self.chain_code().as_ref();
 
-        let mut zmac = Hmac::new(Sha512::new(), &chaincode);
-        let mut imac = Hmac::new(Sha512::new(), &chaincode);
-        zmac.input(&[0x2]);
-        zmac.input(&pk);
-        zmac.input(path.as_ref());
-        imac.input(&[0x3]);
-        imac.input(&pk);
-        imac.input(path.as_ref());
+        let mut z_mac = Hmac::new(Sha512::new(), &chaincode);
+        let mut i_mac = Hmac::new(Sha512::new(), &chaincode);
+        z_mac.input(&[0x2]);
+        z_mac.input(&pk);
+        z_mac.input(path.as_ref());
+        i_mac.input(&[0x3]);
+        i_mac.input(&pk);
+        i_mac.input(path.as_ref());
 
-        let mut zout = [0u8; 64];
-        zmac.raw_result(&mut zout);
-        let zl = &zout[0..32];
-        let _zr = &zout[32..64];
+        let mut z_out = [0u8; 64];
+        z_mac.raw_result(&mut z_out);
+        let zl = &z_out[0..32];
+        let _zr = &z_out[32..64];
 
         // left = kl + 8 * trunc28(zl)
         let left = point_plus(pk, &point_of_trunc28_mul8(zl))?;
 
-        let mut iout = [0u8; 64];
-        imac.raw_result(&mut iout);
-        let cc = &iout[32..];
+        let mut i_out = [0u8; 64];
+        i_mac.raw_result(&mut i_out);
+        let cc = &i_out[32..];
 
         let mut out = [0u8; Self::SIZE];
         out[..ed25519_extended::PublicKey::SIZE].copy_from_slice(&left);
         out[ed25519_extended::PublicKey::SIZE..].copy_from_slice(cc);
 
-        imac.reset();
-        zmac.reset();
+        i_mac.reset();
+        z_mac.reset();
 
         Some(Self::from(out))
     }
@@ -656,9 +660,7 @@ mod tests {
 
     #[quickcheck]
     fn signing_key_from_str(signing_key: SecretKey) -> TestResult {
-        let mut bytes = signing_key.key.leak_as_ref().to_vec();
-        bytes.extend(&signing_key.chain_code.0);
-        let s = hex::encode(bytes);
+        let s = signing_key.leak_to_hex();
 
         match s.parse::<SecretKey>() {
             Ok(decoded) => {

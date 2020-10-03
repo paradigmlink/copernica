@@ -1,6 +1,6 @@
 [package]
 name = "keynesis"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Nicolas Di Prima <nicolas@primetype.co.uk>"]
 edition = "2018"
 readme = "README.md"
@@ -18,8 +18,14 @@ cryptoxide = "0.2.1"
 thiserror = "1.0.20"
 hex = "0.4.2"
 rand_core = "0.5.1"
+rand_chacha = "0.2.2"
+bech32 = "0.7.2"
+serde = { version = "1.0.116", features = ["derive"] }
+bytes = "0.5.6"
+tokio-util = { version = "^0.3.0", default-features = false, features = [ "codec" ] }
 
 [dev-dependencies]
 rand = "0.7.3"
 quickcheck = "0.9.2"
 quickcheck_macros = "0.9.1"
+serde_json = "1.0.58"
