@@ -1,7 +1,7 @@
 use {
     copernica_core::{HBFI, LinkId, InterLinkPacket},
     crate::{
-        CopernicaApp, Manifest, FileManifest,
+        CopernicaApp, Manifest, FileManifest, DropHookFn
     },
     crossbeam_channel::{ Sender },
     sled::{Db},
@@ -10,11 +10,11 @@ use {
     log::{debug},
 };
 
-#[derive(Clone)]
 pub struct FileSharer {
     link_id: Option<LinkId>,
     rs: Db,
     sender: Option<Sender<InterLinkPacket>>,
+    drop_hook: DropHookFn,
 }
 
 impl<'a> FileSharer {
@@ -47,12 +47,19 @@ impl<'a> FileSharer {
     }
 }
 
+impl Drop for FileSharer {
+    fn drop(&mut self) {
+        &(self.drop_hook)();
+    }
+}
+
 impl<'a> CopernicaApp<'a> for FileSharer {
-    fn new(rs: Db) -> FileSharer {
+    fn new(rs: Db, drop_hook: DropHookFn) -> FileSharer {
         FileSharer {
             link_id: None,
             sender: None,
             rs,
+            drop_hook,
         }
     }
     fn response_store(&self) -> Db {

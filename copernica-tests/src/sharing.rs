@@ -19,6 +19,8 @@ use {
 
 
 pub async fn smoke_test() -> Result<()> {
+    let drop_hook = Box::new(move || {});
+
     let mut test_data0 = TestData::new();
     test_data0.push(("1.txt".into(), 1, 1025));
     let name0: String = "namable0".into();
@@ -43,8 +45,8 @@ pub async fn smoke_test() -> Result<()> {
     mpscchannel1.female(mpscchannel0.male());
     let ts0: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel0)];
     let ts1: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel1)];
-    let mut fs0: FileSharer = CopernicaApp::new(rs0);
-    let mut fs1: FileSharer = CopernicaApp::new(rs1);
+    let mut fs0: FileSharer = CopernicaApp::new(rs0, drop_hook.clone());
+    let mut fs1: FileSharer = CopernicaApp::new(rs1, drop_hook);
     fs0.start(c0, ts0)?;
     fs1.start(c1, ts1)?;
 
@@ -88,6 +90,8 @@ pub async fn smoke_test() -> Result<()> {
 }
 
 pub async fn transports() -> Result<()> {
+    let drop_hook = Box::new(move || {});
+
     let mut test_data0 = TestData::new();
     test_data0.push(("0.txt".into(), 2, 2024));
     let name0: String = "namable0".into();
@@ -140,10 +144,10 @@ pub async fn transports() -> Result<()> {
     let tsr0: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel1), Box::new(mpscchannel2)];
     let tsr1: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel3), Box::new(udpip4)];
     let ts1:  Vec<Box<dyn Link>> = vec![Box::new(udpip5)];
-    let mut fs0: FileSharer = CopernicaApp::new(rs0);
-    let mut rn0: RelayNode  = CopernicaApp::new(rsr0);
-    let mut rn1: RelayNode  = CopernicaApp::new(rsr1);
-    let mut fs1: FileSharer = CopernicaApp::new(rs1);
+    let mut fs0: FileSharer = CopernicaApp::new(rs0, drop_hook.clone());
+    let mut rn0: RelayNode  = CopernicaApp::new(rsr0, drop_hook.clone());
+    let mut rn1: RelayNode  = CopernicaApp::new(rsr1, drop_hook.clone());
+    let mut fs1: FileSharer = CopernicaApp::new(rs1, drop_hook.clone());
 
     fs0.start(c0, ts0)?;
     rn0.start(cr0, tsr0)?;

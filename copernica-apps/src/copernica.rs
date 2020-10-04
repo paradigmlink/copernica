@@ -1,8 +1,13 @@
 use {
     log::{trace},
-    copernica_core::{Copernica, Link, ReplyTo},
-    copernica_links::{MpscChannel, UdpIp, Transport},
     copernica_logger::setup_logging,
+    copernica_libs::{
+        CopernicaApp, RelayNode, Manifest, FileManifest, FileSharer
+    },
+    copernica_core::{
+        HBFI, Copernica, LinkId, ReplyTo
+    },
+    copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp },
     clap::{Arg, App},
     //async_std::{ task, },
     anyhow::{Result},
@@ -54,41 +59,25 @@ fn main() -> Result<()> {
 
     trace!("copernica node started");
 
+    let drop_hook = Box::new(move || {});
+    let dir0 = generate_random_dir_name();
+    let dir1 = generate_random_dir_name();
+    let rs0 = sled::open(dir0)?;
+    let rs1 = sled::open(dir1)?;
     let mut c0 = Copernica::new();
     let mut c1 = Copernica::new();
-
-    let c0l0 = Link::listen(ReplyTo::Mpsc);
-    let c1l0 = Link::listen(ReplyTo::Mpsc);
-    let c1l1 = Link::listen(ReplyTo::Mpsc);
-    let c1l2 = Link::listen(ReplyTo::UdpIp("127.0.0.1:50099".parse()?));
-
-    let mut mpsc0: MpscChannel = Transport::new(c0l0.clone(), c0.peer(c0l0)?)?;
-    let mut mpsc1: MpscChannel = Transport::new(c1l0.clone(), c1.peer(c1l0)?)?;
-    let mut mpsc2: MpscChannel = Transport::new(c1l1.clone(), c1.peer(c1l1)?)?;
-    let udpip: UdpIp       = Transport::new(c1l2.clone(), c1.peer(c1l2)?)?;
-
-    mpsc0.female(mpsc1.male());
-    mpsc1.female(mpsc0.male());
-
-    mpsc0.female(mpsc2.male());
-    mpsc2.female(mpsc0.male());
-
-    mpsc0.run()?;
-    mpsc1.run()?;
-    mpsc2.run()?;
-    udpip.run()?;
-
-    let rd0 = generate_random_dir_name();
-    let rd1 = generate_random_dir_name();
-    println!("{:?}, {:?}", rd0, rd1);
-    let rs0 = sled::open(rd0)?;
-    let rs1 = sled::open(rd1)?;
-
-    std::thread::spawn( move || {
-        c0.run(rs0)?;
-        Ok::<(), anyhow::Error>(())
-    });
-    c1.run(rs1)?;
+    let lid0 = LinkId::listen(ReplyTo::Mpsc);
+    let lid1 = LinkId::listen(ReplyTo::Mpsc);
+    let mut mpscchannel0: MpscChannel = Link::new(lid0.clone(), c0.peer(lid0)?)?;
+    let mut mpscchannel1: MpscChannel = Link::new(lid1.clone(), c1.peer(lid1)?)?;
+    mpscchannel0.female(mpscchannel1.male());
+    mpscchannel1.female(mpscchannel0.male());
+    let ts0: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel0)];
+    let ts1: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel1)];
+    let mut fs0: FileSharer = CopernicaApp::new(rs0, drop_hook.clone());
+    let mut fs1: FileSharer = CopernicaApp::new(rs1, drop_hook);
+    fs0.start(c0, ts0)?;
+    fs1.start(c1, ts1)?;
     Ok(())
 }
 

@@ -1,26 +1,27 @@
 use {
     copernica_core::{LinkId, InterLinkPacket},
     crate::{
-        CopernicaApp
+        CopernicaApp, DropHookFn
     },
     crossbeam_channel::{ Sender },
     sled::{Db},
 };
 
 
-#[derive(Clone)]
 pub struct RelayNode {
     link_id: Option<LinkId>,
     rs: Db,
     sender: Option<Sender<InterLinkPacket>>,
+    drop_hook: DropHookFn
 }
 
 impl<'a> CopernicaApp<'a> for RelayNode {
-    fn new(rs: Db) -> RelayNode {
+    fn new(rs: Db, drop_hook: DropHookFn) -> RelayNode {
         RelayNode {
             link_id: None,
             sender: None,
             rs,
+            drop_hook,
         }
     }
     fn response_store(&self) -> Db {
@@ -37,5 +38,11 @@ impl<'a> CopernicaApp<'a> for RelayNode {
     }
     fn set_app_link_id(&mut self, link_id: LinkId) {
         self.link_id = Some(link_id);
+    }
+}
+
+impl Drop for RelayNode {
+    fn drop(&mut self) {
+        &(self.drop_hook)();
     }
 }
