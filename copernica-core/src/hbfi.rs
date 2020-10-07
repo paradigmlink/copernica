@@ -30,6 +30,11 @@ impl HBFI {
             os: 0,
         })
     }
+
+    #[cfg(test)]
+    pub fn new_test(h1: BFI, id: BFI, os: u64) -> Self {
+        HBFI { h1, id, os }
+    }
     pub fn offset(mut self, os: u64) -> Self {
         self.os = os;
         self
@@ -85,12 +90,32 @@ fn bloom_filter_index(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        packets::{Data, NarrowWaist, WirePacket},
+        link::{ReplyTo},
+    };
 
     #[test]
     fn test_bloom_filter_index() {
         let actual = bloom_filter_index("9".into()).unwrap();
         let expected: [u16; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize] =
-            [4804, 63297, 3290, 20147, 12703, 41640, 34712, 48343];
+            [4804, 63297, 3290, 20147];
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn less_than_1472_bytes() {
+        // https://gafferongames.com/post/packet_fragmentation_and_reassembly
+        let h1: BFI = [u16::MAX; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
+        let id: BFI = [u16::MAX; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
+        let hbfi = HBFI::new_test(h1, id, u64::MAX);
+        let data = [0; copernica_constants::FRAGMENT_SIZE as usize];
+        let data: Data = Data { len: copernica_constants::FRAGMENT_SIZE, data};
+        let nw: NarrowWaist = NarrowWaist::Response { hbfi, data, offset: u64::MAX, total: u64::MAX };
+        let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50000".parse().unwrap());
+        let wp: WirePacket = WirePacket { reply_to, nw };
+        let wp_ser = wp.try_to_vec().unwrap();
+        let lt1472 = if wp_ser.len() <= 1472 { true } else { false };
+        assert_eq!(true, lt1472);
     }
 }

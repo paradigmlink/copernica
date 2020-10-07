@@ -7,6 +7,7 @@ use {
         io::prelude::*,
         fs,
     },
+    async_std::{ task, },
     copernica_libs::{
         CopernicaApp, RelayNode, Manifest, FileManifest, FileSharer
     },
@@ -200,7 +201,7 @@ mod copernicafs {
     #[test]
     fn test_smoke_test() {
         task::block_on(async {
-            smoke_test().await;
+            let _r = smoke_test().await;
         })
     }
 }

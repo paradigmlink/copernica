@@ -2,12 +2,12 @@ use {
     log::{trace},
     copernica_logger::setup_logging,
     copernica_libs::{
-        CopernicaApp, RelayNode, Manifest, FileManifest, FileSharer
+        CopernicaApp, FileSharer
     },
     copernica_core::{
-        HBFI, Copernica, LinkId, ReplyTo
+        Copernica, LinkId, ReplyTo
     },
-    copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp },
+    copernica_links::{Link, MpscChannel },
     clap::{Arg, App},
     //async_std::{ task, },
     anyhow::{Result},
