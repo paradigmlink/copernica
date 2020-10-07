@@ -1,4 +1,3 @@
-extern crate chain_addr;
 extern crate lru;
 extern crate rand_chacha;
 

@@ -18,8 +18,6 @@ crossbeam-channel = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-chain-crypto = { path = "../chain-libs/chain-crypto" }
-chain-addr = { path = "../chain-libs/chain-addr" }
 getrandom = "0.1.13"
 rand_chacha = "0.1"
 rand_core = "0.3"
