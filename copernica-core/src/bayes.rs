@@ -16,12 +16,21 @@ impl BFIs {
         }
     }
 
-    fn add(&mut self, bfi: &BFI, link: &LinkId) {
+    fn train(&mut self, bfi: &BFI, link: &LinkId) {
         let linkids = self.bfis
             .entry(*bfi)
             .or_insert(HashMap::new());
         let value = linkids.entry(link.clone()).or_insert(0);
         *value += 1;
+    }
+
+
+    fn super_train(&mut self, bfi: &BFI, link: &LinkId) {
+        let linkids = self.bfis
+            .entry(*bfi)
+            .or_insert(HashMap::new());
+        let value = linkids.entry(link.clone()).or_insert(0);
+        *value += 3;
     }
 
     fn get_frequency(&mut self, bfi: &BFI, linkid: &LinkId) -> (Option<&i64>, bool) {
@@ -47,9 +56,14 @@ impl Links {
         }
     }
 
-    fn add(&mut self, link: &LinkId) {
+    fn train(&mut self, link: &LinkId) {
         let value = self.count.entry(link.clone()).or_insert(0);
         *value += 1;
+    }
+
+    fn super_train(&mut self, link: &LinkId) {
+        let value = self.count.entry(link.clone()).or_insert(0);
+        *value += 3;
     }
 
     fn get_count(&mut self, link: &LinkId) -> Option<&i64> {
@@ -79,12 +93,19 @@ impl Model {
         }
     }
     fn add_link(&mut self, linkid: &LinkId) {
-        self.links.add(linkid);
+        self.links.train(linkid);
     }
     fn train(&mut self, data: &Vec<BFI>, linkid: &LinkId) {
-        self.links.add(linkid);
+        self.links.train(linkid);
         for bfi in data {
-            self.bfis.add(bfi, linkid);
+            self.bfis.train(bfi, linkid);
+        }
+    }
+
+    fn super_train(&mut self, data: &Vec<BFI>, linkid: &LinkId) {
+        self.links.super_train(linkid);
+        for bfi in data {
+            self.bfis.super_train(bfi, linkid);
         }
     }
 }
@@ -187,6 +208,10 @@ impl Bayes {
     /// trains the model with a `Vec<BFI>`, associating it with a `LinkId` link.
     pub fn train(&mut self, data: &Vec<BFI>, linkid: &LinkId) {
         self.model.train(data, linkid);
+    }
+
+    pub fn super_train(&mut self, data: &Vec<BFI>, linkid: &LinkId) {
+        self.model.super_train(data, linkid);
     }
 
     pub fn classify(&mut self, data: &Vec<BFI>) -> Vec<LinkWeight> {

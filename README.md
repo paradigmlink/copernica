@@ -8,15 +8,15 @@ Install `rustup`.
 
 ## Building
 
-`$ rustup run beta cargo build`
+`$ rustup run nightly cargo build --release`
 
 ## Running regressions
 
-`$ rustup run beta cargo run --bin network-regressions --release`
+`$ rustup run nightly cargo run --bin copernica-tests --release`
 
 ## Running the tests
 
-`$ rustup run beta cargo test`
+`$ rustup run nightly cargo test`
 
 ## Contributing
 

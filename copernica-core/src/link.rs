@@ -18,6 +18,7 @@ pub enum ReplyTo {
     UdpIp(SocketAddr),
     Rf(Hertz),
     Mpsc,
+    DeepSix,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -32,8 +33,14 @@ impl LinkId {
     }
     pub fn listen(reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
-        let nonce: u64 = rng.gen();
+        let mut nonce = 0;
+        while nonce == 0 {
+            nonce = rng.gen(); // 0 is reserved for DeepSix
+        }
         Self { nonce, reply_to }
+    }
+    pub fn deep_six() -> Self {
+        Self { nonce: 0, reply_to: ReplyTo::DeepSix }
     }
     pub fn remote(&self, reply_to: ReplyTo) -> Self {
         Self { nonce: self.nonce.clone(), reply_to }

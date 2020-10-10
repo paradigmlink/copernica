@@ -23,6 +23,7 @@ impl Router {
         response_store: sled::Db,
         blooms: &mut HashMap<LinkId, Blooms>,
         bayes: &mut Bayes,
+        deep_six: &LinkId,
     ) -> Result<()> {
         let this_link: LinkId = ilp.link_id();
         let this_link_id: Nonce = ilp.link_id().nonce();
@@ -42,8 +43,16 @@ impl Router {
                         None => {
                             debug!("********* NO   RESPONSE   FOUND *********");
                             this_bloom.create_pending_request(&hbfi);
-                            for LinkWeight { linkid: that_link, weight: _weight} in bayes.classify(&hbfi.to_vec()) {
-                                // meditate on how to utilize weight effectively
+                            let link_weights = bayes.classify(&hbfi.to_vec());
+                            let litmus_link_id = &link_weights[0].linkid;
+                            let litmus_weight = link_weights[0].weight;
+                            //std::thread::sleep_ms(500);
+                            debug!("{}, {}, {:?}", litmus_weight, link_weights[0].weight, litmus_link_id);
+                            bayes.train(&hbfi.to_vec(), deep_six);
+                            if (litmus_link_id == deep_six) && (litmus_weight > 0.90) {
+                                return Ok(());
+                            }
+                            for LinkWeight { linkid: that_link, weight: _weight} in link_weights {
                                 if that_link.nonce() == this_link_id {
                                     continue;
                                 }
@@ -64,7 +73,7 @@ impl Router {
                 NarrowWaist::Response { hbfi, .. } => {
                     if this_bloom.contains_forwarded_request(&hbfi) {
                         response_store.insert(hbfi.try_to_vec()?, nw.clone().try_to_vec()?)?;
-                        bayes.train(&hbfi.to_vec(), &this_link);
+                        bayes.super_train(&hbfi.to_vec(), &this_link);
                         this_bloom.delete_forwarded_request(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {
                             if that_link.nonce() == this_link_id {

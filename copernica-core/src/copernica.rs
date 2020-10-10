@@ -67,6 +67,7 @@ impl Copernica {
     pub fn run(&mut self, db: sled::Db) -> Result<()> {
         let t2c_rx = self.t2c_rx.clone();
         let mut blooms = self.blooms.clone();
+        let deep_six = LinkId::deep_six();
         let c2t = self.c2t.clone();
         let r2c_tx = self.r2c_tx.clone();
         let r2c_rx = self.r2c_rx.clone();
@@ -83,7 +84,7 @@ impl Copernica {
                             blooms.insert(ilp.link_id(), Blooms::new());
                             bayes.add_link(&ilp.link_id());
                         }
-                        Router::handle_packet(&ilp, r2c_tx.clone(), db.clone(), &mut blooms, &mut bayes)?;
+                        Router::handle_packet(&ilp, r2c_tx.clone(), db.clone(), &mut blooms, &mut bayes, &deep_six)?;
                         while !r2c_rx.is_empty() {
                             let ilp = r2c_rx.recv()?;
                             if let Some((c2t_tx, _)) = c2t.get(&ilp.link_id().nonce()) {

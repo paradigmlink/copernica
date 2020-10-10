@@ -113,7 +113,7 @@ pub async fn transports() -> Result<()> {
     let relay_data_dir1 = generate_random_dir_name().await;
 
     let mut test_data1 = TestData::new();
-    test_data1.push(("1.txt".into(), 1, 1024));
+    test_data1.push(("1.txt".into(), 1, 100000024));
     let name1: String = "namable1".into();
     let id1: String = "namable_id1".into();
     let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), test_data1).await?;
