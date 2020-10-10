@@ -10,7 +10,6 @@ path = "src/lib.rs"
 
 [dependencies]
 rand = "0.7.2"
-bitvec = "^0.17"
 copernica-logger = { path = "../copernica-logger" }
 log = "0.4"
 lru = "0.5"

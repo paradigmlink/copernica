@@ -3,6 +3,7 @@ use {
         link::{Blooms, Nonce, LinkId},
         packets::InterLinkPacket,
         router::Router,
+        Bayes,
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{unbounded, Receiver, Sender},
@@ -64,12 +65,15 @@ impl Copernica {
 
     #[allow(unreachable_code)]
     pub fn run(&mut self, db: sled::Db) -> Result<()> {
-        //trace!("{:?} IS LISTENING", self.listen_addr);
         let t2c_rx = self.t2c_rx.clone();
         let mut blooms = self.blooms.clone();
         let c2t = self.c2t.clone();
         let r2c_tx = self.r2c_tx.clone();
         let r2c_rx = self.r2c_rx.clone();
+        let mut bayes = Bayes::new();
+        for (link_id, _) in &blooms {
+            bayes.add_link(&link_id);
+        }
         std::thread::spawn(move || {
             loop {
                 match t2c_rx.recv() {
@@ -77,8 +81,9 @@ impl Copernica {
                         if !blooms.contains_key(&ilp.link_id()) {
                             trace!("ADDING {:?} to BLOOMS", ilp);
                             blooms.insert(ilp.link_id(), Blooms::new());
+                            bayes.add_link(&ilp.link_id());
                         }
-                        Router::handle_packet(&ilp, r2c_tx.clone(), db.clone(), &mut blooms)?;
+                        Router::handle_packet(&ilp, r2c_tx.clone(), db.clone(), &mut blooms, &mut bayes)?;
                         while !r2c_rx.is_empty() {
                             let ilp = r2c_rx.recv()?;
                             if let Some((c2t_tx, _)) = c2t.get(&ilp.link_id().nonce()) {

@@ -6,7 +6,7 @@ use {
     std::fmt,
 };
 
-type BFI = [u16; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
+pub type BFI = [u16; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
 // how to implement hierarchical routing...
@@ -34,6 +34,9 @@ impl HBFI {
     #[cfg(test)]
     pub fn new_test(h1: BFI, id: BFI, os: u64) -> Self {
         HBFI { h1, id, os }
+    }
+    pub fn to_vec(&self) -> Vec<BFI> {
+        vec![self.id.clone(), self.h1.clone()]
     }
     pub fn offset(mut self, os: u64) -> Self {
         self.os = os;

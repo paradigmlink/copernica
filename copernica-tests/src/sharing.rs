@@ -7,7 +7,6 @@ use {
         io::prelude::*,
         fs,
     },
-    async_std::{ task, },
     copernica_libs::{
         CopernicaApp, RelayNode, Manifest, FileManifest, FileSharer
     },
@@ -27,6 +26,7 @@ pub async fn smoke_test() -> Result<()> {
     let name0: String = "namable0".into();
     let id0: String = "namable_id0".into();
     let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), id0.clone(), test_data0).await?;
+
 
     let mut test_data1 = TestData::new();
     test_data1.push(("5.txt".into(), 5, 1024));
@@ -54,19 +54,28 @@ pub async fn smoke_test() -> Result<()> {
 
     let hbfi0: HBFI = HBFI::new(&name0, &id0)?;
     let hbfi1: HBFI = HBFI::new(&name1, &id1)?;
+    debug!("requesting manifest 0");
     let manifest0: Manifest = fs1.manifest(hbfi0.clone())?;
-    let manifest1: Manifest = fs0.manifest(hbfi1.clone())?;
     debug!("manifest 0: {:?}", manifest0);
+
+    debug!("requesting manifest 1");
+    let manifest1: Manifest = fs0.manifest(hbfi1.clone())?;
     debug!("manifest 1: {:?}", manifest1);
 
+    debug!("requesting file manifest 0");
     let file_manifest0: FileManifest = fs1.file_manifest(hbfi0.clone())?;
-    let file_manifest1: FileManifest = fs0.file_manifest(hbfi1.clone())?;
     debug!("file manifest 0: {:?}", file_manifest0);
+
+    debug!("requesting file manifest 1");
+    let file_manifest1: FileManifest = fs0.file_manifest(hbfi1.clone())?;
     debug!("file manifest 1: {:?}", file_manifest1);
+    debug!("requesting file names for 0");
 
     let files0 = fs1.file_names(hbfi0.clone())?;
-    let files1 = fs0.file_names(hbfi1.clone())?;
     debug!("files 0: {:?}", files0);
+
+    debug!("requesting file names for 0");
+    let files1 = fs0.file_names(hbfi1.clone())?;
     debug!("files 1: {:?}", files1);
 
     for file_name in files0 {
@@ -78,6 +87,7 @@ pub async fn smoke_test() -> Result<()> {
         expected_file.read_to_end(&mut expected_buffer)?;
         assert_eq!(actual_file, expected_buffer);
     }
+
     for file_name in files1 {
         let actual_file = fs0.file(hbfi1.clone(), file_name.clone())?;
         debug!("{:?}", actual_file);
@@ -197,6 +207,7 @@ pub async fn transports() -> Result<()> {
 #[cfg(test)]
 mod copernicafs {
     use super::*;
+    use async_std::{ task, };
 
     #[test]
     fn test_smoke_test() {

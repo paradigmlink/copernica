@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use {
 /*
+use {
     copernica::{
         ReplyTo, HBFI,
     },
@@ -14,15 +14,14 @@ use {
         thread::{spawn},
         //collections::HashMap,
     },
-*/
     anyhow::{Result},
     crate::{
         common::{
             //generate_random_dir_name,
             populate_tmp_dir, TestData},
     },
-
 };
+*/
 
 //const TIMEOUT: u64 = 1000;
 const GT_MTU: usize = 1410;
@@ -65,15 +64,7 @@ async fn setup_network(network: Vec<Config>) -> Result<()> {
     }
     Ok(())
 }
-*/
-pub async fn fetch_from_self() -> Result<()> {
-    let mut td = TestData::new();
-    td.push(("0.txt".into(), 1, 1024));
-    let (_expected_data_dir, _actual_data_dir) = populate_tmp_dir("namable".into(), "namable_id".into(), td).await?;
-    Ok(())
-}
 
-/*
 pub async fn single_fetch() -> Result<()> {
     let name0: String = "hello0".into();
     let name1: String = "hello1".into();
