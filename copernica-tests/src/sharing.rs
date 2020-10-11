@@ -22,14 +22,14 @@ pub async fn smoke_test() -> Result<()> {
     let drop_hook = Box::new(move || {});
 
     let mut test_data0 = TestData::new();
-    test_data0.push(("1.txt".into(), 1, 1025));
+    test_data0.push(("1.txt".into(), 1, 100025));
     let name0: String = "namable0".into();
     let id0: String = "namable_id0".into();
     let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), id0.clone(), test_data0).await?;
 
 
     let mut test_data1 = TestData::new();
-    test_data1.push(("5.txt".into(), 5, 1024));
+    test_data1.push(("5.txt".into(), 5, 100024));
     let name1: String = "namable1".into();
     let id1: String = "namable_id1".into();
     let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), test_data1).await?;
@@ -113,7 +113,7 @@ pub async fn transports() -> Result<()> {
     let relay_data_dir1 = generate_random_dir_name().await;
 
     let mut test_data1 = TestData::new();
-    test_data1.push(("1.txt".into(), 1, 100000024));
+    test_data1.push(("1.txt".into(), 1, 1024));
     let name1: String = "namable1".into();
     let id1: String = "namable_id1".into();
     let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), test_data1).await?;

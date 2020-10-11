@@ -9,7 +9,7 @@ use {
     anyhow::Result,
     //log::{trace},
     crossbeam_channel::Sender,
-    log::debug,
+    log::{debug, warn},
     std::collections::HashMap,
 };
 
@@ -44,15 +44,36 @@ impl Router {
                             debug!("********* NO   RESPONSE   FOUND *********");
                             this_bloom.create_pending_request(&hbfi);
                             let link_weights = bayes.classify(&hbfi.to_vec());
-                            let litmus_link_id = &link_weights[0].linkid;
-                            let litmus_weight = link_weights[0].weight;
                             //std::thread::sleep_ms(500);
-                            debug!("{}, {}, {:?}", litmus_weight, link_weights[0].weight, litmus_link_id);
                             bayes.train(&hbfi.to_vec(), deep_six);
-                            if (litmus_link_id == deep_six) && (litmus_weight > 0.90) {
-                                return Ok(());
+                            if link_weights[0].linkid == *deep_six {
+                                warn!("{}, {:?}", link_weights[0].weight, link_weights[0].linkid);
+                                let litmus_weight = (link_weights[0].weight * 100.00) as u64;
+                                match litmus_weight {
+                                    0..=35 => {
+                                        warn!("Defcon 4: Do something")
+                                    },
+                                    36..=59 => {
+                                        warn!("Defcon 3: Do something")
+                                        // packets need a nonce and it needs to be signed. So as to avert the
+                                        // scenario whereby an attacker replays requests thus shutting down
+                                        // the flow of legitimate information.
+                                    },
+                                    60..=89 => {
+                                        warn!("Defcon 2: Do something")
+                                    },
+                                    90..=u64::MAX => {
+                                        warn!("Defcon 1: Deep Sixed packet: {:?}", hbfi);
+                                        return Ok(())
+                                    },
+                                }
                             }
-                            for LinkWeight { linkid: that_link, weight: _weight} in link_weights {
+                            let mut forwarded = false;
+                            for LinkWeight { linkid: that_link, weight} in link_weights {
+                                warn!("{}, {:?}", weight, that_link);
+                                if that_link == *deep_six {
+                                    continue;
+                                }
                                 if that_link.nonce() == this_link_id {
                                     continue;
                                 }
@@ -63,8 +84,14 @@ impl Router {
                                     if that_bloom.contains_pending_request(&hbfi) {
                                         continue;
                                     }
+                                    if (weight < 0.00) && (forwarded == false) {
+                                        that_bloom.create_forwarded_request(&hbfi);
+                                        r2c_tx.send(ilp.change_destination(that_link))?;
+                                        continue;
+                                    }
                                     that_bloom.create_forwarded_request(&hbfi);
                                     r2c_tx.send(ilp.change_destination(that_link))?;
+                                    forwarded = true;
                                 }
                             }
                         }
@@ -74,6 +101,7 @@ impl Router {
                     if this_bloom.contains_forwarded_request(&hbfi) {
                         response_store.insert(hbfi.try_to_vec()?, nw.clone().try_to_vec()?)?;
                         bayes.super_train(&hbfi.to_vec(), &this_link);
+                        // ^^^ think about an attack whereby a response is continually sent thus adjusting the weights
                         this_bloom.delete_forwarded_request(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {
                             if that_link.nonce() == this_link_id {

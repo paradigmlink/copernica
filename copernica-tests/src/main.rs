@@ -8,7 +8,7 @@ use {
 };
 
 fn main() -> Result<()> {
-    copernica_logger::setup_logging(3, None).unwrap();
+    copernica_logger::setup_logging(2, None).unwrap();
     task::block_on(async {
         let r =
         //router::resolve_gt_mtu_two_nodes().await;

@@ -30,7 +30,7 @@ impl BFIs {
             .entry(*bfi)
             .or_insert(HashMap::new());
         let value = linkids.entry(link.clone()).or_insert(0);
-        *value += 3;
+        *value += 4;
     }
 
     fn get_frequency(&mut self, bfi: &BFI, linkid: &LinkId) -> (Option<&i64>, bool) {
@@ -63,7 +63,7 @@ impl Links {
 
     fn super_train(&mut self, link: &LinkId) {
         let value = self.count.entry(link.clone()).or_insert(0);
-        *value += 3;
+        *value += 4;
     }
 
     fn get_count(&mut self, link: &LinkId) -> Option<&i64> {
