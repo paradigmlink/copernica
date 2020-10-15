@@ -1,7 +1,7 @@
 use {
     crate::{Link, encode, decode},
-    copernica_core::{
-        InterLinkPacket, LinkId, ReplyTo, WirePacket
+    copernica_common::{
+        InterLinkPacket, LinkId, ReplyTo, LinkPacket
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Sender, Receiver},
@@ -47,7 +47,7 @@ impl Link<'_> for UdpIp {
                                     let mut buf = vec![0u8; 1500];
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
-                                            let wp: WirePacket = decode(buf[..n].to_vec())?;
+                                            let wp: LinkPacket = decode(buf[..n].to_vec())?;
                                             debug!("Udp Recv on {:?} => {:?}", this_link, wp);
                                             let link_id = LinkId::new(this_link.nonce(), wp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, wp);

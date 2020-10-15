@@ -1,10 +1,10 @@
 [workspace]
 
 members = [
-    "copernica-core",
-    "copernica-libs",
-    "copernica-tests",
-    "copernica-logger",
+    "copernica-broker",
+    "copernica-services",
     "copernica-links",
+    "copernica-common",
+    "copernica-tests",
     "copernica-apps",
 ]

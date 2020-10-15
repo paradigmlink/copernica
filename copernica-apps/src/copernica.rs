@@ -1,13 +1,8 @@
 use {
     log::{trace},
-    copernica_logger::setup_logging,
-    copernica_libs::{
-        CopernicaApp, FileSharer
+    copernica_common::{
+        setup_logging
     },
-    copernica_core::{
-        Copernica, LinkId, ReplyTo
-    },
-    copernica_links::{Link, MpscChannel },
     clap::{Arg, App},
     //async_std::{ task, },
     anyhow::{Result},
@@ -58,14 +53,14 @@ fn main() -> Result<()> {
     setup_logging(verbosity, logpath).expect("failed to initialize logging.");
 
     trace!("copernica node started");
-
+/*
     let drop_hook = Box::new(move || {});
     let dir0 = generate_random_dir_name();
     let dir1 = generate_random_dir_name();
     let rs0 = sled::open(dir0)?;
     let rs1 = sled::open(dir1)?;
-    let mut c0 = Copernica::new();
-    let mut c1 = Copernica::new();
+    let mut c0 = Broker::new(rs0);
+    let mut c1 = Broker::new(rs1);
     let lid0 = LinkId::listen(ReplyTo::Mpsc);
     let lid1 = LinkId::listen(ReplyTo::Mpsc);
     let mut mpscchannel0: MpscChannel = Link::new(lid0.clone(), c0.peer(lid0)?)?;
@@ -74,10 +69,11 @@ fn main() -> Result<()> {
     mpscchannel1.female(mpscchannel0.male());
     let ts0: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel0)];
     let ts1: Vec<Box<dyn Link>> = vec![Box::new(mpscchannel1)];
-    let mut fs0: FileSharer = CopernicaApp::new(rs0, drop_hook.clone());
-    let mut fs1: FileSharer = CopernicaApp::new(rs1, drop_hook);
+    let mut fs0: FileSharer = Service::new(rs0, drop_hook.clone());
+    let mut fs1: FileSharer = Service::new(rs1, drop_hook);
     fs0.start(c0, ts0)?;
     fs1.start(c1, ts1)?;
+*/
     Ok(())
 }
 

@@ -1,11 +1,10 @@
 use {
     crate::{
-        //hbfi::{HBFI},
         borsh::{BorshDeserialize, BorshSerialize},
-        link::{Blooms, Nonce, LinkId},
-        packets::{InterLinkPacket, WirePacket, NarrowWaist},
+        bloom_filter::{Blooms},
         Bayes, LinkWeight
     },
+    copernica_common::{Nonce, LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
     anyhow::Result,
     //log::{trace},
     crossbeam_channel::Sender,
@@ -27,15 +26,15 @@ impl Router {
     ) -> Result<()> {
         let this_link: LinkId = ilp.link_id();
         let this_link_id: Nonce = ilp.link_id().nonce();
-        let nw: NarrowWaist = ilp.narrow_waist();
+        let nw: NarrowWaistPacket = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
-                NarrowWaist::Request { hbfi } => {
+                NarrowWaistPacket::Request { hbfi } => {
                     match response_store.get(&hbfi.try_to_vec()?)? {
                         Some(response) => {
-                            let nw = NarrowWaist::try_from_slice(&response)?;
+                            let nw = NarrowWaistPacket::try_from_slice(&response)?;
                             debug!("********* RESPONSE PACKET FOUND *********");
-                            let wp = WirePacket::new(this_link.reply_to(), nw);
+                            let wp = LinkPacket::new(this_link.reply_to(), nw);
                             let ilp = InterLinkPacket::new(this_link.clone(), wp);
                             r2c_tx.send(ilp)?;
                             return Ok(());
@@ -97,7 +96,7 @@ impl Router {
                         }
                     }
                 }
-                NarrowWaist::Response { hbfi, .. } => {
+                NarrowWaistPacket::Response { hbfi, .. } => {
                     if this_bloom.contains_forwarded_request(&hbfi) {
                         response_store.insert(hbfi.try_to_vec()?, nw.clone().try_to_vec()?)?;
                         bayes.super_train(&hbfi.to_vec(), &this_link);

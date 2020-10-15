@@ -2,8 +2,7 @@ use std::collections::HashMap; use std::collections::HashSet;
 use std::collections::hash_map::Keys;
 use std::iter::FromIterator;
 use std::vec::Vec;
-use crate::link::{LinkId};
-use crate::hbfi::{BFI};
+use copernica_common::{LinkId, BFI};
 
 struct BFIs {
     bfis: HashMap<BFI, HashMap<LinkId, i64>>,

@@ -1,6 +1,6 @@
 use {
     crate::{Link, decode, encode},
-    copernica_core::{
+    copernica_common::{
         InterLinkPacket, LinkId, ReplyTo
     },
     anyhow::{anyhow, Result},

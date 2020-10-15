@@ -2,13 +2,14 @@
 mod router;
 mod sharing;
 mod common;
+//mod avalanche;
 use {
     async_std::{ task, },
     anyhow::{Result},
 };
 
 fn main() -> Result<()> {
-    copernica_logger::setup_logging(2, None).unwrap();
+    copernica_common::setup_logging(3, None).unwrap();
     task::block_on(async {
         let r =
         //router::resolve_gt_mtu_two_nodes().await;
@@ -21,6 +22,7 @@ fn main() -> Result<()> {
         //router::single_fetch().await;
         sharing::smoke_test().await;
         //sharing::transports().await;
+        //avalanche::slush().await;
         //copernicafs::single_file_less_than_fragment_size().await;
         if let Err(r) = r {
             println!("{}", r);

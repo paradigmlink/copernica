@@ -6,7 +6,6 @@ use {
     log,
 };
 
-
 pub fn setup_logging(verbosity: u64, logpath: Option<&str>) -> Result<(), fern::InitError> {
     let mut base_config = fern::Dispatch::new();
     base_config = match verbosity {

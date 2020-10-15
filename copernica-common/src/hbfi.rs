@@ -1,14 +1,14 @@
 use {
-    crate::copernica_constants,
+    crate::{constants},
     anyhow::Result,
     borsh::{BorshDeserialize, BorshSerialize},
     sha3::{Digest, Sha3_512},
     std::fmt,
 };
 
-pub type BFI = [u16; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
+pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
 
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
 // how to implement hierarchical routing...
 // it should be done at node level
 // if more than 1 link has an h3 then start route on h2
@@ -62,15 +62,15 @@ impl fmt::Display for HBFI {
 
 fn bloom_filter_index(
     s: &str,
-) -> Result<[u16; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]> {
+) -> Result<[u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]> {
     use std::str;
     let mut hasher = Sha3_512::new();
     hasher.input(s.as_bytes());
     let hash = hasher.result();
     let mut bloom_filter_index_array: BFI =
-        [0; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
+        [0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
     let mut count = 0;
-    for n in 0..copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH {
+    for n in 0..constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH {
         let mut hasher = Sha3_512::new();
         hasher.input(format!("{:x}{}", hash, n));
         let hs = format!("{:x}", hasher.result());
@@ -82,7 +82,7 @@ fn bloom_filter_index(
         let mut index: u64 = 0;
         for sub in subs {
             let o = u64::from_str_radix(&sub, 16)?;
-            index = (index + o) % copernica_constants::BLOOM_FILTER_LENGTH;
+            index = (index + o) % constants::BLOOM_FILTER_LENGTH;
         }
         bloom_filter_index_array[count] = index as u16;
         count += 1;
@@ -94,14 +94,14 @@ fn bloom_filter_index(
 mod tests {
     use super::*;
     use crate::{
-        packets::{Data, NarrowWaist, WirePacket},
+        packets::{Data, NarrowWaistPacket, LinkPacket},
         link::{ReplyTo},
     };
 
     #[test]
     fn test_bloom_filter_index() {
         let actual = bloom_filter_index("9".into()).unwrap();
-        let expected: [u16; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize] =
+        let expected: [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize] =
             [4804, 63297, 3290, 20147];
         assert_eq!(actual, expected);
     }
@@ -109,14 +109,14 @@ mod tests {
     #[test]
     fn less_than_1472_bytes() {
         // https://gafferongames.com/post/packet_fragmentation_and_reassembly
-        let h1: BFI = [u16::MAX; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
-        let id: BFI = [u16::MAX; copernica_constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
+        let h1: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
+        let id: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let hbfi = HBFI::new_test(h1, id, u64::MAX);
-        let data = [0; copernica_constants::FRAGMENT_SIZE as usize];
-        let data: Data = Data { len: copernica_constants::FRAGMENT_SIZE, data};
-        let nw: NarrowWaist = NarrowWaist::Response { hbfi, data, offset: u64::MAX, total: u64::MAX };
+        let data = [0; constants::FRAGMENT_SIZE as usize];
+        let data: Data = Data { len: constants::FRAGMENT_SIZE, data};
+        let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, data, offset: u64::MAX, total: u64::MAX };
         let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50000".parse().unwrap());
-        let wp: WirePacket = WirePacket { reply_to, nw };
+        let wp: LinkPacket = LinkPacket { reply_to, nw };
         let wp_ser = wp.try_to_vec().unwrap();
         let lt1472 = if wp_ser.len() <= 1472 { true } else { false };
         assert_eq!(true, lt1472);

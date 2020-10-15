@@ -6,7 +6,7 @@ use {
         path::PathBuf,
         io::Write,
     },
-    copernica_libs::{
+    copernica_services::{
         FilePacker,
     },
     anyhow::{Result},

@@ -1,5 +1,5 @@
 use {
-    copernica_core::{NarrowWaist, Data, HBFI, copernica_constants},
+    copernica_common::{NarrowWaistPacket, Data, HBFI, constants},
     std::{
         path::{Path, PathBuf},
         collections::HashMap,
@@ -40,7 +40,7 @@ impl FilePacker {
         let src_dir = source_dir.clone().to_path_buf();
         let dest_dir = dest_dir.to_path_buf();
         Ok(Self {
-            chunk_size: copernica_constants::FRAGMENT_SIZE,
+            chunk_size: constants::FRAGMENT_SIZE,
             src_dir,
             dest_dir,
             name,
@@ -131,17 +131,17 @@ impl FilePacker {
     }
 }
 
-fn create_response(hbfi: HBFI, chunk: &[u8], offset: u64, total_offset: u64) -> Result<NarrowWaist> {
-    let mut data = [0; copernica_constants::FRAGMENT_SIZE as usize];
+fn create_response(hbfi: HBFI, chunk: &[u8], offset: u64, total_offset: u64) -> Result<NarrowWaistPacket> {
+    let mut data = [0; constants::FRAGMENT_SIZE as usize];
     let len = chunk.len() as u16;
-    if len < copernica_constants::FRAGMENT_SIZE {
-        let padded_chunk = [chunk, &vec![0; (copernica_constants::FRAGMENT_SIZE - len) as usize][..]].concat();
+    if len < constants::FRAGMENT_SIZE {
+        let padded_chunk = [chunk, &vec![0; (constants::FRAGMENT_SIZE - len) as usize][..]].concat();
         data.copy_from_slice(&padded_chunk);
     } else {
         data.copy_from_slice(&*chunk);
     }
     let data = Data { len: len, data: data };
-    Ok(NarrowWaist::Response { hbfi: hbfi.clone(), data, offset: offset, total: total_offset })
+    Ok(NarrowWaistPacket::Response { hbfi: hbfi.clone(), data, offset: offset, total: total_offset })
 }
 
 fn offset(current_offset: u64, size: u64, chunk_size: u64) -> Result<(u64, u64, u64)> {

@@ -17,11 +17,11 @@ path = "src/tryme.rs"
 debug = 2
 
 [dependencies]
-copernica-core = { path = "../copernica-core" }
+copernica-broker = { path = "../copernica-broker" }
 copernica-apps = { path = "../copernica-apps" }
-copernica-libs = { path = "../copernica-libs" }
+copernica-services = { path = "../copernica-services" }
 copernica-links = { path = "../copernica-links" }
-copernica-logger = { path = "../copernica-logger" }
+copernica-common = { path = "../copernica-common" }
 crossbeam = "0.7"
 crossbeam-channel = "0.3"
 log = "0.4"
