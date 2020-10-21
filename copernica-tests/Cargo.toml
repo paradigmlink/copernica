@@ -18,7 +18,7 @@ debug = 2
 
 [dependencies]
 copernica-broker = { path = "../copernica-broker" }
-copernica-apps = { path = "../copernica-apps" }
+copernica-clients = { path = "../copernica-clients" }
 copernica-services = { path = "../copernica-services" }
 copernica-links = { path = "../copernica-links" }
 copernica-common = { path = "../copernica-common" }

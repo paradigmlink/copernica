@@ -6,5 +6,5 @@ members = [
     "copernica-links",
     "copernica-common",
     "copernica-tests",
-    "copernica-apps",
+    "copernica-clients",
 ]

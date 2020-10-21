@@ -1,5 +1,5 @@
 [package]
-name = "copernica-apps"
+name = "copernica-clients"
 version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"
@@ -15,8 +15,8 @@ name = "ccli"
 path = "src/ccli.rs"
 
 [[bin]]
-name = "takeaway"
-path = "src/takeaway.rs"
+name = "ftpcp"
+path = "src/ftpcp.rs"
 
 [dependencies]
 copernica-common = { path = "../copernica-common" }

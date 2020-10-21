@@ -71,8 +71,8 @@ pub trait Service<'a> {
                             NarrowWaistPacket::Request { hbfi } => {
                                 if let Some(nw) = rs.get(hbfi.try_to_vec()?)? {
                                     let nw = NarrowWaistPacket::try_from_slice(&nw)?;
-                                    let wp = LinkPacket::new(link_id.reply_to(), nw);
-                                    s2l_tx.send(InterLinkPacket::new(ilp.link_id(), wp))?;
+                                    let lp = LinkPacket::new(link_id.reply_to(), nw);
+                                    s2l_tx.send(InterLinkPacket::new(ilp.link_id(), lp))?;
                                 } else { continue }
                             },
                             NarrowWaistPacket::Response { hbfi, .. } => {
@@ -103,8 +103,8 @@ pub trait Service<'a> {
                                 NarrowWaistPacket::Request {..} => {
                                     match self.handle_narrow_waist(nw) {
                                         Some(nw) => {
-                                            let wp = LinkPacket::new(link_id.reply_to(), nw);
-                                            let ilp = InterLinkPacket::new(link_id.clone(), wp);
+                                            let lp = LinkPacket::new(link_id.reply_to(), nw);
+                                            let ilp = InterLinkPacket::new(link_id.clone(), lp);
                                             s2l_tx.send(ilp)?;
                                         },
                                         None => {},
@@ -117,8 +117,8 @@ pub trait Service<'a> {
                             }
                         }
                         None => {
-                            let wp = LinkPacket::new(link_id.reply_to(), NarrowWaistPacket::Request{ hbfi: hbfi.clone() });
-                            let ilp = InterLinkPacket::new(link_id.clone(), wp);
+                            let lp = LinkPacket::new(link_id.reply_to(), NarrowWaistPacket::Request{ hbfi: hbfi.clone() });
+                            let ilp = InterLinkPacket::new(link_id.clone(), lp);
                             let subscriber = rs.watch_prefix(hbfi.try_to_vec()?);
                             s2l_tx.send(ilp)?;
                             /*while let Some(event) = (&mut subscriber).await {
@@ -144,8 +144,8 @@ pub trait Service<'a> {
                                             NarrowWaistPacket::Request {..} => {
                                                 match self.handle_narrow_waist(nw) {
                                                     Some(nw) => {
-                                                        let wp = LinkPacket::new(link_id.reply_to(), nw);
-                                                        let ilp = InterLinkPacket::new(link_id.clone(), wp);
+                                                        let lp = LinkPacket::new(link_id.reply_to(), nw);
+                                                        let ilp = InterLinkPacket::new(link_id.clone(), lp);
                                                         s2l_tx.send(ilp)?;
                                                     },
                                                     None => {},

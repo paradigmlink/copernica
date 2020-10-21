@@ -8,7 +8,7 @@ use {
     log::{debug},
 };
 
-pub struct FileSharer {
+pub struct FTP {
     link_id: Option<LinkId>,
     rs: Db,
     l2s_rx: Option<Receiver<InterLinkPacket>>,
@@ -16,7 +16,7 @@ pub struct FileSharer {
     drop_hook: DropHookFn,
 }
 
-impl<'a> FileSharer {
+impl<'a> FTP {
     pub fn manifest(&mut self, hbfi: HBFI) -> Result<Manifest> {
         let hbfi = hbfi.clone().offset(0);
         debug!("File Sharer to Service:\t{:?}", hbfi);
@@ -46,15 +46,15 @@ impl<'a> FileSharer {
     }
 }
 
-impl Drop for FileSharer {
+impl Drop for FTP {
     fn drop(&mut self) {
         &(self.drop_hook)();
     }
 }
 
-impl<'a> Service<'a> for FileSharer {
-    fn new(rs: Db, drop_hook: DropHookFn) -> FileSharer {
-        FileSharer {
+impl<'a> Service<'a> for FTP {
+    fn new(rs: Db, drop_hook: DropHookFn) -> FTP {
+        FTP {
             link_id: None,
             l2s_rx: None,
             s2l_tx: None,

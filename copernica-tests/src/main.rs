@@ -1,8 +1,7 @@
 #![allow(dead_code)]
 mod router;
-mod sharing;
 mod common;
-//mod avalanche;
+mod ftp;
 use {
     async_std::{ task, },
     anyhow::{Result},
@@ -20,9 +19,9 @@ fn main() -> Result<()> {
         //router::resolve_gt_mtu().await;
         //router::fetch_from_self().await;
         //router::single_fetch().await;
-        sharing::smoke_test().await;
-        //sharing::transports().await;
-        //avalanche::slush().await;
+        //sharing::smoke_test().await;
+        //ftp::smoke_test().await;
+        ftp::transports().await;
         //copernicafs::single_file_less_than_fragment_size().await;
         if let Err(r) = r {
             println!("{}", r);
