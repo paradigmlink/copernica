@@ -21,7 +21,7 @@ path = "src/ftpcp.rs"
 [dependencies]
 copernica-common = { path = "../copernica-common" }
 copernica-broker = { path = "../copernica-broker" }
-copernica-services = { path = "../copernica-services" }
+copernica-protocols = { path = "../copernica-protocols" }
 copernica-links = { path = "../copernica-links" }
 anyhow = "1.0"
 rand = "0.7.2"

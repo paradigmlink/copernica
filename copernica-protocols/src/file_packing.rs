@@ -15,7 +15,7 @@ use {
 pub type PathsWithSizes = Vec<(PathBuf, u64)>;
 pub type PathsWithOffsets = HashMap<String, (u64, u64)>;
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+#[derive(Clone, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
 pub struct Manifest {
     pub start: u64,
     pub end: u64,

@@ -1,52 +1,81 @@
 use {
     borsh::{BorshDeserialize, BorshSerialize},
     rand::Rng,
-    std::{net::SocketAddr},
+    std::{fmt, net::SocketAddr},
 };
 
 pub type Hertz = u32;
-pub type Nonce = u64;
 
-#[derive(
-    Clone, Debug, Eq, Hash, PartialEq, BorshSerialize, BorshDeserialize,
-)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum IdentityState {
+    PublicKey(u64),
+    Choke,
+    Unchoke,
+}
+
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub struct Identity {
+    name: String,
+    id_state: IdentityState,
+}
+
+impl Identity {
+    pub fn new(name: String, id_state: IdentityState) -> Self {
+        Self {
+            name,
+            id_state,
+        }
+    }
+}
+
+impl fmt::Debug for Identity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\"{}\"", self.name)
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, BorshSerialize, BorshDeserialize)]
 pub enum ReplyTo {
     UdpIp(SocketAddr),
     Rf(Hertz),
     Mpsc,
-    DeepSix,
-    //Release, // think about how to release the constriction
+    Choke,
+    Unchoke,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct LinkId {
-    nonce: Nonce,
+    identity: Identity,
     reply_to: ReplyTo,
 }
 
 impl LinkId {
-    pub fn new(nonce: Nonce, reply_to: ReplyTo) -> Self {
-        Self { nonce, reply_to }
+    pub fn new(identity: Identity, reply_to: ReplyTo) -> Self {
+        Self { identity, reply_to }
     }
-    pub fn listen(reply_to: ReplyTo) -> Self {
+    pub fn listen(name: String, reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
-        let mut nonce = 0;
-        while nonce == 0 {
-            nonce = rng.gen(); // 0 is reserved for DeepSix
-        }
-        Self { nonce, reply_to }
+        let identity = Identity { name, id_state: IdentityState::PublicKey(rng.gen()) };
+        Self { identity, reply_to }
     }
-    pub fn deep_six() -> Self {
-        Self { nonce: 0, reply_to: ReplyTo::DeepSix }
+    pub fn choke() -> Self {
+        let identity = Identity { name: "choke".into(), id_state: IdentityState::Choke };
+        Self { identity, reply_to: ReplyTo::Choke }
     }
     pub fn remote(&self, reply_to: ReplyTo) -> Self {
-        Self { nonce: self.nonce.clone(), reply_to }
+        Self { identity: self.identity.clone(), reply_to }
     }
     pub fn reply_to(&self) -> ReplyTo {
         self.reply_to.clone()
     }
-    pub fn nonce(&self) -> Nonce {
-        self.nonce.clone()
+    pub fn identity(&self) -> Identity {
+        self.identity.clone()
     }
 }
 
+impl fmt::Debug for LinkId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Link:({:?}, {:?})", self.identity(), self.reply_to())
+    }
+}

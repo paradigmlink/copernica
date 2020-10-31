@@ -6,7 +6,7 @@ pub mod log;
 
 pub use crate::{
     hbfi::{HBFI, BFI},
-    link::{LinkId, Nonce, ReplyTo},
+    link::{LinkId, Identity, IdentityState, ReplyTo},
     packets::{Data, InterLinkPacket, NarrowWaistPacket, LinkPacket},
     log::setup_logging,
 };

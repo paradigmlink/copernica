@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 mod router;
 mod common;
+mod protocols;
 mod ftp;
 use {
     async_std::{ task, },
@@ -20,8 +21,8 @@ fn main() -> Result<()> {
         //router::fetch_from_self().await;
         //router::single_fetch().await;
         //sharing::smoke_test().await;
-        //ftp::smoke_test().await;
-        ftp::transports().await;
+        ftp::smoke_test().await;
+        //protocols::transports().await;
         //copernicafs::single_file_less_than_fragment_size().await;
         if let Err(r) = r {
             println!("{}", r);

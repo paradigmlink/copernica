@@ -4,7 +4,7 @@ use {
         bloom_filter::{Blooms},
         Bayes, LinkWeight
     },
-    copernica_common::{Nonce, LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
+    copernica_common::{Identity, LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
     anyhow::Result,
     //log::{trace},
     crossbeam_channel::Sender,
@@ -22,10 +22,10 @@ impl Router {
         response_store: sled::Db,
         blooms: &mut HashMap<LinkId, Blooms>,
         bayes: &mut Bayes,
-        deep_six: &LinkId,
+        choke: &LinkId,
     ) -> Result<()> {
         let this_link: LinkId = ilp.link_id();
-        let this_link_id: Nonce = ilp.link_id().nonce();
+        let this_link_identity: Identity = ilp.link_id().identity();
         let nw: NarrowWaistPacket = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
@@ -44,9 +44,9 @@ impl Router {
                             this_bloom.create_pending_request(&hbfi);
                             let link_weights = bayes.classify(&hbfi.to_vec());
                             //std::thread::sleep_ms(500);
-                            bayes.train(&hbfi.to_vec(), deep_six);
-                            if link_weights[0].linkid == *deep_six {
-                                warn!("{}, {:?}", link_weights[0].weight, link_weights[0].linkid);
+                            bayes.train(&hbfi.to_vec(), choke);
+                            if link_weights[0].linkid == *choke {
+                                //warn!("{}, {:?}", link_weights[0].weight, link_weights[0].linkid);
                                 let litmus_weight = (link_weights[0].weight * 100.00) as u64;
                                 match litmus_weight {
                                     0..=35 => {
@@ -69,11 +69,11 @@ impl Router {
                             }
                             let mut forwarded = false;
                             for LinkWeight { linkid: that_link, weight} in link_weights {
-                                warn!("{}, {:?}", weight, that_link);
-                                if that_link == *deep_six {
+                                //warn!("{}, {:?}", weight, that_link);
+                                if that_link == *choke {
                                     continue;
                                 }
-                                if that_link.nonce() == this_link_id {
+                                if that_link.identity() == this_link_identity {
                                     continue;
                                 }
                                 if let Some(that_bloom) = blooms.get_mut(&that_link) {
@@ -103,7 +103,7 @@ impl Router {
                         // ^^^ think about an attack whereby a response is continually sent thus adjusting the weights
                         this_bloom.delete_forwarded_request(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {
-                            if that_link.nonce() == this_link_id {
+                            if that_link.identity() == this_link_identity {
                                 continue;
                             }
                             if that_bloom.contains_pending_request(&hbfi) {

@@ -66,7 +66,7 @@ impl<'a> Link<'a> for MpscCorruptor {
                         match t2t0_rx.recv(){
                             Ok(msg) => {
                                 let wp = decode(msg)?;
-                                let link_id = LinkId::new(this_link.nonce(), wp.reply_to());
+                                let link_id = LinkId::new(this_link.identity(), wp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, wp.clone());
                                 debug!("MpscCorruptor Recv on {:?} => {:?}", this_link, wp);
                                 let _r = t2c_tx.send(ilp)?;

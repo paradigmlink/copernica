@@ -66,9 +66,9 @@ impl<'a> Link<'a> for MpscChannel {
                         match t2t0_rx.recv(){
                             Ok(msg) => {
                                 let wp = decode(msg)?;
-                                let link_id = LinkId::new(this_link.nonce(), wp.reply_to());
+                                let link_id = LinkId::new(this_link.identity(), wp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, wp.clone());
-                                debug!("MpscChannel Recv on {:?} => {:?}", this_link, wp);
+                                debug!("{:?}", this_link);
                                 let _r = t2c_tx.send(ilp)?;
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
@@ -90,7 +90,7 @@ impl<'a> Link<'a> for MpscChannel {
                             let wp = ilp.wire_packet().change_origination(this_link.reply_to());
                             let enc = encode(wp.clone())?;
                             for s in t2t1_tx.clone() {
-                                debug!("MpscChannel Send on {:?} => {:?}", this_link, wp);
+                                debug!("{:?}", this_link);
                                 s.send(enc.clone())?;
                             }
                         },

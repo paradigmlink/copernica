@@ -8,9 +8,7 @@ pub use {
 };
 
 use {
-    copernica_common::{
-        InterLinkPacket, LinkId, LinkPacket
-    },
+    copernica_common::{InterLinkPacket, LinkId, LinkPacket},
     borsh::{BorshDeserialize, BorshSerialize},
     crossbeam_channel::{Sender, Receiver},
     anyhow::{Result},

@@ -1,5 +1,5 @@
 [package]
-name = "copernica-services"
+name = "copernica-protocols"
 version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"
@@ -7,7 +7,6 @@ edition = "2018"
 [dependencies]
 copernica-common= { path = "../copernica-common" }
 copernica-links = { path = "../copernica-links" }
-copernica-protocols = { path = "../copernica-protocols" }
 log = "0.4"
 anyhow = "1.0"
 sled = "0.32.0"

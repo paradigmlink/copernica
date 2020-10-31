@@ -4,7 +4,7 @@ use {
         router::Router,
         Bayes,
     },
-    copernica_common::{Nonce, LinkId, InterLinkPacket},
+    copernica_common::{Identity, LinkId, InterLinkPacket},
     anyhow::{anyhow, Result},
     crossbeam_channel::{unbounded, Receiver, Sender},
     std::collections::HashMap,
@@ -44,7 +44,7 @@ pub struct Broker {
     l2b_tx: Sender<InterLinkPacket>,   // give to link
     l2b_rx: Receiver<InterLinkPacket>, // keep in broker
     b2l: HashMap<
-        Nonce,
+        Identity,
         (
             Sender<InterLinkPacket>,   // keep in broker
             Receiver<InterLinkPacket>, // give to link
@@ -80,7 +80,7 @@ impl Broker {
             Some(_) => Err(anyhow!("Channel already initialized")),
             None => {
                 let (b2l_tx, b2l_rx) = unbounded::<InterLinkPacket>();
-                self.b2l.insert(link_id.nonce(), (b2l_tx.clone(), b2l_rx.clone()));
+                self.b2l.insert(link_id.identity(), (b2l_tx.clone(), b2l_rx.clone()));
                 trace!("ADDING REMOTE: {:?}", link_id);
                 self.blooms.insert(link_id, Blooms::new());
                 Ok((self.l2b_tx.clone(), b2l_rx))
@@ -92,7 +92,7 @@ impl Broker {
     pub fn run(&mut self) -> Result<()> {
         let l2b_rx = self.l2b_rx.clone();
         let mut blooms = self.blooms.clone();
-        let deep_six = LinkId::deep_six();
+        let choke = LinkId::choke();
         let b2l = self.b2l.clone();
         let r2b_tx = self.r2b_tx.clone();
         let r2b_rx = self.r2b_rx.clone();
@@ -110,10 +110,10 @@ impl Broker {
                             blooms.insert(ilp.link_id(), Blooms::new());
                             bayes.add_link(&ilp.link_id());
                         }
-                        Router::handle_packet(&ilp, r2b_tx.clone(), rs.clone(), &mut blooms, &mut bayes, &deep_six)?;
+                        Router::handle_packet(&ilp, r2b_tx.clone(), rs.clone(), &mut blooms, &mut bayes, &choke)?;
                         while !r2b_rx.is_empty() {
                             let ilp = r2b_rx.recv()?;
-                            if let Some((b2l_tx, _)) = b2l.get(&ilp.link_id().nonce()) {
+                            if let Some((b2l_tx, _)) = b2l.get(&ilp.link_id().identity()) {
                                 b2l_tx.send(ilp)?;
                             }
                         }
