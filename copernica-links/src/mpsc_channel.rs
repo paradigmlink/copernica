@@ -11,42 +11,42 @@ use {
 pub struct MpscChannel {
     link_id: LinkId,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
-    t2c_tx: Sender<InterLinkPacket>,
-    c2t_rx: Receiver<InterLinkPacket>,
-    t2t0_tx: Sender<Vec<u8>>,        // give
-    t2t0_rx: Receiver<Vec<u8>>,      // keep
-    t2t1_tx: Option<Vec<Sender<Vec<u8>>>>,
+    l2bs_tx: Sender<InterLinkPacket>,
+    bs2l_rx: Receiver<InterLinkPacket>,
+    l2l0_tx: Sender<Vec<u8>>,        // give
+    l2l0_rx: Receiver<Vec<u8>>,      // keep
+    l2l1_tx: Option<Vec<Sender<Vec<u8>>>>,
 }
 
 impl MpscChannel {
     pub fn male(&self) -> Sender<Vec<u8>> {
-        self.t2t0_tx.clone()
+        self.l2l0_tx.clone()
     }
-    pub fn female(&mut self, new_t2t1_tx: Sender<Vec<u8>>) {
-        if let None = self.t2t1_tx {
-            self.t2t1_tx = Some(vec![]);
+    pub fn female(&mut self, new_l2l1_tx: Sender<Vec<u8>>) {
+        if let None = self.l2l1_tx {
+            self.l2l1_tx = Some(vec![]);
         }
-        if let Some(t2t1_tx) = &mut self.t2t1_tx {
-            t2t1_tx.push(new_t2t1_tx);
+        if let Some(l2l1_tx) = &mut self.l2l1_tx {
+            l2l1_tx.push(new_l2l1_tx);
         }
     }
 }
 
 impl<'a> Link<'a> for MpscChannel {
     fn new(link_id: LinkId
-        , (t2c_tx, c2t_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
+        , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<MpscChannel> {
         match link_id.reply_to() {
             ReplyTo::Mpsc => {
-                let (t2t0_tx, t2t0_rx) = unbounded::<Vec<u8>>();
+                let (l2l0_tx, l2l0_rx) = unbounded::<Vec<u8>>();
                 return Ok(
                     MpscChannel {
                         link_id,
-                        t2c_tx,
-                        c2t_rx,
-                        t2t0_tx,
-                        t2t0_rx,
-                        t2t1_tx: None,
+                        l2bs_tx,
+                        bs2l_rx,
+                        l2l0_tx,
+                        l2l0_rx,
+                        l2l1_tx: None,
                     })
             }
             _ => return Err(anyhow!("MpscChannel Link expects a LinkId of type LinkId::Mpsc")),
@@ -57,19 +57,19 @@ impl<'a> Link<'a> for MpscChannel {
     fn run(&self) -> Result<()> {
         let this_link = self.link_id.clone();
         trace!("Started {:?}:", this_link);
-        let t2t0_rx = self.t2t0_rx.clone();
-        let t2c_tx = self.t2c_tx.clone();
+        let l2l0_rx = self.l2l0_rx.clone();
+        let l2bs_tx = self.l2bs_tx.clone();
         std::thread::spawn(move || {
             match this_link.reply_to() {
                 ReplyTo::Mpsc => {
                     loop {
-                        match t2t0_rx.recv(){
+                        match l2l0_rx.recv(){
                             Ok(msg) => {
                                 let wp = decode(msg)?;
                                 let link_id = LinkId::new(this_link.identity(), wp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, wp.clone());
                                 debug!("{:?}", this_link);
-                                let _r = t2c_tx.send(ilp)?;
+                                let _r = l2bs_tx.send(ilp)?;
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
                         };
@@ -81,15 +81,15 @@ impl<'a> Link<'a> for MpscChannel {
         });
 
         let this_link = self.link_id.clone();
-        let c2t_rx = self.c2t_rx.clone();
-        if let Some(t2t1_tx) = self.t2t1_tx.clone() {
+        let bs2l_rx = self.bs2l_rx.clone();
+        if let Some(l2l1_tx) = self.l2l1_tx.clone() {
             std::thread::spawn(move || {
                 loop {
-                    match c2t_rx.recv(){
+                    match bs2l_rx.recv(){
                         Ok(ilp) => {
                             let wp = ilp.wire_packet().change_origination(this_link.reply_to());
                             let enc = encode(wp.clone())?;
-                            for s in t2t1_tx.clone() {
+                            for s in l2l1_tx.clone() {
                                 debug!("{:?}", this_link);
                                 s.send(enc.clone())?;
                             }

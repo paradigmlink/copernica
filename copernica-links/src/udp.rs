@@ -14,8 +14,8 @@ use {
 
 pub struct UdpIp {
     link_id: LinkId,
-    t2c_tx: Sender<InterLinkPacket>,
-    c2t_rx: Receiver<InterLinkPacket>,
+    l2bs_tx: Sender<InterLinkPacket>,
+    bs2l_rx: Receiver<InterLinkPacket>,
 }
 
 impl UdpIp {
@@ -23,12 +23,12 @@ impl UdpIp {
 
 impl Link<'_> for UdpIp {
     fn new(link_id: LinkId
-        , (t2c_tx, c2t_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
+        , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<UdpIp>
     {
         trace!("LISTEN ON {:?}:", link_id);
         match link_id.reply_to() {
-            ReplyTo::UdpIp(_) => return Ok(UdpIp { link_id, t2c_tx, c2t_rx }),
+            ReplyTo::UdpIp(_) => return Ok(UdpIp { link_id, l2bs_tx, bs2l_rx }),
             _ => return Err(anyhow!("UdpIp Link expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
         }
     }
@@ -36,7 +36,7 @@ impl Link<'_> for UdpIp {
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
         let this_link = self.link_id.clone();
-        let t2c_tx = self.t2c_tx.clone();
+        let l2bs_tx = self.l2bs_tx.clone();
         std::thread::spawn(move || {
             task::block_on(async move {
                 match this_link.reply_to() {
@@ -48,10 +48,10 @@ impl Link<'_> for UdpIp {
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
                                             let wp: LinkPacket = decode(buf[..n].to_vec())?;
-                                            debug!("Udp Recv on {:?} => {:?}", this_link, wp);
+                                            debug!("{:?}", this_link);
                                             let link_id = LinkId::new(this_link.identity(), wp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, wp);
-                                            let _r = t2c_tx.send(ilp)?;
+                                            let _r = l2bs_tx.send(ilp)?;
                                         },
                                         Err(error) => error!("{:?}: {}", this_link, error),
                                     };
@@ -66,18 +66,18 @@ impl Link<'_> for UdpIp {
             })
         });
         let this_link = self.link_id.clone();
-        let c2t_rx = self.c2t_rx.clone();
+        let bs2l_rx = self.bs2l_rx.clone();
         std::thread::spawn(move || {
             task::block_on(async move {
                 match UdpSocket::bind("127.0.0.1:0").await {
                     Ok(socket) => {
                         loop {
-                            match c2t_rx.recv(){
+                            match bs2l_rx.recv(){
                                 Ok(ilp) => {
                                     match ilp.reply_to() {
                                         ReplyTo::UdpIp(remote_addr) => {
                                             let wp = ilp.wire_packet().change_origination(this_link.reply_to());
-                                            debug!("Udp Send on {:?} => {:?}", this_link, wp);
+                                            debug!("{:?}", this_link);
                                             let enc = encode(wp)?;
                                             socket.send_to(&enc, remote_addr).await?;
                                         },
