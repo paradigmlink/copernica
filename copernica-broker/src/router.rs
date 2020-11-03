@@ -1,9 +1,9 @@
 use {
     crate::{
-        borsh::{BorshDeserialize, BorshSerialize},
         bloom_filter::{Blooms},
         Bayes, LinkWeight
     },
+    bincode,
     copernica_common::{Identity, LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
     anyhow::Result,
     //log::{trace},
@@ -30,9 +30,10 @@ impl Router {
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
                 NarrowWaistPacket::Request { hbfi } => {
-                    match response_store.get(&hbfi.try_to_vec()?)? {
+                    let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
+                    match response_store.get(&hbfi_s)? {
                         Some(response) => {
-                            let nw = NarrowWaistPacket::try_from_slice(&response)?;
+                            let nw: NarrowWaistPacket = bincode::deserialize(&response)?;
                             debug!("********* RESPONSE PACKET FOUND *********");
                             let wp = LinkPacket::new(this_link.reply_to(), nw);
                             let ilp = InterLinkPacket::new(this_link.clone(), wp);
@@ -98,7 +99,9 @@ impl Router {
                 }
                 NarrowWaistPacket::Response { hbfi, .. } => {
                     if this_bloom.contains_forwarded_request(&hbfi) {
-                        response_store.insert(hbfi.try_to_vec()?, nw.clone().try_to_vec()?)?;
+                        let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
+                        let nw_s: Vec<u8> = bincode::serialize(&nw)?;
+                        response_store.insert(hbfi_s, nw_s)?;
                         bayes.super_train(&hbfi.to_vec(), &this_link);
                         // ^^^ think about an attack whereby a response is continually sent thus adjusting the weights
                         this_bloom.delete_forwarded_request(&hbfi);

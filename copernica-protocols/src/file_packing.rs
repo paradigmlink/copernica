@@ -6,7 +6,8 @@ use {
         io::prelude::*,
         fs,
     },
-    borsh::{BorshSerialize, BorshDeserialize},
+    serde::{Serialize, Deserialize},
+    bincode,
     walkdir::{WalkDir},
     anyhow::{Result, anyhow},
     //log::{debug},
@@ -15,13 +16,13 @@ use {
 pub type PathsWithSizes = Vec<(PathBuf, u64)>;
 pub type PathsWithOffsets = HashMap<String, (u64, u64)>;
 
-#[derive(Clone, BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Manifest {
     pub start: u64,
     pub end: u64,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct FileManifest {
     pub files: PathsWithOffsets,
 }
@@ -88,7 +89,7 @@ impl FilePacker {
             absolute_files_offsets.insert(entry.to_str().unwrap().to_string(), (start, end));
         }
         let file_manifest = FileManifest { files: relative_files_offsets };
-        let file_manifest = file_manifest.try_to_vec()?;
+        let file_manifest: Vec<u8> = bincode::serialize(&file_manifest)?;
         let file_manifest_size = file_manifest.len() as u64;
         let (file_manifest_start, file_manifest_end, file_manifest_offset)= offset(total_offset, file_manifest_size, chunk_size as u64)?;
         total_offset += file_manifest_offset;
@@ -96,6 +97,7 @@ impl FilePacker {
         // this concludes the calculation of the total size and file chunk sizes.
 
         let hbfi = HBFI::new(&self.name, &self.id)?;
+        let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
 
         let mut current_offset: u64 = 1;
         for (file_path, (start, end)) in absolute_files_offsets {
@@ -107,8 +109,10 @@ impl FilePacker {
                 let mut counter = start;
                 for file_chunk in file_chunks {
                     let hbfi = hbfi.clone().offset(counter);
-                    let resp = create_response(hbfi.clone(), file_chunk, counter, total_offset)?.try_to_vec()?;
-                    rs.insert(&hbfi.try_to_vec()?, resp)?;
+                    let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
+                    let resp = create_response(hbfi.clone(), file_chunk, counter, total_offset)?;
+                    let resp: Vec<u8> = bincode::serialize(&resp)?;
+                    rs.insert(&hbfi_s, resp)?;
                     current_offset += 1;
                     counter += 1;
                 }
@@ -118,14 +122,18 @@ impl FilePacker {
         let file_manifest_chunks = file_manifest.chunks(chunk_size as usize);
         for file_manifest_chunk in file_manifest_chunks {
             let hbfi = hbfi.clone().offset(current_offset);
-            let resp = create_response(hbfi.clone(), file_manifest_chunk, current_offset, total_offset)?.try_to_vec()?;
-            rs.insert(&hbfi.try_to_vec()?, resp)?;
+            let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
+            let resp = create_response(hbfi.clone(), file_manifest_chunk, current_offset, total_offset)?;
+            let resp: Vec<u8> = bincode::serialize(&resp)?;
+            rs.insert(&hbfi_s, resp)?;
             current_offset += 1;
         }
 
-        let manifest = Manifest { start: file_manifest_start, end: file_manifest_end }.try_to_vec()?;
-        let resp = create_response(hbfi.clone(), &manifest, 0, total_offset)?.try_to_vec()?;
-        rs.insert(hbfi.try_to_vec()?, resp)?;
+        let manifest = Manifest { start: file_manifest_start, end: file_manifest_end };
+        let manifest_s: Vec<u8> = bincode::serialize(&manifest)?;
+        let resp = create_response(hbfi.clone(), &manifest_s, 0, total_offset)?;
+        let resp: Vec<u8> = bincode::serialize(&resp)?;
+        rs.insert(hbfi_s, resp)?;
 
         Ok(())
     }

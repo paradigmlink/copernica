@@ -13,7 +13,8 @@ copernica-core = { path = "../copernica-core" }
 crossbeam = "0.7.3"
 structopt = "0.3.4"
 crossbeam-channel = "0.3"
-borsh = "0.7.0"
+bincode = "1.3"
+serde = { version = "1.0", feature = [ "derive" ] }
 log = "0.4"
 rpassword = "4"
 async-std = "1.4"

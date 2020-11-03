@@ -1,6 +1,6 @@
 use {
     copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI},
-    borsh::{BorshSerialize, BorshDeserialize},
+    bincode,
     std::{thread},
     log::{debug},
     crossbeam_channel::{Sender, Receiver, unbounded},
@@ -65,12 +65,13 @@ pub trait Protocol<'a> {
                         let nw: NarrowWaistPacket = ilp.narrow_waist();
                         match nw.clone() {
                             NarrowWaistPacket::Request { hbfi } => {
-                                if rs.contains_key(hbfi.try_to_vec()?)? {
-                                    let nw = rs.get(hbfi.try_to_vec()?)?;
+                                let hbfi: Vec<u8> = bincode::serialize(&hbfi)?;
+                                if rs.contains_key(hbfi.clone())? {
+                                    let nw = rs.get(hbfi)?;
                                     match nw {
                                         Some(nw) => {
                                             debug!("********* RESPONSE PACKET FOUND *********");
-                                            let nw = NarrowWaistPacket::try_from_slice(&nw)?;
+                                            let nw: NarrowWaistPacket = bincode::deserialize(&nw)?;
                                             let lp = LinkPacket::new(link_id.reply_to(), nw);
                                             let ilp = InterLinkPacket::new(link_id.clone(), lp);
                                             p2l_tx.send(ilp)?;
@@ -80,7 +81,9 @@ pub trait Protocol<'a> {
                                 };
                             },
                             NarrowWaistPacket::Response { hbfi, .. } => {
-                                rs.insert(hbfi.try_to_vec()?, nw.clone().try_to_vec()?)?;
+                                let hbfi: Vec<u8> = bincode::serialize(&hbfi)?;
+                                let nw: Vec<u8> = bincode::serialize(&nw)?;
+                                rs.insert(hbfi, nw)?;
                             },
                         }
                     }
@@ -100,12 +103,13 @@ pub trait Protocol<'a> {
         if let (Some(p2l_tx), Some(link_id)) = (p2l_tx, link_id) {
             while counter <= end {
                 let hbfi = hbfi.clone().offset(counter);
-                match rs.get(hbfi.try_to_vec()?)? {
+                let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
+                match rs.get(hbfi_s.clone())? {
                     Some(resp) => {
-                        let nw = NarrowWaistPacket::try_from_slice(&resp)?;
+                        let nw: NarrowWaistPacket = bincode::deserialize(&resp)?;
                         match nw {
                             NarrowWaistPacket::Request {..} => {
-                                rs.remove(hbfi.try_to_vec()?)?; //requests shouldn't be in response store.
+                                rs.remove(hbfi_s)?; //requests shouldn't be in response store.
                             },
                             NarrowWaistPacket::Response {data, ..} => {
                                 let (chunk, _) = data.data.split_at(data.len.into());
@@ -116,7 +120,7 @@ pub trait Protocol<'a> {
                     None => {
                         let lp = LinkPacket::new(link_id.reply_to(), NarrowWaistPacket::Request{ hbfi: hbfi.clone() });
                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
-                        let subscriber = rs.watch_prefix(hbfi.try_to_vec()?);
+                        let subscriber = rs.watch_prefix(hbfi_s);
                         p2l_tx.send(ilp)?;
                         /*while let Some(event) = (&mut subscriber).await {
                             match event {
@@ -136,7 +140,7 @@ pub trait Protocol<'a> {
                         for event in subscriber.take(1) {
                             match event {
                                 Event::Insert{ key: _, value } => {
-                                    let nw = NarrowWaistPacket::try_from_slice(&value)?;
+                                    let nw: NarrowWaistPacket = bincode::deserialize(&value)?;
                                     match nw {
                                         NarrowWaistPacket::Request {..} => {}
                                         NarrowWaistPacket::Response {data, ..} => {

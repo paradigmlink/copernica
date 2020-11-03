@@ -1,14 +1,14 @@
 use {
     crate::{constants},
     anyhow::Result,
-    borsh::{BorshDeserialize, BorshSerialize},
+    serde::{Deserialize, Serialize},
     sha3::{Digest, Sha3_512},
     std::fmt,
 };
 
 pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
 
-#[derive(Clone, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 // how to implement hierarchical routing...
 // it should be done at node level
 // if more than 1 link has an h3 then start route on h2
@@ -117,7 +117,7 @@ mod tests {
         let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, data, offset: u64::MAX, total: u64::MAX };
         let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50000".parse().unwrap());
         let wp: LinkPacket = LinkPacket { reply_to, nw };
-        let wp_ser = wp.try_to_vec().unwrap();
+        let wp_ser = bincode::serialize(&wp).unwrap();
         let lt1472 = if wp_ser.len() <= 1472 { true } else { false };
         assert_eq!(true, lt1472);
     }

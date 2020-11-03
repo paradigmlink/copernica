@@ -4,17 +4,21 @@ use {
         hbfi::HBFI,
         link::{LinkId, ReplyTo},
     },
-    borsh::{BorshDeserialize, BorshSerialize},
+    serde::{Deserialize, Serialize},
     std::fmt,
+    serde_big_array::{big_array},
 };
 
-#[derive(Clone, BorshSerialize, BorshDeserialize)]
+big_array! { BigArray; }
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Data {
     pub len: u16,
+    #[serde(with = "BigArray")]
     pub data: [u8; constants::FRAGMENT_SIZE as usize],
 }
 
-#[derive(Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum NarrowWaistPacket {
     Request {
         hbfi: HBFI,
@@ -41,7 +45,7 @@ impl fmt::Debug for NarrowWaistPacket {
     }
 }
 
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LinkPacket {
     pub reply_to: ReplyTo,
     pub nw: NarrowWaistPacket,

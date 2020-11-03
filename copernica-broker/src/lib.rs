@@ -1,7 +1,5 @@
 #![feature(total_cmp)]
 
-extern crate borsh;
-
 mod bloom_filter;
 mod broker;
 pub mod bayes;

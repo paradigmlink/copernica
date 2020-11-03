@@ -1,5 +1,5 @@
 use {
-    borsh::{BorshDeserialize, BorshSerialize},
+    serde::{Deserialize, Serialize},
     rand::Rng,
     std::{fmt, net::SocketAddr},
 };
@@ -34,7 +34,7 @@ impl fmt::Debug for Identity {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ReplyTo {
     UdpIp(SocketAddr),
     Rf(Hertz),

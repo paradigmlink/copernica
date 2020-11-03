@@ -3,7 +3,7 @@ use {
     crate::{Manifest, FileManifest, Protocol},
     crossbeam_channel::{ Sender, Receiver },
     sled::{Db},
-    borsh::{BorshDeserialize},
+    bincode,
     anyhow::{Result, anyhow},
 };
 
@@ -19,12 +19,14 @@ impl<'a> FTP {
     pub fn manifest(&mut self, hbfi: HBFI) -> Result<Manifest> {
         let hbfi = hbfi.clone().offset(0);
         let manifest = self.get(hbfi.clone(), 0, 0)?;
-        Ok(Manifest::try_from_slice(&manifest)?)
+        let manifest: Manifest = bincode::deserialize(&manifest)?;
+        Ok(manifest)
     }
     pub fn file_manifest(&mut self, hbfi: HBFI) -> Result<FileManifest> {
         let manifest: Manifest = self.manifest(hbfi.clone())?;
         let file_manifest = self.get(hbfi, manifest.start, manifest.end)?;
-        Ok(FileManifest::try_from_slice(&file_manifest)?)
+        let file_manifest: FileManifest = bincode::deserialize(&file_manifest)?;
+        Ok(file_manifest)
     }
     pub fn file_names(&mut self, hbfi: HBFI) -> Result<Vec<String>> {
         let file_manifest: FileManifest = self.file_manifest(hbfi.clone())?;
