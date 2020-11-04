@@ -8,29 +8,10 @@ use {
 pub type Hertz = u32;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum IdentityState {
+pub enum Identity {
     PublicKey(u64),
     Choke,
     Pk(PublicKey),
-}
-
-#[derive(Clone, Eq, Hash, PartialEq)]
-pub struct Identity {
-    id_state: IdentityState,
-}
-
-impl Identity {
-    pub fn new(id_state: IdentityState) -> Self {
-        Self {
-            id_state,
-        }
-    }
-}
-
-impl fmt::Debug for Identity {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\"{:?}\"", self.id_state)
-    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -40,7 +21,6 @@ pub enum ReplyTo {
     Mpsc,
     Choke,
 }
-
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct LinkId {
@@ -54,12 +34,10 @@ impl LinkId {
     }
     pub fn listen(reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
-        let identity = Identity { id_state: IdentityState::PublicKey(rng.gen()) };
-        Self { identity, reply_to }
+        Self { identity: Identity::PublicKey(rng.gen()), reply_to }
     }
     pub fn choke() -> Self {
-        let identity = Identity { id_state: IdentityState::Choke };
-        Self { identity, reply_to: ReplyTo::Choke }
+        Self { identity: Identity::Choke, reply_to: ReplyTo::Choke }
     }
     pub fn remote(&self, reply_to: ReplyTo) -> Self {
         Self { identity: self.identity.clone(), reply_to }
