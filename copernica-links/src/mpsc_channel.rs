@@ -9,6 +9,7 @@ use {
 };
 
 pub struct MpscChannel {
+    name: String,
     link_id: LinkId,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
     l2bs_tx: Sender<InterLinkPacket>,
@@ -33,7 +34,8 @@ impl MpscChannel {
 }
 
 impl<'a> Link<'a> for MpscChannel {
-    fn new(link_id: LinkId
+    fn new(name: String
+        , link_id: LinkId
         , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<MpscChannel> {
         match link_id.reply_to() {
@@ -41,6 +43,7 @@ impl<'a> Link<'a> for MpscChannel {
                 let (l2l0_tx, l2l0_rx) = unbounded::<Vec<u8>>();
                 return Ok(
                     MpscChannel {
+                        name,
                         link_id,
                         l2bs_tx,
                         bs2l_rx,
@@ -55,6 +58,7 @@ impl<'a> Link<'a> for MpscChannel {
 
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
+        let name = self.name.clone();
         let this_link = self.link_id.clone();
         trace!("Started {:?}:", this_link);
         let l2l0_rx = self.l2l0_rx.clone();
@@ -68,7 +72,7 @@ impl<'a> Link<'a> for MpscChannel {
                                 let wp = decode(msg)?;
                                 let link_id = LinkId::new(this_link.identity(), wp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, wp.clone());
-                                debug!("{:?}", this_link);
+                                debug!("{} {:?}", name, this_link);
                                 let _r = l2bs_tx.send(ilp)?;
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
@@ -79,7 +83,7 @@ impl<'a> Link<'a> for MpscChannel {
             }
             Ok::<(), anyhow::Error>(())
         });
-
+        let name = self.name.clone();
         let this_link = self.link_id.clone();
         let bs2l_rx = self.bs2l_rx.clone();
         if let Some(l2l1_tx) = self.l2l1_tx.clone() {
@@ -90,7 +94,7 @@ impl<'a> Link<'a> for MpscChannel {
                             let wp = ilp.wire_packet().change_origination(this_link.reply_to());
                             let enc = encode(wp.clone())?;
                             for s in l2l1_tx.clone() {
-                                debug!("{:?}", this_link);
+                                debug!("{} {:?}", name, this_link);
                                 s.send(enc.clone())?;
                             }
                         },

@@ -2,6 +2,7 @@ use {
     serde::{Deserialize, Serialize},
     rand::Rng,
     std::{fmt, net::SocketAddr},
+    keynesis::{PublicKey},
 };
 
 pub type Hertz = u32;
@@ -10,19 +11,17 @@ pub type Hertz = u32;
 pub enum IdentityState {
     PublicKey(u64),
     Choke,
-    Unchoke,
+    Pk(PublicKey),
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Identity {
-    name: String,
     id_state: IdentityState,
 }
 
 impl Identity {
-    pub fn new(name: String, id_state: IdentityState) -> Self {
+    pub fn new(id_state: IdentityState) -> Self {
         Self {
-            name,
             id_state,
         }
     }
@@ -30,7 +29,7 @@ impl Identity {
 
 impl fmt::Debug for Identity {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\"{}\"", self.name)
+        write!(f, "\"{:?}\"", self.id_state)
     }
 }
 
@@ -40,7 +39,6 @@ pub enum ReplyTo {
     Rf(Hertz),
     Mpsc,
     Choke,
-    Unchoke,
 }
 
 
@@ -54,13 +52,13 @@ impl LinkId {
     pub fn new(identity: Identity, reply_to: ReplyTo) -> Self {
         Self { identity, reply_to }
     }
-    pub fn listen(name: String, reply_to: ReplyTo) -> Self {
+    pub fn listen(reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
-        let identity = Identity { name, id_state: IdentityState::PublicKey(rng.gen()) };
+        let identity = Identity { id_state: IdentityState::PublicKey(rng.gen()) };
         Self { identity, reply_to }
     }
     pub fn choke() -> Self {
-        let identity = Identity { name: "choke".into(), id_state: IdentityState::Choke };
+        let identity = Identity { id_state: IdentityState::Choke };
         Self { identity, reply_to: ReplyTo::Choke }
     }
     pub fn remote(&self, reply_to: ReplyTo) -> Self {

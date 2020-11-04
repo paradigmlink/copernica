@@ -13,6 +13,7 @@ use {
 };
 
 pub struct UdpIp {
+    name: String,
     link_id: LinkId,
     l2bs_tx: Sender<InterLinkPacket>,
     bs2l_rx: Receiver<InterLinkPacket>,
@@ -22,19 +23,21 @@ impl UdpIp {
 }
 
 impl Link<'_> for UdpIp {
-    fn new(link_id: LinkId
+    fn new(name: String
+        , link_id: LinkId
         , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<UdpIp>
     {
         trace!("LISTEN ON {:?}:", link_id);
         match link_id.reply_to() {
-            ReplyTo::UdpIp(_) => return Ok(UdpIp { link_id, l2bs_tx, bs2l_rx }),
+            ReplyTo::UdpIp(_) => return Ok(UdpIp { name, link_id, l2bs_tx, bs2l_rx }),
             _ => return Err(anyhow!("UdpIp Link expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
         }
     }
 
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
+        let name = self.name.clone();
         let this_link = self.link_id.clone();
         let l2bs_tx = self.l2bs_tx.clone();
         std::thread::spawn(move || {
@@ -48,7 +51,7 @@ impl Link<'_> for UdpIp {
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
                                             let wp: LinkPacket = decode(buf[..n].to_vec())?;
-                                            debug!("{:?}", this_link);
+                                            debug!("{} {:?}", name, this_link);
                                             let link_id = LinkId::new(this_link.identity(), wp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, wp);
                                             let _r = l2bs_tx.send(ilp)?;
@@ -65,6 +68,7 @@ impl Link<'_> for UdpIp {
                 Ok::<(), anyhow::Error>(())
             })
         });
+        let name = self.name.clone();
         let this_link = self.link_id.clone();
         let bs2l_rx = self.bs2l_rx.clone();
         std::thread::spawn(move || {
@@ -77,7 +81,7 @@ impl Link<'_> for UdpIp {
                                     match ilp.reply_to() {
                                         ReplyTo::UdpIp(remote_addr) => {
                                             let wp = ilp.wire_packet().change_origination(this_link.reply_to());
-                                            debug!("{:?}", this_link);
+                                            debug!("{} {:?}", name, this_link);
                                             let enc = encode(wp)?;
                                             socket.send_to(&enc, remote_addr).await?;
                                         },
