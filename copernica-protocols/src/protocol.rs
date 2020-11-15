@@ -1,5 +1,6 @@
 use {
     copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI},
+    keynesis::{PrivateIdentity},
     bincode,
     std::{thread},
     log::{debug},
@@ -40,6 +41,7 @@ pub trait Protocol<'a> {
     fn set_p2l_tx(&mut self, s: Sender<InterLinkPacket>);
     fn get_link_id(&mut self) -> Option<LinkId>;
     fn set_link_id(&mut self, link_id: LinkId);
+    fn get_request_sid(&mut self) -> PrivateIdentity;
     fn peer(
         &mut self,
         link_id: LinkId,
@@ -64,7 +66,7 @@ pub trait Protocol<'a> {
                     if let Ok(ilp) = l2p_rx.recv() {
                         let nw: NarrowWaistPacket = ilp.narrow_waist();
                         match nw.clone() {
-                            NarrowWaistPacket::Request { hbfi } => {
+                            NarrowWaistPacket::Request { hbfi, .. } => {
                                 let hbfi: Vec<u8> = bincode::serialize(&hbfi)?;
                                 if rs.contains_key(hbfi.clone())? {
                                     let nw = rs.get(hbfi)?;
@@ -107,18 +109,12 @@ pub trait Protocol<'a> {
                 match rs.get(hbfi_s.clone())? {
                     Some(resp) => {
                         let nw: NarrowWaistPacket = bincode::deserialize(&resp)?;
-                        match nw {
-                            NarrowWaistPacket::Request {..} => {
-                                rs.remove(hbfi_s)?; //requests shouldn't be in response store.
-                            },
-                            NarrowWaistPacket::Response {data, ..} => {
-                                let (chunk, _) = data.data.split_at(data.len.into());
-                                reconstruct.append(&mut chunk.to_vec());
-                            }
-                        }
+                        let chunk = nw.data()?;
+                        reconstruct.append(&mut chunk.clone());
                     }
                     None => {
-                        let lp = LinkPacket::new(link_id.reply_to(), NarrowWaistPacket::Request{ hbfi: hbfi.clone() });
+                        let nw = NarrowWaistPacket::request(hbfi.clone())?;
+                        let lp = LinkPacket::new(link_id.reply_to(), nw);
                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
                         let subscriber = rs.watch_prefix(hbfi_s);
                         p2l_tx.send(ilp)?;
@@ -141,13 +137,8 @@ pub trait Protocol<'a> {
                             match event {
                                 Event::Insert{ key: _, value } => {
                                     let nw: NarrowWaistPacket = bincode::deserialize(&value)?;
-                                    match nw {
-                                        NarrowWaistPacket::Request {..} => {}
-                                        NarrowWaistPacket::Response {data, ..} => {
-                                            let (chunk, _) = data.data.split_at(data.len.into());
-                                            reconstruct.append(&mut chunk.to_vec());
-                                        }
-                                    }
+                                    let chunk = nw.data()?;
+                                    reconstruct.append(&mut chunk.clone());
                                 }
                                 Event::Remove {key:_ } => {}
                             }
@@ -159,5 +150,5 @@ pub trait Protocol<'a> {
         }
         Ok(reconstruct)
     }
-    fn new(db: sled::Db) -> Self where Self: Sized; //kept at end cause amp syntax highlighting falls over on the last :
+    fn new(db: sled::Db, response_sid: PrivateIdentity) -> Self where Self: Sized; //kept at end cause amp syntax highlighting falls over on the last :
 }

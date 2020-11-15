@@ -5,8 +5,8 @@ pub mod constants;
 pub mod log;
 
 pub use crate::{
-    hbfi::{HBFI, BFI},
+    hbfi::{HBFI, BFI, bloom_filter_index},
     link::{LinkId, Identity, ReplyTo},
-    packets::{Data, InterLinkPacket, NarrowWaistPacket, LinkPacket},
+    packets::{ResponseData, Data, InterLinkPacket, NarrowWaistPacket, LinkPacket, generate_nonce},
     log::setup_logging,
 };

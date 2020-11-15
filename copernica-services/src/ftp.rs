@@ -3,6 +3,7 @@ use {
     copernica_protocols::{FTP, Protocol},
     std::{thread},
     crossbeam_channel::{Sender, Receiver, unbounded},
+    keynesis::{PrivateIdentity, PublicIdentity},
     //sled::{Db, Event},
     anyhow::{Result},
 };
@@ -21,17 +22,19 @@ pub struct FTPService {
     c2p_rx: Option<Receiver<FTPCommands>>,
     db: sled::Db,
     protocol: FTP,
+    response_sid: PrivateIdentity,
 }
 
 impl FTPService {
-    pub fn new(db: sled::Db) -> Self {
-        let protocol: FTP = Protocol::new(db.clone());
+    pub fn new(db: sled::Db, response_sid: PrivateIdentity) -> Self {
+        let protocol: FTP = Protocol::new(db.clone(), response_sid.clone());
         Self {
             link_id: None,
             p2c_tx: None,
             c2p_rx: None,
             db,
-            protocol
+            protocol,
+            response_sid,
         }
     }
 
@@ -65,7 +68,7 @@ impl FTPService {
                     if let Ok(command) = c2p_rx.recv() {
                         match command {
                             FTPCommands::RequestFileList(hbfi) => {
-                                let files: Vec<String> = protocol.file_names(hbfi)?;
+                                let files: Vec<String> = protocol.file_names(hbfi,)?;
                                 p2c_tx.send(FTPCommands::ResponseFileList(Some(files.clone())))?;
                             },
                             FTPCommands::RequestFile(hbfi, name) => {

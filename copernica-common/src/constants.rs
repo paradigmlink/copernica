@@ -10,6 +10,16 @@
 /// The maximum size we can break up a chunk of data is 1394
 /// Was set at 1428 but I'm setting it to 1024 so that things don't blow up
 /// using datatye u16 because this information is communicated in the Response Manifest.
-pub const FRAGMENT_SIZE: u16 = 1024;
-pub const BLOOM_FILTER_LENGTH: u64 = u16::MAX as u64;
-pub const BLOOM_FILTER_INDEX_ELEMENT_LENGTH: u16 = 4;
+pub const FRAGMENT_SIZE: usize= 1024;
+
+pub const SANITY_CHECK_CYPHERTEXT_POSITON: u16 = 0;
+pub const NONCE_CYPHERTEXT_POSITION: u16 = 1;
+pub const LENGTH_OF_DATA_CYPHERTEXT_STARTING_POSITION: u16 = 2;
+pub const LENGTH_OF_DATA_CYPHERTEXT_ENDING_POSITION: u16 = 3;
+pub const CYPHERTEXT_SIZE: usize = 1020;
+pub const CLEARTEXT_SIZE: usize = 1022;
+
+pub const NONCE_SIZE: usize = 8;
+
+pub const BLOOM_FILTER_LENGTH: usize = u16::MAX as usize;
+pub const BLOOM_FILTER_INDEX_ELEMENT_LENGTH: usize = 4;

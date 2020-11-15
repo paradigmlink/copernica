@@ -1,5 +1,5 @@
 use {
-    copernica_common::{NarrowWaistPacket, Data, HBFI, constants},
+    copernica_common::{NarrowWaistPacket, HBFI, constants},
     std::{
         path::{Path, PathBuf},
         collections::HashMap,
@@ -10,6 +10,7 @@ use {
     bincode,
     walkdir::{WalkDir},
     anyhow::{Result, anyhow},
+    keynesis::{PrivateIdentity},
     //log::{debug},
 };
 
@@ -28,24 +29,24 @@ pub struct FileManifest {
 }
 
 pub struct FilePacker {
-    chunk_size: u16,
+    chunk_size: usize,
     src_dir: PathBuf,
     dest_dir: PathBuf,
-    name: String,
-    id: String,
+    hbfi: HBFI,
+    response_sid: PrivateIdentity,
     absolute_files_size: PathsWithSizes,
 }
 
 impl FilePacker {
-    pub fn new(source_dir: &Path, dest_dir: &Path, name: String, id: String) -> Result<Self> {
+    pub fn new(source_dir: &Path, dest_dir: &Path, hbfi: HBFI, response_sid: PrivateIdentity) -> Result<Self> {
         let src_dir = source_dir.clone().to_path_buf();
         let dest_dir = dest_dir.to_path_buf();
         Ok(Self {
-            chunk_size: constants::FRAGMENT_SIZE,
+            chunk_size: constants::CLEARTEXT_SIZE,
             src_dir,
             dest_dir,
-            name,
-            id,
+            hbfi,
+            response_sid,
             absolute_files_size: directory_structure(&source_dir)?,
         })
     }
@@ -60,18 +61,8 @@ impl FilePacker {
         self
     }
 
-    pub fn chunk_size(mut self, chunk_size: u16) -> Self {
+    pub fn chunk_size(mut self, chunk_size: usize) -> Self {
         self.chunk_size = chunk_size;
-        self
-    }
-
-    pub fn name(mut self, name: String) -> Self {
-        self.name = name;
-        self
-    }
-
-    pub fn id(mut self, id: String) -> Self {
-        self.id = id;
         self
     }
 
@@ -96,7 +87,7 @@ impl FilePacker {
 
         // this concludes the calculation of the total size and file chunk sizes.
 
-        let hbfi = HBFI::new(&self.name, &self.id)?;
+        let hbfi = self.hbfi.clone();
         let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
 
         let mut current_offset: u64 = 1;
@@ -110,7 +101,9 @@ impl FilePacker {
                 for file_chunk in file_chunks {
                     let hbfi = hbfi.clone().offset(counter);
                     let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
-                    let resp = create_response(hbfi.clone(), file_chunk, counter, total_offset)?;
+                    // response_sid: PrivateIdentity, hbfi: HBFI, data: Vec<u8>, offset: u64, total: u64
+                    let resp = NarrowWaistPacket::response(self.response_sid.clone(), hbfi.clone(), file_chunk.to_vec(), counter, total_offset)?;
+                    //let resp = create_response(hbfi.clone(), file_chunk, counter, total_offset)?;
                     let resp: Vec<u8> = bincode::serialize(&resp)?;
                     rs.insert(&hbfi_s, resp)?;
                     current_offset += 1;
@@ -123,7 +116,8 @@ impl FilePacker {
         for file_manifest_chunk in file_manifest_chunks {
             let hbfi = hbfi.clone().offset(current_offset);
             let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
-            let resp = create_response(hbfi.clone(), file_manifest_chunk, current_offset, total_offset)?;
+            let resp = NarrowWaistPacket::response(self.response_sid.clone(), hbfi.clone(), file_manifest_chunk.to_vec(), current_offset, total_offset)?;
+            //let resp = create_response(hbfi.clone(), file_manifest_chunk, current_offset, total_offset)?;
             let resp: Vec<u8> = bincode::serialize(&resp)?;
             rs.insert(&hbfi_s, resp)?;
             current_offset += 1;
@@ -131,19 +125,20 @@ impl FilePacker {
 
         let manifest = Manifest { start: file_manifest_start, end: file_manifest_end };
         let manifest_s: Vec<u8> = bincode::serialize(&manifest)?;
-        let resp = create_response(hbfi.clone(), &manifest_s, 0, total_offset)?;
+        let resp = NarrowWaistPacket::response(self.response_sid.clone(), hbfi.clone(), manifest_s.to_vec(), 0, total_offset)?;
+        //let resp = create_response(hbfi.clone(), &manifest_s, 0, total_offset)?;
         let resp: Vec<u8> = bincode::serialize(&resp)?;
         rs.insert(hbfi_s, resp)?;
 
         Ok(())
     }
 }
-
+/*
 fn create_response(hbfi: HBFI, chunk: &[u8], offset: u64, total_offset: u64) -> Result<NarrowWaistPacket> {
     let mut data = [0; constants::FRAGMENT_SIZE as usize];
     let len = chunk.len() as u16;
-    if len < constants::FRAGMENT_SIZE {
-        let padded_chunk = [chunk, &vec![0; (constants::FRAGMENT_SIZE - len) as usize][..]].concat();
+    if len < constants::FRAGMENT_SIZE as u16 {
+        let padded_chunk = [chunk, &vec![0; (constants::FRAGMENT_SIZE as u16 - len) as usize][..]].concat();
         data.copy_from_slice(&padded_chunk);
     } else {
         data.copy_from_slice(&*chunk);
@@ -151,7 +146,7 @@ fn create_response(hbfi: HBFI, chunk: &[u8], offset: u64, total_offset: u64) -> 
     let data = Data { len: len, data: data };
     Ok(NarrowWaistPacket::Response { hbfi: hbfi.clone(), data, offset: offset, total: total_offset })
 }
-
+*/
 fn offset(current_offset: u64, size: u64, chunk_size: u64) -> Result<(u64, u64, u64)> {
     //return format = (start address, end address, offset count)
     match size {

@@ -9,7 +9,9 @@ use {
     copernica_protocols::{
         FilePacker,
     },
+    copernica_common::{HBFI},
     anyhow::{Result},
+    keynesis::{PrivateIdentity},
 };
 
 pub async fn generate_random_dir_name() -> PathBuf {
@@ -32,7 +34,7 @@ pub async fn generate_random_dir_name() -> PathBuf {
 
 pub type TestData = Vec<(PathBuf, u8, usize)>;
 
-pub async fn populate_tmp_dir(name: String, id: String, test_data: TestData) -> Result<(PathBuf, PathBuf)> {
+pub async fn populate_tmp_dir(name: String, response_sid: PrivateIdentity, test_data: TestData) -> Result<(PathBuf, PathBuf)> {
     let router_data_dir = generate_random_dir_name().await;
     let source_data_dir = generate_random_dir_name().await;
     for (path, data, size) in test_data {
@@ -42,12 +44,13 @@ pub async fn populate_tmp_dir(name: String, id: String, test_data: TestData) -> 
         f.write_all(&data).unwrap();
         f.sync_all().unwrap();
     }
-    let packer: FilePacker = FilePacker::new(&source_data_dir, &router_data_dir, name, id)?;
+    let hbfi = HBFI::new(response_sid.public_id(), None, "app", "m0d", "fun", &name)?;
+    let packer: FilePacker = FilePacker::new(&source_data_dir, &router_data_dir, hbfi, response_sid.clone())?;
     packer.publish()?;
     Ok((source_data_dir, router_data_dir))
 }
 
-async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: u64) -> Result<Vec<(String, String)>> {
+async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: u64, response_sid: PrivateIdentity) -> Result<Vec<(String, String)>> {
     let mut tmp_dirs: Vec<(PathBuf, PathBuf)> = Vec::with_capacity(node_count);
     for n in 0..node_count {
         let source_data_dir = generate_random_dir_name().await;
@@ -60,8 +63,8 @@ async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: u64) ->
         let mut source_file = fs::File::create(source_file_name).unwrap();
         source_file.write_all(&value).unwrap();
         source_file.sync_all().unwrap();
-        let id = "namable".into();
-        let _packer = FilePacker::new(&source_data_dir, &router_data_dir, name ,id)?;
+        let hbfi = HBFI::new(response_sid.public_id(), None, "app", "m0d", "fun", &name)?;
+        let _packer = FilePacker::new(&source_data_dir, &router_data_dir, hbfi, response_sid.clone())?;
         _packer.publish()?;
     }
     Ok(tmp_dirs.iter().map(|(s,r)| (s.to_string_lossy().to_string(), r.to_string_lossy().to_string())).collect::<Vec<(String, String)>>())

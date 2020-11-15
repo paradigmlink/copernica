@@ -14,20 +14,23 @@ use {
     copernica_links::{Link, MpscChannel, //MpscCorruptor,
         UdpIp
     },
+    keynesis::{PrivateIdentity, Seed},
     log::{debug},
 };
 
 pub async fn smoke_test() -> Result<()> {
+    let mut rng = rand::thread_rng();
+
     let mut test_data0 = TestData::new();
     test_data0.push(("0.txt".into(), 0, 1024));
     let name0: String = "namable0".into();
-    let id0: String = "namable_id0".into();
+    let id0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), id0.clone(), test_data0).await?;
 
     let mut test_data1 = TestData::new();
     test_data1.push(("1.txt".into(), 1, 1024));
     let name1: String = "namable1".into();
-    let id1: String = "namable_id1".into();
+    let id1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), test_data1).await?;
 
     let rs0 = sled::open(packaged_data_dir0)?;
@@ -35,8 +38,10 @@ pub async fn smoke_test() -> Result<()> {
     let rs2 = sled::open(generate_random_dir_name().await)?;
 
     let mut b = Broker::new(rs2);
-    let mut ftp0 = FTPService::new(rs0);
-    let mut ftp1 = FTPService::new(rs1);
+    let fid0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let mut ftp0 = FTPService::new(rs0, fid0);
+    let fid1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let mut ftp1 = FTPService::new(rs1, fid1);
 
     let ftp0v_b_id = LinkId::listen(ReplyTo::Mpsc);
     let ftp0_vb_id = LinkId::listen(ReplyTo::Mpsc);
@@ -67,8 +72,8 @@ pub async fn smoke_test() -> Result<()> {
     ftp0.run()?;
     ftp1.run()?;
 
-    let hbfi0: HBFI = HBFI::new(&name0, &id0)?;
-    let hbfi1: HBFI = HBFI::new(&name1, &id1)?;
+    let hbfi0: HBFI = HBFI::new(id0.public_id(), None, "app", "m0d", "fun", &name0)?;
+    let hbfi1: HBFI = HBFI::new(id1.public_id(), None, "app", "m0d", "fun", &name1)?;
 
     ftp1_c2p_tx.send(FTPCommands::RequestFileList(hbfi0.clone()))?;
     let files0 = ftp1_p2c_rx.recv();

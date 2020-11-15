@@ -4,42 +4,62 @@ use {
     serde::{Deserialize, Serialize},
     sha3::{Digest, Sha3_512},
     std::fmt,
+    keynesis::{PublicIdentity},
 };
 
 pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-// how to implement hierarchical routing...
-// it should be done at node level
-// if more than 1 link has an h3 then start route on h2
-// if more than 2 links have h2 then route on h1... think about this for a while.
 pub struct HBFI {
     // Hierarchical Bloom Filter Index
-    //pub h3: BFI,  // level 3 hierarchy - most coarse
-    //pub h2: BFI,  // level 2 hierarchy - comme ci, comme ça
-    pub h1: BFI, // level 1 hierarchy - most fine
-    pub id: BFI, // publisher id
-    pub os: u64, // offset into h1 level of data
+    pub response_pid: PublicIdentity,
+    pub request_pid: Option<PublicIdentity>,
+    pub res: BFI, // response PublicIdentity
+    pub req: BFI, // request PublicIdentity, when set indicates Response will be encrypted.
+    pub app: BFI, // Application
+    pub m0d: BFI, // Module
+    pub fun: BFI, // Function
+    pub arg: BFI, // Argument
+    pub ost: u64,
 }
 
 impl HBFI {
-    pub fn new(h1: &str, id: &str) -> Result<HBFI> {
+    pub fn new(response_pid: PublicIdentity
+        , request_pid: Option<PublicIdentity>
+        , app: &str
+        , m0d: &str
+        , fun: &str
+        , arg: &str
+    ) -> Result<HBFI> {
+        let req = match request_pid.clone() {
+            Some(request_pid) => {
+                bloom_filter_index(&format!("{}", request_pid))?
+            },
+            None => [0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH],
+        };
         Ok(HBFI {
-            h1: bloom_filter_index(h1)?,
-            id: bloom_filter_index(id)?,
-            os: 0,
+            response_pid: response_pid.clone(),
+            request_pid,
+            res: bloom_filter_index(&format!("{}", response_pid))?,
+            req,
+            app: bloom_filter_index(app)?,
+            m0d: bloom_filter_index(m0d)?,
+            fun: bloom_filter_index(fun)?,
+            arg: bloom_filter_index(arg)?,
+            ost: 0,
         })
     }
-
-    #[cfg(test)]
-    pub fn new_test(h1: BFI, id: BFI, os: u64) -> Self {
-        HBFI { h1, id, os }
-    }
     pub fn to_vec(&self) -> Vec<BFI> {
-        vec![self.id.clone(), self.h1.clone()]
+        vec![ self.req.clone()
+            , self.res.clone()
+            , self.app.clone()
+            , self.m0d.clone()
+            , self.fun.clone()
+            , self.arg.clone()
+        ]
     }
-    pub fn offset(mut self, os: u64) -> Self {
-        self.os = os;
+    pub fn offset(mut self, ost: u64) -> Self {
+        self.ost = ost;
         self
     }
 }
@@ -47,7 +67,8 @@ impl HBFI {
 impl fmt::Debug for HBFI {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            HBFI { h1, id, os } => write!(f, "{:?}::{:?}::{:?}", h1, id, os),
+            HBFI { request_pid, response_pid, res, req, app, m0d, fun, arg, ost } =>
+            write!(f, "req_pid:{:?},res_pid:{:?},req:{:?},res:{:?},app:{:?},m0d:{:?},fun:{:?},arg:{:?},ost:{:?}", request_pid, response_pid, req, res, app, m0d, fun, arg, ost),
         }
     }
 }
@@ -55,12 +76,13 @@ impl fmt::Debug for HBFI {
 impl fmt::Display for HBFI {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            HBFI { h1, id, os } => write!(f, "{:?}::{:?}::{:?}", h1, id, os),
+            HBFI { request_pid, response_pid, res, req, app, m0d, fun, arg, ost } =>
+            write!(f, "req_pid:{:?},res_pid:{:?},req:{:?},res:{:?},app:{:?},m0d:{:?},fun:{:?},arg:{:?},ost:{:?}", request_pid, response_pid, req, res, app, m0d, fun, arg, ost),
         }
     }
 }
 
-fn bloom_filter_index(
+pub fn bloom_filter_index(
     s: &str,
 ) -> Result<[u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]> {
     use std::str;
@@ -82,7 +104,7 @@ fn bloom_filter_index(
         let mut index: u64 = 0;
         for sub in subs {
             let o = u64::from_str_radix(&sub, 16)?;
-            index = (index + o) % constants::BLOOM_FILTER_LENGTH;
+            index = (index + o) % constants::BLOOM_FILTER_LENGTH as u64;
         }
         bloom_filter_index_array[count] = index as u16;
         count += 1;
@@ -97,6 +119,7 @@ mod tests {
         packets::{Data, NarrowWaistPacket, LinkPacket},
         link::{ReplyTo},
     };
+    use keynesis::{PrivateIdentity, Seed};
 
     #[test]
     fn test_bloom_filter_index() {
@@ -109,16 +132,23 @@ mod tests {
     #[test]
     fn less_than_1472_bytes() {
         // https://gafferongames.com/post/packet_fragmentation_and_reassembly
+        let mut rng = rand::thread_rng();
+        let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let response_pid = response_sid.public_id();
+        let id = bloom_filter_index(format!("{}", response_pid).as_str()).unwrap();
+        //let id: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let h1: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
-        let id: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
-        let hbfi = HBFI::new_test(h1, id, u64::MAX);
-        let data = [0; constants::FRAGMENT_SIZE as usize];
-        let data: Data = Data { len: constants::FRAGMENT_SIZE, data};
-        let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, data, offset: u64::MAX, total: u64::MAX };
+        let hbfi = HBFI::new(response_pid, None, "app", "m0d", "fun", "arg").unwrap();
+        let data = vec![0; 600];
+        let offset = u64::MAX;
+        let total = u64::MAX;
+        let nw: NarrowWaistPacket = NarrowWaistPacket::response(response_sid, hbfi, data, offset, total).unwrap();
         let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50000".parse().unwrap());
         let wp: LinkPacket = LinkPacket { reply_to, nw };
         let wp_ser = bincode::serialize(&wp).unwrap();
-        let lt1472 = if wp_ser.len() <= 1472 { true } else { false };
+        let wp_ser_len = wp_ser.len();
+        println!("length: {}", wp_ser_len);
+        let lt1472 = if wp_ser_len <= 1472 { true } else { false };
         assert_eq!(true, lt1472);
     }
 }

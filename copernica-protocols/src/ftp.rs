@@ -1,20 +1,20 @@
 use {
     copernica_common::{HBFI, LinkId, InterLinkPacket},//, NarrowWaistPacket},
     crate::{Manifest, FileManifest, Protocol},
+    keynesis::{PrivateIdentity},
     crossbeam_channel::{ Sender, Receiver },
     sled::{Db},
     bincode,
     anyhow::{Result, anyhow},
 };
-
 #[derive(Clone)]
 pub struct FTP {
     link_id: Option<LinkId>,
     rs: Db,
     l2p_rx: Option<Receiver<InterLinkPacket>>,
     p2l_tx: Option<Sender<InterLinkPacket>>,
+    request_sid: PrivateIdentity,
 }
-
 impl<'a> FTP {
     pub fn manifest(&mut self, hbfi: HBFI) -> Result<Manifest> {
         let hbfi = hbfi.clone().offset(0);
@@ -46,8 +46,9 @@ impl<'a> FTP {
     }
 }
 impl<'a> Protocol<'a> for FTP {
-    fn new(rs: Db) -> FTP {
+    fn new(rs: Db, request_sid: PrivateIdentity) -> FTP {
         FTP {
+            request_sid,
             link_id: None,
             l2p_rx: None,
             p2l_tx: None,
@@ -74,6 +75,9 @@ impl<'a> Protocol<'a> for FTP {
     }
     fn get_link_id(&mut self) -> Option<LinkId> {
         self.link_id.clone()
+    }
+    fn get_request_sid(&mut self) -> PrivateIdentity {
+        self.request_sid.clone()
     }
 }
 

@@ -29,7 +29,7 @@ impl Router {
         let nw: NarrowWaistPacket = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
-                NarrowWaistPacket::Request { hbfi } => {
+                NarrowWaistPacket::Request { hbfi, .. } => {
                     let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
                     match response_store.get(&hbfi_s)? {
                         Some(response) => {
