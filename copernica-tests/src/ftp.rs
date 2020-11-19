@@ -10,7 +10,7 @@ use {
     //copernica_protocols::{FTP, Manifest, FileManifest},
     copernica_services::{FTPService, FTPCommands},
     copernica_broker::{Broker},
-    copernica_common::{HBFI, LinkId, ReplyTo},
+    copernica_common::{HBFI, LinkId, ReplyTo, NarrowWaistPacket},
     copernica_links::{Link, MpscChannel, //MpscCorruptor,
         UdpIp
     },
@@ -24,14 +24,14 @@ pub async fn smoke_test() -> Result<()> {
     let mut test_data0 = TestData::new();
     test_data0.push(("0.txt".into(), 0, 1024));
     let name0: String = "namable0".into();
-    let id0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), id0.clone(), test_data0).await?;
+    let response_sid0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), response_sid0.clone(), test_data0).await?;
 
     let mut test_data1 = TestData::new();
     test_data1.push(("1.txt".into(), 1, 1024));
     let name1: String = "namable1".into();
-    let id1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), test_data1).await?;
+    let response_sid1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), response_sid1.clone(), test_data1).await?;
 
     let rs0 = sled::open(packaged_data_dir0)?;
     let rs1 = sled::open(packaged_data_dir1)?;
@@ -72,8 +72,10 @@ pub async fn smoke_test() -> Result<()> {
     ftp0.run()?;
     ftp1.run()?;
 
-    let hbfi0: HBFI = HBFI::new(id0.public_id(), None, "app", "m0d", "fun", &name0)?;
-    let hbfi1: HBFI = HBFI::new(id1.public_id(), None, "app", "m0d", "fun", &name1)?;
+    let hbfi0: HBFI = HBFI::new(response_sid0.public_id(), None, "app", "m0d", "fun", &name0)?;
+    let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    //let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), None, "app", "m0d", "fun", &name1)?;
+    let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), Some(request_sid.public_id()), "app", "m0d", "fun", &name1)?;
 
     ftp1_c2p_tx.send(FTPCommands::RequestFileList(hbfi0.clone()))?;
     let files0 = ftp1_p2c_rx.recv();

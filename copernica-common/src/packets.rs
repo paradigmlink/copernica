@@ -10,13 +10,15 @@ use {
     keynesis::{PublicIdentity, PrivateIdentity, Signature},
     anyhow::{anyhow, Result},
     rand_core::{CryptoRng, RngCore},
-    //rand::Rng,
+    rand::Rng,
     log::{debug},
+    cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
 };
 
 big_array! { BigArray; }
 
 pub type Nonce = [u8; constants::NONCE_SIZE];
+pub type Tag = [u8; constants::TAG_SIZE];
 pub type Data = [u8; constants::FRAGMENT_SIZE];
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -27,35 +29,126 @@ pub enum ResponseData {
     },
     CypherText {
         #[serde(with = "BigArray")]
-        data: Data
+        data: Data,
+        tag: Tag,
+        cleartext_sig: Signature,
     },
 }
 
-impl ResponseData {
-    pub fn clear_text(data_vec: Vec<u8>) -> Result<Self> {
-        if data_vec.len() > constants::CLEARTEXT_SIZE {
-            return Err(anyhow!("Ensure data.len() passed into ResponseData::clear_text() is not greater than {}", constants::CLEARTEXT_SIZE))
+impl fmt::Display for ResponseData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &*self {
+            ResponseData::ClearText { data } => write!(f, "RD::ClearText: {:?}", data.as_ref()),
+            ResponseData::CypherText { data, tag, cleartext_sig, } => write!(f, "RD::CypherText: {:?} Tag: {:?} Sig: {:?}", data.as_ref(), tag, cleartext_sig),
         }
-        let length = data_vec.len();
-        let padding: Vec<u8> = (0..(constants::CLEARTEXT_SIZE - length)).map(|_| 0).collect();
+    }
+}
+
+impl fmt::Debug for ResponseData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &*self {
+            ResponseData::ClearText { data } => write!(f, "RD::ClearText: {:?}", data.as_ref()),
+            ResponseData::CypherText { data, tag, cleartext_sig, } => write!(f, "RD::CypherText: {:?} Tag: {:?} Sig: {:?}", data.as_ref(), tag, cleartext_sig),
+        }
+    }
+}
+
+impl ResponseData {
+    pub fn clear_text(data: Vec<u8>) -> Result<Self> {
+        if data.len() > constants::DATA_SIZE {
+            return Err(anyhow!("Ensure data.len()({}) passed into ResponseData::clear_text() is not greater than {}", data.len(), constants::DATA_SIZE))
+        }
+        let mut rng = rand::thread_rng();
+        let length = data.len();
+        let padding: Vec<u8> = (0..(constants::DATA_SIZE - length)).map(|_| rng.gen()).collect();
         let b1 = length as u8;
         let b2 = (length >> 8) as u8;
-        let metadata = vec![b2, b1];
-        let data_vec = vec![data_vec, padding, metadata];
-        let flattened = data_vec.into_iter().flatten().collect::<Vec<u8>>();
+        let u8_nonce: u8 = rng.gen();
+        let metadata = vec![0, u8_nonce, b2, b1];
+        let data = vec![data, padding, metadata];
+        let flattened = data.into_iter().flatten().collect::<Vec<u8>>();
         let mut data: [u8; constants::FRAGMENT_SIZE] = [0; constants::FRAGMENT_SIZE];
         data.copy_from_slice(&flattened[0..constants::FRAGMENT_SIZE]);
         Ok(ResponseData::ClearText { data })
     }
-    pub fn cypher_text(_response_sid: PrivateIdentity, _request_pid: PublicIdentity, data_vec: Vec<u8>, _nonce: Nonce) -> Result<Self> {
-        if data_vec.len() > constants::CYPHERTEXT_SIZE {
-            return Err(anyhow!("Ensure data.len() passed into ResponseData::cypher_text() is not greater than {}", constants::CYPHERTEXT_SIZE))
+    pub fn cypher_text(response_sid: PrivateIdentity, request_pid: PublicIdentity, data: Vec<u8>, request_nonce: Nonce, response_nonce: Nonce) -> Result<Self> {
+        if data.len() > constants::DATA_SIZE {
+            return Err(anyhow!("Ensure data.len() passed into ResponseData::cypher_text() is not greater than {}", constants::DATA_SIZE))
         }
-        //let mut rng = rand::thread_rng();
-        //let u8_nonce: u8 = rng.gen();
-        //let snonce = format!("{:?}", u8_nonce);
-        let data: Data = [0; constants::FRAGMENT_SIZE];
-        Ok(ResponseData::CypherText { data })
+        let mut rng = rand::thread_rng();
+        let length = data.len();
+        let padding: Vec<u8> = (0..(constants::DATA_SIZE - length)).map(|_| rng.gen()).collect();
+        let b1 = length as u8;
+        let b2 = (length >> 8) as u8;
+        let u8_nonce: u8 = rng.gen();
+        let metadata = vec![0, u8_nonce, b2, b1];
+        let response_signkey = response_sid.signing_key();
+        let cleartext_sig = response_signkey.sign(data.clone());
+
+        let data = vec![data, padding, metadata];
+        let flattened = data.into_iter().flatten().collect::<Vec<u8>>();
+        let mut data: [u8; constants::FRAGMENT_SIZE] = [0; constants::FRAGMENT_SIZE];
+        data.copy_from_slice(&flattened[0..constants::FRAGMENT_SIZE]);
+        let request_pk = request_pid.derive(&request_nonce);
+        let response_sk = response_sid.derive(&response_nonce);
+        let shared_secret = response_sk.exchange(&request_pk);
+        let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &response_nonce, &[]);
+        let mut encrypted: Data = [0; constants::FRAGMENT_SIZE];
+        let mut tag: Tag = [0; constants::TAG_SIZE];
+        ctx.encrypt(&data, &mut encrypted[..], &mut tag);
+        data.copy_from_slice(&encrypted[..]);
+        Ok(ResponseData::CypherText { data, tag, cleartext_sig })
+    }
+    pub fn cleartext_data(&self) -> Result<Vec<u8>> {
+        let data = match self {
+            ResponseData::ClearText { data } => {
+                let length = data_length(&data)?;
+                let (data, _) = data.split_at(length);
+                data
+            },
+            ResponseData::CypherText { data, .. } => {
+                return Err(anyhow!("Cannot obtain the cleartext for encrypted data, use the decrypt_data method instead"))
+            },
+        };
+        Ok(data.to_vec())
+    }
+    pub fn decrypt_data(&self, request_sid: PrivateIdentity, response_pid: PublicIdentity, request_nonce: Nonce, response_nonce: Nonce) -> Result<Option<Vec<u8>>> {
+        let data = match self {
+            ResponseData::CypherText { data, tag, cleartext_sig } => {
+                if data.len() != constants::FRAGMENT_SIZE {
+                    return Err(anyhow!("Ensure data.len() passed into ResponseData.decrypt_data() is equal to {}", constants::FRAGMENT_SIZE))
+                }
+                let response_pk = response_pid.derive(&response_nonce);
+                let request_sk = request_sid.derive(&request_nonce);
+                let shared_secret = request_sk.exchange(&response_pk);
+                let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &response_nonce, &[]);
+                let mut decrypted: Data = [0; constants::FRAGMENT_SIZE];
+                if ctx.decrypt(&data[..], &mut decrypted[..], &tag[..]) {
+                    let length = data_length(&decrypted)?;
+                    let (data, _) = decrypted.split_at(length);
+                    Ok(Some(data.to_vec()))
+                } else {
+                    Ok(None)
+                }
+            },
+            ResponseData::ClearText { data } => {
+                if data.len() != constants::FRAGMENT_SIZE {
+                    return Err(anyhow!("Ensure data.len() passed into ResponseData.decrypt_data() is equal to {}", constants::FRAGMENT_SIZE))
+                }
+                let length = data_length(&data)?;
+                let (data, _) = data.split_at(length);
+                Ok(Some(data.to_vec()))
+            },
+        };
+        data
+    }
+    pub fn manifest_data(&self) -> Result<Vec<u8>> {
+        match self {
+            ResponseData::ClearText { data } => { Ok(data.as_ref().to_vec()) },
+            ResponseData::CypherText { data, tag, cleartext_sig } => {
+                Ok(format!("{:?}{:?}{}", data.as_ref(), tag, cleartext_sig).as_bytes().to_vec())
+            },
+        }
     }
 }
 
@@ -63,12 +156,13 @@ impl ResponseData {
 pub enum NarrowWaistPacket {
     Request {
         hbfi: HBFI,
-        nonce: Nonce,
+        request_nonce: Nonce,
     },
     Response {
         hbfi: HBFI,
+        request_nonce: Nonce,
+        response_nonce: Nonce,
         signature: Signature,
-        nonce: Nonce,
         data: ResponseData,
         offset: u64,
         total: u64,
@@ -78,59 +172,134 @@ pub enum NarrowWaistPacket {
 impl NarrowWaistPacket {
     pub fn request(hbfi: HBFI) -> Result<Self> {
         let mut rng = rand::thread_rng();
-        let nonce: Nonce = generate_nonce(&mut rng);
-        Ok(NarrowWaistPacket::Request { hbfi, nonce })
+        let request_nonce: Nonce = generate_nonce(&mut rng);
+        Ok(NarrowWaistPacket::Request { hbfi, request_nonce })
+    }
+    pub fn transmute(&self, response_sid: PrivateIdentity, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
+        match self {
+            NarrowWaistPacket::Request { hbfi, request_nonce } => {
+                if hbfi.response_pid != response_sid.public_id() {
+                    return Err(anyhow!("The Request's Response Public Identity doesn't match the Public Identity used to sign or encypt the Response"));
+                }
+                let mut rng = rand::thread_rng();
+                let response_nonce: Nonce = generate_nonce(&mut rng);
+                match hbfi.request_pid.clone() {
+                    Some(request_pid) => {
+                        let hbfi = hbfi.clone();
+                        let request_nonce = request_nonce.clone();
+                        let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, request_nonce, response_nonce)?;
+                        let manifest = manifest(data.manifest_data()?, &hbfi, &offset, &total, &request_nonce, &response_nonce);
+                        let response_signkey = response_sid.signing_key();
+                        let signature = response_signkey.sign(manifest);
+                        Ok(NarrowWaistPacket::Response { hbfi, request_nonce, response_nonce, offset, total, data, signature })
+                    },
+                    None => {
+                        let hbfi = hbfi.clone();
+                        let request_nonce = request_nonce.clone();
+                        let data = ResponseData::clear_text(data)?;
+                        let manifest = manifest(data.manifest_data()?, &hbfi, &offset, &total, &request_nonce, &response_nonce);
+                        let response_signkey = response_sid.signing_key();
+                        let signature = response_signkey.sign(manifest);
+                        Ok(NarrowWaistPacket::Response { hbfi, request_nonce, response_nonce, offset, total, data, signature })
+                    }
+                }
+
+            },
+            NarrowWaistPacket::Response { .. } => {
+                return Err(anyhow!("A NarrowWaistPacket::Response cannot become a NarrowWaistPacket::Response; it already is a Response."))
+            },
+        }
     }
     pub fn response(response_sid: PrivateIdentity, hbfi: HBFI, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
         if hbfi.response_pid != response_sid.public_id() {
             return Err(anyhow!("The Request's Response Public Identity doesn't match the Public Identity used to sign or encypt the Response"));
         }
         let mut rng = rand::thread_rng();
-        let nonce: Nonce = generate_nonce(&mut rng);
+        let response_nonce: Nonce = generate_nonce(&mut rng);
+        let request_nonce: Nonce = generate_nonce(&mut rng);
         match hbfi.request_pid.clone() {
-            Some(request_pid) => {
-                let response_data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, nonce)?;
-                let manifest = match response_data {
-                    ResponseData::CypherText { data } => {
-                        format!("{:?}{}{}{}{:?}", &data.as_ref(), hbfi, offset, total, nonce)
-                    },
-                    _ => return Err(anyhow!("ResponseData::ClearText { data } shouldn't exist at this point"))
-                };
-                let response_signk = response_sid.signing_key();
-                let signature = response_signk.sign(manifest);
-
-                Ok(NarrowWaistPacket::Response { hbfi, nonce, offset, total, data: response_data, signature })
+            Some(_request_pid) => {
+                return Err(anyhow!("Initial creation of a NarrowWaistPacket::Response should be clear text (at least for now). Your service application should call NarrowWaistPacket::encrypt() using the nonce from the inbound NarrowWaistPacket::Request packets as an argument."))
             },
             None => {
-                let response_data = ResponseData::clear_text(data)?;
-                let manifest = match response_data {
-                    ResponseData::ClearText { data } => {
-                        format!("{:?}{}{}{}{:?}", &data.as_ref(), hbfi, offset, total, nonce)
-                    },
-                    _ => return Err(anyhow!("ResponseData::CypherText { data } shouldn't exist at this point"))
-                };
-                let response_signk = response_sid.signing_key();
-                let signature = response_signk.sign(manifest);
-
-                Ok(NarrowWaistPacket::Response { hbfi, nonce, offset, total, data: response_data, signature })
+                let data = ResponseData::clear_text(data)?;
+                let manifest = manifest(data.manifest_data()?, &hbfi, &offset, &total, &request_nonce, &response_nonce);
+                let response_signkey = response_sid.signing_key();
+                let signature = response_signkey.sign(manifest);
+                Ok(NarrowWaistPacket::Response { hbfi, request_nonce, response_nonce, offset, total, data, signature })
             }
         }
 
+    }
+    pub fn decrypt(&self, request_sid: PrivateIdentity) -> Result<Vec<u8>> {
+        match self {
+            NarrowWaistPacket::Response { data, offset, total, hbfi, signature, request_nonce, response_nonce, .. } => {
+                if let Some(request_pid) = hbfi.request_pid.clone() {
+                    if hbfi.request_pid != Some(request_sid.public_id()) {
+                        return Err(anyhow!("The Response's Request_PublicIdentity doesn't match the Public Identity used to sign or decypt the Response"));
+                    }
+                    if !self.verify()? {
+                        return Err(anyhow!("When decrypting a NarrowWaistPacket, the manifest signature failed"))
+                    }
+                    match data.decrypt_data(request_sid, hbfi.response_pid.clone(), *request_nonce, *response_nonce)? {
+                        Some(data) => {
+                            return Ok(data)
+                        },
+                        None => { return Err(anyhow!("Couldn't decrypt")) },
+                    };
+                } else {
+                    return Err(anyhow!("The HBFI doesn't contain a Request Public Identity to use in the decryption process of a Narrow Waist"))
+                }
+            },
+            NarrowWaistPacket::Request { .. } => {
+                return Err(anyhow!("Requests shouldn't be decrypted"))
+            },
+        }
+    }
+    pub fn encrypt(&self, response_sid: PrivateIdentity, hbfi: HBFI) -> Result<Self> {
+        match self {
+            NarrowWaistPacket::Response { data, offset, total, request_nonce, .. } => {
+                if let Some(request_pid) = hbfi.request_pid.clone() {
+                    match data {
+                        ResponseData::ClearText { data } => {
+                            if data.len() != constants::FRAGMENT_SIZE {
+                                return Err(anyhow!("Ensure data.len() passed into ResponseData::cypher_text() is not greater than {}", constants::FRAGMENT_SIZE))
+                            }
+                            if !self.verify()? {
+                                return Err(anyhow!("When encrypting a packet the cleartext manifest signature failed"))
+                            }
+                            let mut rng = rand::thread_rng();
+                            let response_nonce: Nonce = generate_nonce(&mut rng);
+                            let length = data_length(&data)?;
+                            let (data, _) = data.split_at(length);
+
+                            let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data.to_vec(), *request_nonce, response_nonce)?;
+                            let manifest = manifest(data.manifest_data()?, &hbfi, offset, total, &request_nonce, &response_nonce);
+                            let response_signk = response_sid.signing_key();
+                            let signature = response_signk.sign(manifest);
+                            let request_nonce = request_nonce.clone();
+                            Ok(NarrowWaistPacket::Response{ data, signature, hbfi, offset: *offset, total: *total, request_nonce, response_nonce})
+                        },
+                        ResponseData::CypherText { .. } => {
+                            return Err(anyhow!("No point in encrypting an already encrypted packet"))
+                        },
+                    }
+                } else {
+                    return Err(anyhow!("The HBFI doesn't contain a Request Public Identity to use in the encryption process of a Narrow Waist"))
+                }
+            },
+            NarrowWaistPacket::Request { .. } => {
+                return Err(anyhow!("Requests shouldn't be encrypted"))
+            },
+        }
     }
     pub fn verify(&self) -> Result<bool> {
         match self {
             NarrowWaistPacket::Request {..} => {
                 return Err(anyhow!("No point in verifying a NarrowWaistPacket::Request"))
             },
-            NarrowWaistPacket::Response { data, hbfi, offset, total, signature, nonce}=> {
-                let manifest = match data {
-                    ResponseData::ClearText { data} => {
-                        format!("{:?}{}{}{}{:?}", data.as_ref(),  hbfi, offset, total, nonce)
-                    },
-                    ResponseData::CypherText { data } => {
-                        format!("{:?}{}{}{}{:?}", data.as_ref(),  hbfi, offset, total, nonce)
-                    },
-                };
+            NarrowWaistPacket::Response { data, hbfi, offset, total, signature, request_nonce, response_nonce}=> {
+                let manifest = manifest(data.manifest_data()?, hbfi, offset, total, request_nonce, response_nonce);
                 let verify_key = hbfi.response_pid.verify_key();
                 return Ok(verify_key.verify(&signature, manifest))
             },
@@ -141,10 +310,10 @@ impl NarrowWaistPacket {
             NarrowWaistPacket::Request {..} => {
                 return Err(anyhow!("No data in a NarrowWaistPacket::Request"))
             },
-            NarrowWaistPacket::Response { data, hbfi, offset, total, signature, nonce}=> {
+            NarrowWaistPacket::Response { data, hbfi, offset, total, signature, request_nonce, response_nonce}=> {
+                let manifest = manifest(data.manifest_data()?, &hbfi, &offset, &total, &request_nonce, &response_nonce);
                 match data {
                     ResponseData::ClearText { data} => {
-                        let manifest = format!("{:?}{}{}{}{:?}", data.as_ref(), hbfi, offset, total, nonce);
                         let verify_key = hbfi.response_pid.verify_key();
                         match verify_key.verify(&signature, manifest) {
                             false => {
@@ -152,23 +321,21 @@ impl NarrowWaistPacket {
                                 return Err(anyhow!("Signature check didn't succeed when extracting a NarrowWaistPacket::Response"))
                             },
                             true => {
-                                let length_combined = format!("{:02x}{:02x}", data[1022], data[1023]);
-                                let length = u16::from_str_radix(&length_combined, 16).unwrap();
-                                let (chunk, _) = data.split_at(length as usize);
+                                let length = data_length(&data)?;
+                                let (chunk, _) = data.split_at(length);
                                 return Ok(chunk.to_vec())
                             },
                         };
                     },
-                    ResponseData::CypherText { data } => {
-                        let manifest = format!("{:?}{}{}{}{:?}", data.as_ref(), hbfi, offset, total, nonce);
+                    ResponseData::CypherText { data, tag, cleartext_sig } => {
+                    //println!("HI");
                         let verify_key = hbfi.response_pid.verify_key();
                         match verify_key.verify(&signature, manifest) {
                             false => { return Err(anyhow!("Signature check didn't succeed when extracting a NarrowWaistPacket::Response")) },
                             true => {
-                                let length_combined = format!("{:02x}{:02x}", data[1022], data[1023]);
-                                let length = u16::from_str_radix(&length_combined, 16).unwrap();
-                                println!("Printe 2{}", length);
-                                let (chunk, _) = data.split_at(length as usize);
+
+                                let length = data_length(&data)?;
+                                let (chunk, _) = data.split_at(length);
                                 return Ok(chunk.to_vec())
                             },
                         };
@@ -177,6 +344,18 @@ impl NarrowWaistPacket {
             },
         }
     }
+}
+
+pub(crate) fn data_length(data: &[u8; constants::FRAGMENT_SIZE]) -> Result<usize> {
+    let length_combined = format!("{:02x}{:02x}", data[constants::LENGTH_OF_DATA_STARTING_POSITION], data[constants::LENGTH_OF_DATA_ENDING_POSITION]);
+    let length = u16::from_str_radix(&length_combined, 16)?;
+    Ok(length as usize)
+}
+
+pub(crate) fn manifest(data: Vec<u8>, hbfi: &HBFI, offset: &u64, total: &u64, request_nonce: &Nonce, response_nonce: &Nonce) -> String {
+    let manifest = format!("{:?}{}{}{}{:?}{:?}", data, hbfi, offset, total, request_nonce, response_nonce);
+    //println!("{:?}", manifest);
+    manifest
 }
 
 impl fmt::Debug for NarrowWaistPacket {
@@ -188,10 +367,10 @@ impl fmt::Debug for NarrowWaistPacket {
                 offset,
                 total,
                 signature,
-                nonce,
+                request_nonce,
+                response_nonce,
                 ..
-            //} => write!(f, "RES {:?} {}/{}\n{}\n{}\n{}\n{:?}", hbfi, offset, total, signature, response_pid ,nonce, &data.data.as_ref()),
-            } => write!(f, "RES {:?} {}/{}\n{}\n{:?}", hbfi, offset, total, signature, nonce),
+            } => write!(f, "RES {:?} {}/{} {} {:?} {:?}", hbfi, offset, total, signature, request_nonce, response_nonce),
         }
     }
 }
@@ -257,31 +436,9 @@ where
 mod tests {
     use super::*;
     use crate::{
-        bloom_filter_index,
-        packets::{Data, NarrowWaistPacket},
-        hbfi::{BFI},
+        packets::{NarrowWaistPacket},
     };
     use keynesis::{PrivateIdentity, Seed};
-
-    #[test]
-    fn narrow_waist_packet_integrity() {
-        let mut rng = rand::thread_rng();
-        let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let response_pid = response_sid.public_id();
-        let response_signk = response_sid.signing_key();
-        let id = bloom_filter_index(format!("{}", response_pid).as_str()).unwrap();
-        let h1: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH];
-        let hbfi = HBFI::new(response_pid.clone(), None, "app", "m0d", "fun", "arg").unwrap();
-        let data = [0; constants::FRAGMENT_SIZE as usize];
-        let nonce = generate_nonce(&mut rng);
-        let manifest = format!("{:?}{}{}{}{}{:?}", &data.as_ref(), response_pid, hbfi, u64::MAX, u64::MAX, nonce);
-        let signature = response_signk.sign(manifest);
-        let offset = u64::MAX;
-        let total = u64::MAX;
-        let data = vec![0; 600];
-        let nw: NarrowWaistPacket = NarrowWaistPacket::response(response_sid, hbfi, data, offset, total).unwrap();
-        assert_eq!(true, nw.verify().unwrap());
-    }
 
     #[test]
     fn narrow_waist_packet_encrypt_decrypt() {
@@ -289,22 +446,60 @@ mod tests {
         let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
         let response_pid = response_sid.public_id();
 
-        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let request_pid = request_sid.public_id();
-        let response_signk = response_sid.signing_key();
-        let id = bloom_filter_index(format!("{}", request_pid).as_str()).unwrap();
-        let h1: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH];
-        let hbfi = HBFI::new(response_pid, None, "app", "m0d", "fun", "arg").unwrap();
-        let data = [0; constants::FRAGMENT_SIZE as usize];
-        let nonce = generate_nonce(&mut rng);
-        let manifest = format!("{:?}{}{}{}{}{:?}", &data.as_ref(), request_pid, hbfi, u64::MAX, u64::MAX, nonce);
-        let signature = response_signk.sign(manifest);
+        let hbfi = HBFI::new(response_pid.clone(), None, "app", "m0d", "fun", "arg").unwrap();
         let data = vec![0; 600];
         let offset = u64::MAX;
         let total = u64::MAX;
-        let nw: NarrowWaistPacket = NarrowWaistPacket::response(response_sid, hbfi, data, offset, total).unwrap();
-        println!("{:?}", nw);
-        assert_eq!(true, nw.verify().unwrap());
+        let nw: NarrowWaistPacket = NarrowWaistPacket::response(response_sid.clone(), hbfi.clone(), data, offset, total).unwrap();
+
+        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let request_pid = request_sid.public_id();
+
+        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg").unwrap();
+
+        let nw = nw.encrypt(response_sid, hbfi);
+    }
+
+    #[test]
+    fn request_becomes_response() {
+        let mut rng = rand::thread_rng();
+        let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let response_pid = response_sid.public_id();
+
+        let hbfi = HBFI::new(response_pid.clone(), None, "app", "m0d", "fun", "arg").unwrap();
+        let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone()).unwrap();
+
+        let data = vec![0; 600];
+        let offset = 0;
+        let total = 0;
+        let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), data, offset, total).unwrap();
+
+        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let request_pid = request_sid.public_id();
+
+        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg").unwrap();
+
+        let nw = nw.encrypt(response_sid, hbfi);
+        //println!("{:?}", nw);
+    }
+
+    #[test]
+    fn request_transmute_and_decrypt() {
+        let mut rng = rand::thread_rng();
+        let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let response_pid = response_sid.public_id();
+        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let request_pid = request_sid.public_id();
+
+        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg").unwrap();
+        let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone()).unwrap();
+        let expected_data = vec![0; 600];
+        let offset = 0;
+        let total = 1;
+        let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total).unwrap();
+        let actual_data = nw.decrypt(request_sid).unwrap();
+
+        assert_eq!(actual_data, expected_data);
     }
 }
 

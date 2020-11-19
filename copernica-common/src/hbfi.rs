@@ -116,8 +116,9 @@ pub fn bloom_filter_index(
 mod tests {
     use super::*;
     use crate::{
-        packets::{Data, NarrowWaistPacket, LinkPacket},
+        packets::{NarrowWaistPacket, LinkPacket},
         link::{ReplyTo},
+        generate_nonce,
     };
     use keynesis::{PrivateIdentity, Seed};
 
@@ -130,14 +131,11 @@ mod tests {
     }
 
     #[test]
-    fn less_than_1472_bytes() {
+    fn less_than_mtu() {
         // https://gafferongames.com/post/packet_fragmentation_and_reassembly
         let mut rng = rand::thread_rng();
         let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
         let response_pid = response_sid.public_id();
-        let id = bloom_filter_index(format!("{}", response_pid).as_str()).unwrap();
-        //let id: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
-        let h1: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let hbfi = HBFI::new(response_pid, None, "app", "m0d", "fun", "arg").unwrap();
         let data = vec![0; 600];
         let offset = u64::MAX;
@@ -147,7 +145,7 @@ mod tests {
         let wp: LinkPacket = LinkPacket { reply_to, nw };
         let wp_ser = bincode::serialize(&wp).unwrap();
         let wp_ser_len = wp_ser.len();
-        println!("length: {}", wp_ser_len);
+        println!("must be less than 1472, current length: {}", wp_ser_len);
         let lt1472 = if wp_ser_len <= 1472 { true } else { false };
         assert_eq!(true, lt1472);
     }

@@ -42,7 +42,7 @@ impl FilePacker {
         let src_dir = source_dir.clone().to_path_buf();
         let dest_dir = dest_dir.to_path_buf();
         Ok(Self {
-            chunk_size: constants::CLEARTEXT_SIZE,
+            chunk_size: constants::DATA_SIZE,
             src_dir,
             dest_dir,
             hbfi,
