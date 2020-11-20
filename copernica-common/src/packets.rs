@@ -31,7 +31,6 @@ pub enum ResponseData {
         #[serde(with = "BigArray")]
         data: Data,
         tag: Tag,
-        cleartext_sig: Signature,
     },
 }
 
@@ -39,7 +38,7 @@ impl fmt::Display for ResponseData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
             ResponseData::ClearText { data } => write!(f, "RD::ClearText: {:?}", data.as_ref()),
-            ResponseData::CypherText { data, tag, cleartext_sig, } => write!(f, "RD::CypherText: {:?} Tag: {:?} Sig: {:?}", data.as_ref(), tag, cleartext_sig),
+            ResponseData::CypherText { data, tag } => write!(f, "RD::CypherText: {:?} Tag: {:?}", data.as_ref(), tag),
         }
     }
 }
@@ -48,7 +47,7 @@ impl fmt::Debug for ResponseData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
             ResponseData::ClearText { data } => write!(f, "RD::ClearText: {:?}", data.as_ref()),
-            ResponseData::CypherText { data, tag, cleartext_sig, } => write!(f, "RD::CypherText: {:?} Tag: {:?} Sig: {:?}", data.as_ref(), tag, cleartext_sig),
+            ResponseData::CypherText { data, tag } => write!(f, "RD::CypherText: {:?} Tag: {:?}", data.as_ref(), tag),
         }
     }
 }
@@ -82,8 +81,6 @@ impl ResponseData {
         let b2 = (length >> 8) as u8;
         let u8_nonce: u8 = rng.gen();
         let metadata = vec![0, u8_nonce, b2, b1];
-        let response_signkey = response_sid.signing_key();
-        let cleartext_sig = response_signkey.sign(data.clone());
 
         let data = vec![data, padding, metadata];
         let flattened = data.into_iter().flatten().collect::<Vec<u8>>();
@@ -97,7 +94,7 @@ impl ResponseData {
         let mut tag: Tag = [0; constants::TAG_SIZE];
         ctx.encrypt(&data, &mut encrypted[..], &mut tag);
         data.copy_from_slice(&encrypted[..]);
-        Ok(ResponseData::CypherText { data, tag, cleartext_sig })
+        Ok(ResponseData::CypherText { data, tag })
     }
     pub fn cleartext_data(&self) -> Result<Vec<u8>> {
         let data = match self {
@@ -106,7 +103,7 @@ impl ResponseData {
                 let (data, _) = data.split_at(length);
                 data
             },
-            ResponseData::CypherText { data, .. } => {
+            ResponseData::CypherText { .. } => {
                 return Err(anyhow!("Cannot obtain the cleartext for encrypted data, use the decrypt_data method instead"))
             },
         };
@@ -114,7 +111,7 @@ impl ResponseData {
     }
     pub fn decrypt_data(&self, request_sid: PrivateIdentity, response_pid: PublicIdentity, request_nonce: Nonce, response_nonce: Nonce) -> Result<Option<Vec<u8>>> {
         let data = match self {
-            ResponseData::CypherText { data, tag, cleartext_sig } => {
+            ResponseData::CypherText { data, tag } => {
                 if data.len() != constants::FRAGMENT_SIZE {
                     return Err(anyhow!("Ensure data.len() passed into ResponseData.decrypt_data() is equal to {}", constants::FRAGMENT_SIZE))
                 }
@@ -145,8 +142,8 @@ impl ResponseData {
     pub fn manifest_data(&self) -> Result<Vec<u8>> {
         match self {
             ResponseData::ClearText { data } => { Ok(data.as_ref().to_vec()) },
-            ResponseData::CypherText { data, tag, cleartext_sig } => {
-                Ok(format!("{:?}{:?}{}", data.as_ref(), tag, cleartext_sig).as_bytes().to_vec())
+            ResponseData::CypherText { data, tag } => {
+                Ok(format!("{:?}{:?}", data.as_ref(), tag).as_bytes().to_vec())
             },
         }
     }
@@ -233,9 +230,9 @@ impl NarrowWaistPacket {
     }
     pub fn decrypt(&self, request_sid: PrivateIdentity) -> Result<Vec<u8>> {
         match self {
-            NarrowWaistPacket::Response { data, offset, total, hbfi, signature, request_nonce, response_nonce, .. } => {
+            NarrowWaistPacket::Response { data, hbfi, request_nonce, response_nonce, .. } => {
                 if let Some(request_pid) = hbfi.request_pid.clone() {
-                    if hbfi.request_pid != Some(request_sid.public_id()) {
+                    if request_pid != request_sid.public_id() {
                         return Err(anyhow!("The Response's Request_PublicIdentity doesn't match the Public Identity used to sign or decypt the Response"));
                     }
                     if !self.verify()? {
@@ -313,7 +310,7 @@ impl NarrowWaistPacket {
             NarrowWaistPacket::Response { data, hbfi, offset, total, signature, request_nonce, response_nonce}=> {
                 let manifest = manifest(data.manifest_data()?, &hbfi, &offset, &total, &request_nonce, &response_nonce);
                 match data {
-                    ResponseData::ClearText { data} => {
+                    ResponseData::ClearText { data } => {
                         let verify_key = hbfi.response_pid.verify_key();
                         match verify_key.verify(&signature, manifest) {
                             false => {
@@ -327,8 +324,7 @@ impl NarrowWaistPacket {
                             },
                         };
                     },
-                    ResponseData::CypherText { data, tag, cleartext_sig } => {
-                    //println!("HI");
+                    ResponseData::CypherText { data, .. } => {
                         let verify_key = hbfi.response_pid.verify_key();
                         match verify_key.verify(&signature, manifest) {
                             false => { return Err(anyhow!("Signature check didn't succeed when extracting a NarrowWaistPacket::Response")) },
@@ -441,49 +437,6 @@ mod tests {
     use keynesis::{PrivateIdentity, Seed};
 
     #[test]
-    fn narrow_waist_packet_encrypt_decrypt() {
-        let mut rng = rand::thread_rng();
-        let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let response_pid = response_sid.public_id();
-
-        let hbfi = HBFI::new(response_pid.clone(), None, "app", "m0d", "fun", "arg").unwrap();
-        let data = vec![0; 600];
-        let offset = u64::MAX;
-        let total = u64::MAX;
-        let nw: NarrowWaistPacket = NarrowWaistPacket::response(response_sid.clone(), hbfi.clone(), data, offset, total).unwrap();
-
-        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let request_pid = request_sid.public_id();
-
-        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg").unwrap();
-
-        let nw = nw.encrypt(response_sid, hbfi);
-    }
-
-    #[test]
-    fn request_becomes_response() {
-        let mut rng = rand::thread_rng();
-        let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let response_pid = response_sid.public_id();
-
-        let hbfi = HBFI::new(response_pid.clone(), None, "app", "m0d", "fun", "arg").unwrap();
-        let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone()).unwrap();
-
-        let data = vec![0; 600];
-        let offset = 0;
-        let total = 0;
-        let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), data, offset, total).unwrap();
-
-        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let request_pid = request_sid.public_id();
-
-        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg").unwrap();
-
-        let nw = nw.encrypt(response_sid, hbfi);
-        //println!("{:?}", nw);
-    }
-
-    #[test]
     fn request_transmute_and_decrypt() {
         let mut rng = rand::thread_rng();
         let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
@@ -502,5 +455,3 @@ mod tests {
         assert_eq!(actual_data, expected_data);
     }
 }
-
-

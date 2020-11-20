@@ -118,7 +118,6 @@ mod tests {
     use crate::{
         packets::{NarrowWaistPacket, LinkPacket},
         link::{ReplyTo},
-        generate_nonce,
     };
     use keynesis::{PrivateIdentity, Seed};
 
