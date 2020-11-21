@@ -4,7 +4,7 @@ use {
     serde::{Deserialize, Serialize},
     sha3::{Digest, Sha3_512},
     std::fmt,
-    keynesis::{PublicIdentity},
+    copernica_identity::{PublicIdentity},
 };
 
 pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]; // Bloom Filter Index
@@ -119,7 +119,7 @@ mod tests {
         packets::{NarrowWaistPacket, LinkPacket},
         link::{ReplyTo},
     };
-    use keynesis::{PrivateIdentity, Seed};
+    use copernica_identity::{PrivateIdentity, Seed};
 
     #[test]
     fn test_bloom_filter_index() {

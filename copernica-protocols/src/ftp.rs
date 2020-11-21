@@ -1,7 +1,7 @@
 use {
     copernica_common::{HBFI, LinkId, InterLinkPacket},//, NarrowWaistPacket},
     crate::{Manifest, FileManifest, Protocol},
-    keynesis::{PrivateIdentity},
+    copernica_identity::{PrivateIdentity},
     crossbeam_channel::{ Sender, Receiver },
     sled::{Db},
     bincode,

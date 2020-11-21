@@ -7,7 +7,7 @@ use {
     serde::{Deserialize, Serialize},
     std::fmt,
     serde_big_array::{big_array},
-    keynesis::{PublicIdentity, PrivateIdentity, Signature},
+    copernica_identity::{PublicIdentity, PrivateIdentity, Signature},
     anyhow::{anyhow, Result},
     rand_core::{CryptoRng, RngCore},
     rand::Rng,
@@ -440,7 +440,7 @@ mod tests {
     use crate::{
         packets::{NarrowWaistPacket},
     };
-    use keynesis::{PrivateIdentity, Seed};
+    use copernica_identity::{PrivateIdentity, Seed};
 
     #[test]
     fn request_transmute_and_decrypt() {

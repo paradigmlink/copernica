@@ -3,7 +3,7 @@ use std::collections::hash_map::Keys;
 use std::iter::FromIterator;
 use std::vec::Vec;
 use copernica_common::{LinkId, BFI};
-use keynesis::{PrivateIdentity, Seed};
+use copernica_identity::{PrivateIdentity, Seed};
 
 struct BFIs {
     bfis: HashMap<BFI, HashMap<LinkId, i64>>,

@@ -8,7 +8,7 @@ use {
     anyhow::{anyhow, Result},
     crossbeam_channel::{unbounded, Receiver, Sender},
     std::collections::HashMap,
-    keynesis::{PrivateIdentity},
+    copernica_identity::{PrivateIdentity},
     log::{
         error, trace,
         //debug

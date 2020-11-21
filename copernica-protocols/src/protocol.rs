@@ -1,6 +1,6 @@
 use {
     copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI},
-    keynesis::{PrivateIdentity},
+    copernica_identity::{PrivateIdentity},
     bincode,
     std::{thread},
     log::{debug},

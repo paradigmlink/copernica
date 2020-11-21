@@ -10,7 +10,7 @@ use {
     bincode,
     walkdir::{WalkDir},
     anyhow::{Result, anyhow},
-    keynesis::{PrivateIdentity},
+    copernica_identity::{PrivateIdentity},
     //log::{debug},
 };
 

@@ -11,7 +11,7 @@ use {
     },
     copernica_common::{HBFI},
     anyhow::{Result},
-    keynesis::{PrivateIdentity},
+    copernica_identity::{PrivateIdentity},
 };
 
 pub async fn generate_random_dir_name() -> PathBuf {

@@ -1,5 +1,5 @@
 [package]
-name = "keynesis"
+name = "copernica-identity"
 version = "0.3.0"
 authors = ["Nicolas Di Prima <nicolas@primetype.co.uk>"]
 edition = "2018"

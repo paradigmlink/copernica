@@ -2,7 +2,7 @@ use {
     serde::{Deserialize, Serialize},
     rand::Rng,
     std::{fmt, net::SocketAddr},
-    keynesis::{PrivateIdentity, Seed},
+    copernica_identity::{PrivateIdentity, Seed},
     anyhow::{Result, anyhow},
 };
 

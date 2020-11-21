@@ -3,7 +3,7 @@ use {
     copernica_protocols::{FTP, Protocol},
     std::{thread},
     crossbeam_channel::{Sender, Receiver, unbounded},
-    keynesis::{PrivateIdentity},
+    copernica_identity::{PrivateIdentity},
     //sled::{Db, Event},
     anyhow::{Result},
 };

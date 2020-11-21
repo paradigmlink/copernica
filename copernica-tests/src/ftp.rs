@@ -14,7 +14,7 @@ use {
     copernica_links::{Link, MpscChannel, //MpscCorruptor,
         UdpIp
     },
-    keynesis::{PrivateIdentity, Seed},
+    copernica_identity::{PrivateIdentity, Seed},
     log::{debug},
 };
 

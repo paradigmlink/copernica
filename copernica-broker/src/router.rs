@@ -10,7 +10,7 @@ use {
     crossbeam_channel::Sender,
     log::{debug, warn},
     std::collections::HashMap,
-    keynesis::{PrivateIdentity},
+    copernica_identity::{PrivateIdentity},
 };
 
 #[derive(Clone)]
