@@ -29,7 +29,7 @@ impl Link<'_> for UdpIp {
         ) -> Result<UdpIp>
     {
         trace!("LISTEN ON {:?}:", link_id);
-        match link_id.reply_to() {
+        match link_id.reply_to()? {
             ReplyTo::UdpIp(_) => return Ok(UdpIp { name, link_id, l2bs_tx, bs2l_rx }),
             _ => return Err(anyhow!("UdpIp Link expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
         }
@@ -42,7 +42,7 @@ impl Link<'_> for UdpIp {
         let l2bs_tx = self.l2bs_tx.clone();
         std::thread::spawn(move || {
             task::block_on(async move {
-                match this_link.reply_to() {
+                match this_link.reply_to()? {
                     ReplyTo::UdpIp(listen_addr) => {
                         match UdpSocket::bind(listen_addr).await {
                             Ok(socket) => {
@@ -52,7 +52,7 @@ impl Link<'_> for UdpIp {
                                         Ok((n, _peer)) => {
                                             let wp: LinkPacket = decode(buf[..n].to_vec())?;
                                             debug!("{} {:?}", name, this_link);
-                                            let link_id = LinkId::new(this_link.identity(), wp.reply_to());
+                                            let link_id = LinkId::new(this_link.private_identity()?, wp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, wp);
                                             let _r = l2bs_tx.send(ilp)?;
                                         },
@@ -78,9 +78,9 @@ impl Link<'_> for UdpIp {
                         loop {
                             match bs2l_rx.recv(){
                                 Ok(ilp) => {
-                                    match ilp.reply_to() {
+                                    match ilp.reply_to()? {
                                         ReplyTo::UdpIp(remote_addr) => {
-                                            let wp = ilp.wire_packet().change_origination(this_link.reply_to());
+                                            let wp = ilp.wire_packet().change_origination(this_link.reply_to()?);
                                             debug!("{} {:?}", name, this_link);
                                             let enc = encode(wp)?;
                                             socket.send_to(&enc, remote_addr).await?;

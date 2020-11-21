@@ -63,7 +63,7 @@ impl ResponseData {
         let b1 = length as u8;
         let b2 = (length >> 8) as u8;
         let u8_nonce: u8 = rng.gen();
-        let metadata = vec![0, u8_nonce, b2, b1];
+        let metadata = vec![u8_nonce, b2, b1];
         let data = vec![data, padding, metadata];
         let flattened = data.into_iter().flatten().collect::<Vec<u8>>();
         let mut data: [u8; constants::FRAGMENT_SIZE] = [0; constants::FRAGMENT_SIZE];
@@ -80,7 +80,7 @@ impl ResponseData {
         let b1 = length as u8;
         let b2 = (length >> 8) as u8;
         let u8_nonce: u8 = rng.gen();
-        let metadata = vec![0, u8_nonce, b2, b1];
+        let metadata = vec![u8_nonce, b2, b1];
 
         let data = vec![data, padding, metadata];
         let flattened = data.into_iter().flatten().collect::<Vec<u8>>();
@@ -373,13 +373,19 @@ impl fmt::Debug for NarrowWaistPacket {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LinkPacket {
+    pub public_identity: PublicIdentity,
+    pub tag: Tag,
+    pub nonce: Nonce,
     pub reply_to: ReplyTo,
     pub nw: NarrowWaistPacket,
 }
 
 impl LinkPacket {
-    pub fn new(reply_to: ReplyTo, nw: NarrowWaistPacket) -> Self {
-        Self { reply_to , nw}
+    pub fn new(public_identity: PublicIdentity, reply_to: ReplyTo, nw: NarrowWaistPacket) -> Self {
+        let mut rng = rand::thread_rng();
+        let mut tag: Tag = [0; constants::TAG_SIZE];
+        let nonce: Nonce = generate_nonce(&mut rng);
+        Self { public_identity, tag, nonce, reply_to, nw}
     }
     pub fn narrow_waist(&self) -> NarrowWaistPacket {
         self.nw.clone()
@@ -388,7 +394,7 @@ impl LinkPacket {
         self.reply_to.clone()
     }
     pub fn change_origination(&self, reply_to: ReplyTo) -> Self {
-        Self { reply_to, nw: self.nw.clone() }
+        Self { public_identity: self.public_identity.clone(), tag: self.tag.clone(), nonce: self.nonce.clone(), reply_to, nw: self.nw.clone() }
     }
 }
 
@@ -408,7 +414,7 @@ impl InterLinkPacket {
     pub fn change_destination(&self, link_id: LinkId) -> Self {
         Self { link_id, lp: self.lp.clone() }
     }
-    pub fn reply_to(&self) -> ReplyTo {
+    pub fn reply_to(&self) -> Result<ReplyTo> {
         self.link_id.reply_to()
     }
     pub fn narrow_waist(&self) -> NarrowWaistPacket {

@@ -38,7 +38,7 @@ impl<'a> Link<'a> for MpscChannel {
         , link_id: LinkId
         , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<MpscChannel> {
-        match link_id.reply_to() {
+        match link_id.reply_to()? {
             ReplyTo::Mpsc => {
                 let (l2l0_tx, l2l0_rx) = unbounded::<Vec<u8>>();
                 return Ok(
@@ -64,14 +64,14 @@ impl<'a> Link<'a> for MpscChannel {
         let l2l0_rx = self.l2l0_rx.clone();
         let l2bs_tx = self.l2bs_tx.clone();
         std::thread::spawn(move || {
-            match this_link.reply_to() {
+            match this_link.reply_to()? {
                 ReplyTo::Mpsc => {
                     loop {
                         match l2l0_rx.recv(){
                             Ok(msg) => {
-                                let wp = decode(msg)?;
-                                let link_id = LinkId::new(this_link.identity(), wp.reply_to());
-                                let ilp = InterLinkPacket::new(link_id, wp.clone());
+                                let lp = decode(msg)?;
+                                let link_id = LinkId::new(this_link.private_identity()?, lp.reply_to());
+                                let ilp = InterLinkPacket::new(link_id, lp.clone());
                                 debug!("{} {:?}", name, this_link);
                                 let _r = l2bs_tx.send(ilp)?;
                             },
@@ -91,8 +91,8 @@ impl<'a> Link<'a> for MpscChannel {
                 loop {
                     match bs2l_rx.recv(){
                         Ok(ilp) => {
-                            let wp = ilp.wire_packet().change_origination(this_link.reply_to());
-                            let enc = encode(wp.clone())?;
+                            let lp = ilp.wire_packet().change_origination(this_link.reply_to()?);
+                            let enc = encode(lp)?;
                             for s in l2l1_tx.clone() {
                                 debug!("{} {:?}", name, this_link);
                                 s.send(enc.clone())?;

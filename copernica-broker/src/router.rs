@@ -4,12 +4,13 @@ use {
         Bayes, LinkWeight
     },
     bincode,
-    copernica_common::{Identity, LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
+    copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
     anyhow::Result,
     //log::{trace},
     crossbeam_channel::Sender,
     log::{debug, warn},
     std::collections::HashMap,
+    keynesis::{PrivateIdentity},
 };
 
 #[derive(Clone)]
@@ -25,7 +26,7 @@ impl Router {
         choke: &LinkId,
     ) -> Result<()> {
         let this_link: LinkId = ilp.link_id();
-        let this_link_identity: Identity = ilp.link_id().identity();
+        let this_link_identity: PrivateIdentity = ilp.link_id().private_identity()?;
         let nw: NarrowWaistPacket = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
@@ -35,8 +36,9 @@ impl Router {
                         Some(response) => {
                             let nw: NarrowWaistPacket = bincode::deserialize(&response)?;
                             debug!("********* RESPONSE PACKET FOUND *********");
-                            let wp = LinkPacket::new(this_link.reply_to(), nw);
-                            let ilp = InterLinkPacket::new(this_link.clone(), wp);
+                            let public_identity = this_link_identity.public_id();
+                            let lp = LinkPacket::new(public_identity, this_link.reply_to()?, nw);
+                            let ilp = InterLinkPacket::new(this_link.clone(), lp);
                             r2c_tx.send(ilp)?;
                             return Ok(());
                         }
@@ -74,7 +76,7 @@ impl Router {
                                 if that_link == *choke {
                                     continue;
                                 }
-                                if that_link.identity() == this_link_identity {
+                                if that_link.private_identity()? == this_link_identity {
                                     continue;
                                 }
                                 if let Some(that_bloom) = blooms.get_mut(&that_link) {
@@ -106,7 +108,7 @@ impl Router {
                         // ^^^ think about an attack whereby a response is continually sent thus adjusting the weights
                         this_bloom.delete_forwarded_request(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {
-                            if that_link.identity() == this_link_identity {
+                            if that_link.private_identity()? == this_link_identity {
                                 continue;
                             }
                             if that_bloom.contains_pending_request(&hbfi) {

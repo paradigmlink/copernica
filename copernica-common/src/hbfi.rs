@@ -135,17 +135,28 @@ mod tests {
         let mut rng = rand::thread_rng();
         let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
         let response_pid = response_sid.public_id();
-        let hbfi = HBFI::new(response_pid, None, "app", "m0d", "fun", "arg").unwrap();
-        let data = vec![0; 600];
-        let offset = u64::MAX;
-        let total = u64::MAX;
-        let nw: NarrowWaistPacket = NarrowWaistPacket::response(response_sid, hbfi, data, offset, total).unwrap();
+
+        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let request_pid = response_sid.public_id();
+
+
+        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg").unwrap();
+        let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone()).unwrap();
+        let expected_data = vec![0; 600];
+        let offset = 0;
+        let total = 1;
+        let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total).unwrap();
+
+        let link_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let link_pid = link_sid.public_id();
+
         let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50000".parse().unwrap());
-        let wp: LinkPacket = LinkPacket { reply_to, nw };
-        let wp_ser = bincode::serialize(&wp).unwrap();
-        let wp_ser_len = wp_ser.len();
-        println!("must be less than 1472, current length: {}", wp_ser_len);
-        let lt1472 = if wp_ser_len <= 1472 { true } else { false };
+        let lp: LinkPacket = LinkPacket::new(link_pid, reply_to, nw);
+        println!("{:?}", lp);
+        let lp_ser = bincode::serialize(&lp).unwrap();
+        let lp_ser_len = lp_ser.len();
+        println!("must be less than 1472, current length: {}", lp_ser_len);
+        let lt1472 = if lp_ser_len <= 1472 { true } else { false };
         assert_eq!(true, lt1472);
     }
 }

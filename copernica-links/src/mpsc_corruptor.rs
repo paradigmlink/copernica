@@ -38,7 +38,7 @@ impl<'a> Link<'a> for MpscCorruptor {
         , link_id: LinkId
         , (t2c_tx, c2t_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<MpscCorruptor> {
-        match link_id.reply_to() {
+        match link_id.reply_to()? {
             ReplyTo::Mpsc => {
                 let (t2t0_tx, t2t0_rx) = unbounded::<Vec<u8>>();
                 return Ok(
@@ -64,14 +64,14 @@ impl<'a> Link<'a> for MpscCorruptor {
         let t2t0_rx = self.t2t0_rx.clone();
         let t2c_tx = self.t2c_tx.clone();
         std::thread::spawn(move || {
-            match this_link.reply_to() {
+            match this_link.reply_to()? {
                 ReplyTo::Mpsc => {
                     loop {
                         match t2t0_rx.recv(){
                             Ok(msg) => {
-                                let wp = decode(msg)?;
-                                let link_id = LinkId::new(this_link.identity(), wp.reply_to());
-                                let ilp = InterLinkPacket::new(link_id, wp.clone());
+                                let lp = decode(msg)?;
+                                let link_id = LinkId::new(this_link.private_identity()?, lp.reply_to());
+                                let ilp = InterLinkPacket::new(link_id, lp);
                                 debug!("{} {:?}", name, this_link);
                                 let _r = t2c_tx.send(ilp)?;
                             },
@@ -91,8 +91,8 @@ impl<'a> Link<'a> for MpscCorruptor {
                 loop {
                     match c2t_rx.recv(){
                         Ok(ilp) => {
-                            let wp = ilp.wire_packet().change_origination(this_link.reply_to());
-                            let enc = encode(wp.clone())?;
+                            let lp = ilp.wire_packet().change_origination(this_link.reply_to()?);
+                            let enc = encode(lp)?;
                             let mut corrupted = enc;
                             for i in 4..10 {
                                 corrupted[i] = 0x0;
