@@ -74,8 +74,7 @@ pub trait Protocol<'a> {
                                         Some(nw) => {
                                             debug!("********* RESPONSE PACKET FOUND *********");
                                             let nw: NarrowWaistPacket = bincode::deserialize(&nw)?;
-                                            let public_identity = link_id.private_identity()?.public_id();
-                                            let lp = LinkPacket::new(public_identity, link_id.reply_to()?, nw);
+                                            let lp = LinkPacket::new(link_id.reply_to()?, nw);
                                             let ilp = InterLinkPacket::new(link_id.clone(), lp);
                                             p2l_tx.send(ilp)?;
                                         },
@@ -115,8 +114,7 @@ pub trait Protocol<'a> {
                     }
                     None => {
                         let nw = NarrowWaistPacket::request(hbfi.clone())?;
-                        let public_identity = link_id.private_identity()?.public_id();
-                        let lp = LinkPacket::new(public_identity, link_id.reply_to()?, nw);
+                        let lp = LinkPacket::new(link_id.reply_to()?, nw);
                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
                         let subscriber = rs.watch_prefix(hbfi_s);
                         p2l_tx.send(ilp)?;

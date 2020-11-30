@@ -3,7 +3,6 @@ use std::collections::hash_map::Keys;
 use std::iter::FromIterator;
 use std::vec::Vec;
 use copernica_common::{LinkId, BFI};
-use copernica_identity::{PrivateIdentity, Seed};
 
 struct BFIs {
     bfis: HashMap<BFI, HashMap<LinkId, i64>>,
@@ -264,7 +263,7 @@ mod test_bfis {
         let mut model = BFIs::new();
         let h1: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let li = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let li = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         model.train(&h1, &li);
         assert_eq!(
             *model
@@ -281,7 +280,7 @@ mod test_bfis {
         let mut model = BFIs::new();
         let h1: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let li = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let li = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         assert_eq!(
             model
                 .get_frequency(&h1, &li)
@@ -302,7 +301,7 @@ mod test_linkids {
         let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let h1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         linkids.train(&h1);
         assert_eq!(*linkids.get_count(&h1).unwrap(), 1);
     }
@@ -312,7 +311,7 @@ mod test_linkids {
         let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let h1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         assert_eq!(linkids.get_count(&h1), None);
     }
 
@@ -321,7 +320,7 @@ mod test_linkids {
         let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let h1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         linkids.train(&h1);
         assert_eq!(linkids.get_linkids().len(), 1);
         assert_eq!(linkids.get_linkids().last().unwrap(), &h1);
@@ -332,7 +331,7 @@ mod test_linkids {
         let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let h1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         linkids.train(&h1);
         linkids.train(&h1);
         assert_eq!(linkids.get_linkids().len(), 1);
@@ -344,7 +343,7 @@ mod test_linkids {
         let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let h1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         assert_eq!(linkids.get_linkids().len(), 0);
         assert_eq!(linkids.get_count(&h1), None);
     }
@@ -360,11 +359,11 @@ mod test_linkids {
         let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let h1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let h2 = LinkId::listen(private_identity, ReplyTo::Rf(1));
+        let h2 = LinkId::listen(private_identity, None, ReplyTo::Rf(1));
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let h3 = LinkId::listen(private_identity, ReplyTo::Rf(2));
+        let h3 = LinkId::listen(private_identity, None, ReplyTo::Rf(2));
         linkids.train(&h1);
         linkids.train(&h1);
         linkids.train(&h2);
@@ -389,7 +388,7 @@ mod test_bayes {
         let h2: BFI = [u16::MAX/2; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let h3: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let l1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         data.push(h1);
         data.push(h2);
         data.push(h3);
@@ -407,7 +406,7 @@ mod test_bayes {
         let h2: BFI = [u16::MAX/2; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let h3: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let l1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         data.push(h1);
         data.push(h2);
         data.push(h3);
@@ -425,9 +424,9 @@ mod test_bayes {
         let h2: BFI = [u16::MAX/2; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let h3: BFI = [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let l1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let l2 = LinkId::listen(private_identity, ReplyTo::Rf(1));
+        let l2 = LinkId::listen(private_identity, None, ReplyTo::Rf(1));
         data.push(h1);
         data.push(h2);
         data.push(h3);
@@ -448,7 +447,7 @@ mod test_bayes {
         data.push(h2);
         data.push(h3);
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let l1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         nb.model.train(&data, &l1);
         let mut data2: Vec<BFI> = Vec::new();
         let h3: BFI = [u16::MIN+1; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
@@ -458,7 +457,7 @@ mod test_bayes {
         data2.push(h4);
         data2.push(h5);
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let l2 = LinkId::listen(private_identity, ReplyTo::Rf(1));
+        let l2 = LinkId::listen(private_identity, None, ReplyTo::Rf(1));
         nb.model.train(&data2, &l2);
 
         let h6: BFI = [u16::MAX/2+1+1; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
@@ -488,7 +487,7 @@ mod test_bayes {
         data.push(h2);
         data.push(h3);
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let l1 = LinkId::listen(private_identity, ReplyTo::Rf(0));
+        let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         nb.model.train(&data, &l1);
         let mut data2: Vec<BFI> = Vec::new();
         let h3: BFI = [u16::MIN+1; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
@@ -498,7 +497,7 @@ mod test_bayes {
         data2.push(h4);
         data2.push(h5);
         let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let l2 = LinkId::listen(private_identity, ReplyTo::Rf(1));
+        let l2 = LinkId::listen(private_identity, None, ReplyTo::Rf(1));
         nb.model.train(&data2, &l2);
 
         let h6: BFI = [u16::MAX/2+1+1; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];

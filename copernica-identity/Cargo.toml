@@ -23,6 +23,7 @@ bech32 = "0.7.2"
 serde = { version = "1.0.116", features = ["derive"] }
 bytes = "0.5.6"
 tokio-util = { version = "^0.3.0", default-features = false, features = [ "codec" ] }
+anyhow = "1.0"
 
 [dev-dependencies]
 rand = "0.7.3"

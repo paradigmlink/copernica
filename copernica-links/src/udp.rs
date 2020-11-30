@@ -50,10 +50,10 @@ impl Link<'_> for UdpIp {
                                     let mut buf = vec![0u8; 1500];
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
-                                            let wp: LinkPacket = decode(buf[..n].to_vec())?;
+                                            let lp: LinkPacket = decode(buf[..n].to_vec(), this_link.sid()?)?;
                                             debug!("{} {:?}", name, this_link);
-                                            let link_id = LinkId::new(this_link.private_identity()?, wp.reply_to());
-                                            let ilp = InterLinkPacket::new(link_id, wp);
+                                            let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
+                                            let ilp = InterLinkPacket::new(link_id, lp);
                                             let _r = l2bs_tx.send(ilp)?;
                                         },
                                         Err(error) => error!("{:?}: {}", this_link, error),
@@ -80,9 +80,9 @@ impl Link<'_> for UdpIp {
                                 Ok(ilp) => {
                                     match ilp.reply_to()? {
                                         ReplyTo::UdpIp(remote_addr) => {
-                                            let wp = ilp.wire_packet().change_origination(this_link.reply_to()?);
+                                            let wp = ilp.link_packet().change_origination(this_link.reply_to()?);
                                             debug!("{} {:?}", name, this_link);
-                                            let enc = encode(wp)?;
+                                            let enc = encode(wp, this_link.sid()?, None)?;
                                             socket.send_to(&enc, remote_addr).await?;
                                         },
                                         _ => {},

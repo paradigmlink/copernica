@@ -8,7 +8,6 @@ use {
     anyhow::{anyhow, Result},
     crossbeam_channel::{unbounded, Receiver, Sender},
     std::collections::HashMap,
-    copernica_identity::{PrivateIdentity},
     log::{
         error, trace,
         //debug
@@ -45,7 +44,7 @@ pub struct Broker {
     l2b_tx: Sender<InterLinkPacket>,   // give to link
     l2b_rx: Receiver<InterLinkPacket>, // keep in broker
     b2l: HashMap<
-        PrivateIdentity,
+        u32,
         (
             Sender<InterLinkPacket>,   // keep in broker
             Receiver<InterLinkPacket>, // give to link
@@ -81,7 +80,7 @@ impl Broker {
             Some(_) => Err(anyhow!("Channel already initialized")),
             None => {
                 let (b2l_tx, b2l_rx) = unbounded::<InterLinkPacket>();
-                self.b2l.insert(link_id.private_identity()?, (b2l_tx.clone(), b2l_rx.clone()));
+                self.b2l.insert(link_id.lookup_id()?, (b2l_tx.clone(), b2l_rx.clone()));
                 trace!("ADDING REMOTE: {:?}", link_id);
                 self.blooms.insert(link_id, Blooms::new());
                 Ok((self.l2b_tx.clone(), b2l_rx))
@@ -114,7 +113,7 @@ impl Broker {
                         Router::handle_packet(&ilp, r2b_tx.clone(), rs.clone(), &mut blooms, &mut bayes, &choke)?;
                         while !r2b_rx.is_empty() {
                             let ilp = r2b_rx.recv()?;
-                            if let Some((b2l_tx, _)) = b2l.get(&ilp.link_id().private_identity()?) {
+                            if let Some((b2l_tx, _)) = b2l.get(&ilp.link_id().lookup_id()?) {
                                 b2l_tx.send(ilp)?;
                             }
                         }

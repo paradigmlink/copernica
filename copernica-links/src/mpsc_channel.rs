@@ -69,8 +69,8 @@ impl<'a> Link<'a> for MpscChannel {
                     loop {
                         match l2l0_rx.recv(){
                             Ok(msg) => {
-                                let lp = decode(msg)?;
-                                let link_id = LinkId::new(this_link.private_identity()?, lp.reply_to());
+                                let lp = decode(msg, this_link.sid()?)?;
+                                let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp.clone());
                                 debug!("{} {:?}", name, this_link);
                                 let _r = l2bs_tx.send(ilp)?;
@@ -91,8 +91,8 @@ impl<'a> Link<'a> for MpscChannel {
                 loop {
                     match bs2l_rx.recv(){
                         Ok(ilp) => {
-                            let lp = ilp.wire_packet().change_origination(this_link.reply_to()?);
-                            let enc = encode(lp)?;
+                            let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
+                            let enc = encode(lp, this_link.sid()?, None)?;
                             for s in l2l1_tx.clone() {
                                 debug!("{} {:?}", name, this_link);
                                 s.send(enc.clone())?;

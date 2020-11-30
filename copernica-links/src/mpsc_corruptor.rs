@@ -69,8 +69,8 @@ impl<'a> Link<'a> for MpscCorruptor {
                     loop {
                         match t2t0_rx.recv(){
                             Ok(msg) => {
-                                let lp = decode(msg)?;
-                                let link_id = LinkId::new(this_link.private_identity()?, lp.reply_to());
+                                let lp = decode(msg, this_link.sid()?)?;
+                                let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp);
                                 debug!("{} {:?}", name, this_link);
                                 let _r = t2c_tx.send(ilp)?;
@@ -91,8 +91,8 @@ impl<'a> Link<'a> for MpscCorruptor {
                 loop {
                     match c2t_rx.recv(){
                         Ok(ilp) => {
-                            let lp = ilp.wire_packet().change_origination(this_link.reply_to()?);
-                            let enc = encode(lp)?;
+                            let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
+                            let enc = encode(lp, this_link.sid()?, None)?;
                             let mut corrupted = enc;
                             for i in 4..10 {
                                 corrupted[i] = 0x0;

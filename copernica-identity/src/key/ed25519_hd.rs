@@ -43,6 +43,10 @@ impl ChainCode {
         Self([0; Self::SIZE])
     }
 
+    pub fn from_bytes(bytes: [u8; Self::SIZE]) -> Self {
+        Self(bytes)
+    }
+
     /// generate a new `SecretKey` with the given random number generator
     ///
     fn new<Rng>(rng: &mut Rng) -> Self
@@ -191,6 +195,10 @@ impl PublicKey {
 
     pub fn chain_code(&self) -> &ChainCode {
         &self.chain_code
+    }
+
+    pub fn reconstitute(key: ed25519_extended::PublicKey, chain_code: ChainCode) -> Self {
+        PublicKey { key, chain_code }
     }
 
     pub fn derive<P>(&self, path: P) -> Option<Self>

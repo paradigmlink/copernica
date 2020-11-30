@@ -249,6 +249,7 @@ pub use self::{
     shielded::Shielded,
     time::Time,
 };
+use anyhow::{anyhow};
 use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -378,8 +379,13 @@ impl PrivateIdentity {
 impl PublicIdentity {
     pub const SIZE: usize = key::ed25519_hd::PublicKey::SIZE;
 
-    pub fn verify_key(&self) -> PublicVerifyKey {
-        PublicVerifyKey(self.0.derive(KEYNESIS_PATH_SIGNING_V1).unwrap().into_key())
+    pub fn verify_key(&self) -> anyhow::Result<PublicVerifyKey> {
+        //PublicVerifyKey(self.0.derive(KEYNESIS_PATH_SIGNING_V1).unwrap().into_key())
+        if let Some(derived) = self.0.derive(KEYNESIS_PATH_SIGNING_V1) {
+            return Ok(PublicVerifyKey(derived.into_key()))
+        } else {
+            return Err(anyhow!("PublicKey Derive returned None"))
+        }
     }
 
     pub fn derive<P>(&self, purpose: P) -> PublicKey
@@ -391,12 +397,17 @@ impl PublicIdentity {
         PublicKey(self.0.derive(path).unwrap().into_key())
     }
 
-    pub(crate) fn key(&self) -> &key::ed25519_extended::PublicKey {
+    pub fn key(&self) -> &key::ed25519_extended::PublicKey {
         self.0.key()
     }
 
-    pub(crate) fn chain_code(&self) -> &key::ed25519_hd::ChainCode {
+    pub fn chain_code(&self) -> &key::ed25519_hd::ChainCode {
         self.0.chain_code()
+    }
+    pub fn reconstitute(key: [u8; 32], chain_code: [u8; 32]) -> Self {
+        let key = key::ed25519::PublicKey::new(key);
+        let chain_code = key::ed25519_hd::ChainCode::from_bytes(chain_code);
+        PublicIdentity(key::ed25519_hd::PublicKey::reconstitute(key, chain_code))
     }
 }
 

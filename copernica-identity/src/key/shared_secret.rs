@@ -40,7 +40,8 @@ impl Debug for SharedSecret {
         #[cfg(not(feature = "nightly"))]
         {
             f.debug_struct("SharedSecret<Ed25519>")
-                .field("0", &"...")
+                .field("0", &hex::encode(&self.0))
+//                .field("0", &"...")
                 .finish()
         }
     }

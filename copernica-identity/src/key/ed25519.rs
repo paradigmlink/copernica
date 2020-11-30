@@ -114,6 +114,10 @@ impl SecretKey {
 impl PublicKey {
     pub const SIZE: usize = ed25519::PUBLIC_KEY_LENGTH;
 
+    pub fn new(bytes: [u8; Self::SIZE]) -> Self {
+        Self(bytes)
+    }
+
     #[inline(always)]
     const fn zero() -> Self {
         Self([0; Self::SIZE])
@@ -135,6 +139,11 @@ impl Signature {
     const fn zero() -> Self {
         Self([0; Self::SIZE])
     }
+
+    pub fn reconstitute(bytes: &[u8; Self::SIZE]) -> Self {
+        Signature(*bytes)
+    }
+
 }
 
 /* Format ****************************************************************** */

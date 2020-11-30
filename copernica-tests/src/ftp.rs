@@ -10,7 +10,7 @@ use {
     //copernica_protocols::{FTP, Manifest, FileManifest},
     copernica_services::{FTPService, FTPCommands},
     copernica_broker::{Broker},
-    copernica_common::{HBFI, LinkId, ReplyTo, NarrowWaistPacket},
+    copernica_common::{HBFI, LinkId, ReplyTo},
     copernica_links::{Link, MpscChannel, //MpscCorruptor,
         UdpIp
     },
@@ -44,8 +44,8 @@ pub async fn smoke_test() -> Result<()> {
     let fid1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let mut ftp1 = FTPService::new(rs1, fid1.clone());
 
-    let ftp0v_b_id = LinkId::listen(fid0.clone(), ReplyTo::Mpsc);
-    let ftp0_vb_id = LinkId::listen(bid.clone(), ReplyTo::Mpsc);
+    let ftp0v_b_id = LinkId::listen(fid0.clone(), Some(bid.public_id()), ReplyTo::Mpsc);
+    let ftp0_vb_id = LinkId::listen(bid.clone(), Some(fid0.public_id()), ReplyTo::Mpsc);
     let mut ftp0v_b_link: MpscChannel = Link::new("ftp0v_b".into(), ftp0v_b_id.clone(), ftp0.peer_with_link(ftp0v_b_id)?)?;
     let mut ftp0_vb_link: MpscChannel = Link::new("ftp0_vb".into(), ftp0_vb_id.clone(), b.peer(ftp0_vb_id)?)?;
     ftp0v_b_link.female(ftp0_vb_link.male());
@@ -53,8 +53,8 @@ pub async fn smoke_test() -> Result<()> {
 
     let ftp1_vb_address = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
     let ftp1v_b_address = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
-    let ftp1_vb_id = LinkId::listen(fid1.clone(), ftp1_vb_address.clone());
-    let ftp1v_b_id = LinkId::listen(bid.clone(), ftp1v_b_address.clone());
+    let ftp1_vb_id = LinkId::listen(fid1.clone(), Some(bid.public_id()), ftp1_vb_address.clone());
+    let ftp1v_b_id = LinkId::listen(bid.clone(), Some(fid1.public_id()), ftp1v_b_address.clone());
     let ftp1_vb_link: UdpIp = Link::new("ftp1_vb".into(), ftp1_vb_id.clone(), b.peer(ftp1_vb_id.remote(ftp1v_b_address)?)?)?;
     let ftp1v_b_link: UdpIp = Link::new("ftp1v_b".into(), ftp1v_b_id.clone(), ftp1.peer_with_link(ftp1v_b_id.remote(ftp1_vb_address)?)?)?;
 

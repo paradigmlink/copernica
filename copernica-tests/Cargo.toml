@@ -23,6 +23,7 @@ copernica-protocols = { path = "../copernica-protocols" }
 copernica-services = { path = "../copernica-services" }
 copernica-links = { path = "../copernica-links" }
 copernica-common = { path = "../copernica-common" }
+copernica-identity = { path = "../copernica-identity" }
 crossbeam = "0.7"
 crossbeam-channel = "0.3"
 log = "0.4"
@@ -34,6 +35,5 @@ async-std = "1.4.0"
 anyhow = "1.0"
 sled = "0.32.0"
 reed-solomon = "0.2"
-copernica-identity = { path = "../copernica-identity" }
 rand_chacha = "0.2.2"
 rand_core = "0.5.1"

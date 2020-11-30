@@ -108,7 +108,7 @@ impl Passport {
             .unwrap_or_default();
         event.action = action;
         event
-    } 
+    }
 
     pub fn new(id: &PrivateIdentity) -> Self {
         let mut s = Self::empty();
@@ -324,14 +324,14 @@ impl Event {
     pub fn verify(&self) -> bool {
         let signing_data = self.signing_data();
         let mut proof = if let Some(signature) = self.proof.get(0) {
-            self.author.verify_key().verify(signature, &signing_data)
+            self.author.verify_key().unwrap().verify(signature, &signing_data)
         } else {
             false
         };
 
         if let EventAction::Declaration { with } = &self.action {
             proof = proof && if let Some(signature) = self.proof.get(1) {
-                with.verify_key().verify(signature, signing_data)
+                with.verify_key().unwrap().verify(signature, signing_data)
             } else {
                 false
             };

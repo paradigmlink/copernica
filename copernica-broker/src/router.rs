@@ -19,14 +19,14 @@ pub struct Router {}
 impl Router {
     pub fn handle_packet(
         ilp: &InterLinkPacket,
-        r2c_tx: Sender<InterLinkPacket>,
+        r2b_tx: Sender<InterLinkPacket>,
         response_store: sled::Db,
         blooms: &mut HashMap<LinkId, Blooms>,
         bayes: &mut Bayes,
         choke: &LinkId,
     ) -> Result<()> {
         let this_link: LinkId = ilp.link_id();
-        let this_link_identity: PrivateIdentity = ilp.link_id().private_identity()?;
+        let this_link_sid: PrivateIdentity = ilp.link_id().sid()?;
         let nw: NarrowWaistPacket = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
@@ -36,10 +36,9 @@ impl Router {
                         Some(response) => {
                             let nw: NarrowWaistPacket = bincode::deserialize(&response)?;
                             debug!("********* RESPONSE PACKET FOUND *********");
-                            let public_identity = this_link_identity.public_id();
-                            let lp = LinkPacket::new(public_identity, this_link.reply_to()?, nw);
+                            let lp = LinkPacket::new(this_link.reply_to()?, nw);
                             let ilp = InterLinkPacket::new(this_link.clone(), lp);
-                            r2c_tx.send(ilp)?;
+                            r2b_tx.send(ilp)?;
                             return Ok(());
                         }
                         None => {
@@ -76,7 +75,7 @@ impl Router {
                                 if that_link == *choke {
                                     continue;
                                 }
-                                if that_link.private_identity()? == this_link_identity {
+                                if that_link.sid()? == this_link_sid {
                                     continue;
                                 }
                                 if let Some(that_bloom) = blooms.get_mut(&that_link) {
@@ -88,11 +87,11 @@ impl Router {
                                     }
                                     if (weight < 0.00) && (forwarded == false) {
                                         that_bloom.create_forwarded_request(&hbfi);
-                                        r2c_tx.send(ilp.change_destination(that_link))?;
+                                        r2b_tx.send(ilp.change_destination(that_link))?;
                                         continue;
                                     }
                                     that_bloom.create_forwarded_request(&hbfi);
-                                    r2c_tx.send(ilp.change_destination(that_link))?;
+                                    r2b_tx.send(ilp.change_destination(that_link))?;
                                     forwarded = true;
                                 }
                             }
@@ -108,13 +107,13 @@ impl Router {
                         // ^^^ think about an attack whereby a response is continually sent thus adjusting the weights
                         this_bloom.delete_forwarded_request(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {
-                            if that_link.private_identity()? == this_link_identity {
+                            if that_link.sid()? == this_link_sid {
                                 continue;
                             }
                             if that_bloom.contains_pending_request(&hbfi) {
                                 that_bloom.delete_pending_request(&hbfi);
                                 debug!("********* RESPONSE DOWNSTREAM *********");
-                                r2c_tx.send(ilp.change_destination(that_link.clone()))?;
+                                r2b_tx.send(ilp.change_destination(that_link.clone()))?;
                             }
                         }
                     }
