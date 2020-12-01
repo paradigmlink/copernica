@@ -46,14 +46,9 @@ fn u8_to_bfi(bbfi: [u8; constants::BFI_BYTE_SIZE]) -> BFI {
 }
 fn u8_to_u64(v: [u8; 8]) -> u64 {
     let mut x: u64 = 0;
-    x = ((x << 56) | v[0] as u64) as u64;
-    x = ((x << 48) | v[1] as u64) as u64;
-    x = ((x << 40) | v[2] as u64) as u64;
-    x = ((x << 32) | v[3] as u64) as u64;
-    x = ((x << 24) | v[4] as u64) as u64;
-    x = ((x << 16) | v[5] as u64) as u64;
-    x = ((x << 8)  | v[6] as u64) as u64;
-    x = (x         | v[7] as u64) as u64;
+    for i in 0..v.len() {
+        x = ((x << 8) | v[i] as u64) as u64;
+    }
     x
 }
 fn u64_to_u8(x: u64) -> [u8; 8] {
@@ -445,34 +440,51 @@ mod tests {
     fn test_u16_to_fro_u8() {
         let actual: u16 = u16::MIN;
         let expected: u16 = u8_to_u16(u16_to_u8(actual));
-        println!("{:?}, {:?}", expected, actual);
+        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
 
         let actual: u16 = 1;
         let expected: u16 = u8_to_u16(u16_to_u8(actual));
-        println!("{:?}, {:?}", expected, actual);
+        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
 
         let actual: u16 = u16::MAX;
         let expected: u16 = u8_to_u16(u16_to_u8(actual));
-        println!("{:?}, {:?}", expected, actual);
+        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
     }
     #[test]
     fn test_bfi_to_fro_u8() {
         let actual: BFI = [0u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH];
         let expected: BFI = u8_to_bfi(bfi_to_u8(actual));
-        println!("{:?}, {:?}", expected, actual);
+        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
 
         let actual: BFI = [0, 1, 2, 3];
         let expected: BFI = u8_to_bfi(bfi_to_u8(actual));
-        println!("{:?}, {:?}", expected, actual);
+        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
 
         let actual: BFI = [u16::MAX, u16::MAX, u16::MAX, u16::MAX];
         let expected: BFI = u8_to_bfi(bfi_to_u8(actual));
-        println!("{:?}, {:?}", expected, actual);
+        println!("expected: {:?}, actual: {:?}", expected, actual);
+        assert_eq!(expected, actual);
+    }
+    #[test]
+    fn test_u64_to_fro_u8() {
+        let actual: u64 = 0;
+        let expected: u64 = u8_to_u64(u64_to_u8(actual));
+        println!("expected: {:?}, actual: {:?}", expected, actual);
+        assert_eq!(expected, actual);
+
+        let actual: u64 = u64::MAX/2;
+        let expected: u64 = u8_to_u64(u64_to_u8(actual));
+        println!("expected: {:?}, actual: {:?}", expected, actual);
+        assert_eq!(expected, actual);
+
+        let actual: u64 = u64::MAX;
+        let expected: u64 = u8_to_u64(u64_to_u8(actual));
+        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
     }
 }

@@ -5,29 +5,13 @@ use {
     anyhow::{Result, anyhow},
     rand::Rng,
 };
-
 pub type Hertz = u32;
-/*
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum Identity {
-    PublicIdentity(PublicIdentity),
-    Choke,
-}
-*/
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ReplyTo {
     Mpsc,
     UdpIp(SocketAddr),
     Rf(Hertz),
 }
-/*
-#[derive(Clone, Eq, Hash, PartialEq)]
-pub struct LinkId {
-    identity: Identity,
-    reply_to: ReplyTo,
-}
-*/
-
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub enum LinkId {
     Identity {
@@ -38,8 +22,6 @@ pub enum LinkId {
     },
     Choke,
 }
-
-
 impl LinkId {
     pub fn new(lookup_id: u32, sid: PrivateIdentity, rx_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
         LinkId::Identity { lookup_id, sid, rx_pid, reply_to }
@@ -101,7 +83,6 @@ impl LinkId {
         }
     }
 }
-
 impl fmt::Debug for LinkId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
