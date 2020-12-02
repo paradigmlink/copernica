@@ -50,7 +50,7 @@ impl Link<'_> for UdpIp {
                                     let mut buf = vec![0u8; 1500];
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
-                                            let lp: LinkPacket = decode(buf[..n].to_vec(), this_link.sid()?)?;
+                                            let lp: LinkPacket = decode(buf[..n].to_vec(), Some(this_link.sid()?))?;
                                             debug!("{} {:?}", name, this_link);
                                             let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, lp);
