@@ -17,7 +17,7 @@ use {
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
     copernica_identity::{ PrivateIdentity, PublicIdentity, Signature },
     bincode,
-    log::{debug},
+    log::{trace},
     crossbeam_channel::{Sender, Receiver},
     anyhow::{anyhow, Result},
     reed_solomon::{Buffer, Encoder, Decoder},
@@ -87,7 +87,6 @@ pub fn deserialize_cleartext_response_data(data: &Vec<u8>) -> Result<ResponseDat
     Ok(ResponseData::reconstitute_clear_text(data))
 }
 fn serialize_hbfi(hbfi: &HBFI) -> Result<(u8, Vec<u8>)> {
-    let mut size: usize = 0;
     let mut buf: Vec<u8> = vec![];
     let res = &bfi_to_u8(hbfi.res);
     let req = &bfi_to_u8(hbfi.req);
@@ -110,22 +109,22 @@ fn serialize_hbfi(hbfi: &HBFI) -> Result<(u8, Vec<u8>)> {
         },
     }
     buf.extend_from_slice(res);
-    debug!("ser \thbfi 0: \t\t{:?}", res.as_ref());
+    trace!("ser \thbfi 0: \t\t{:?}", res.as_ref());
     buf.extend_from_slice(req);
-    debug!("ser \thbfi 1: \t\t{:?}", req.as_ref());
+    trace!("ser \thbfi 1: \t\t{:?}", req.as_ref());
     buf.extend_from_slice(app);
-    debug!("ser \thbfi 2: \t\t{:?}", app.as_ref());
+    trace!("ser \thbfi 2: \t\t{:?}", app.as_ref());
     buf.extend_from_slice(m0d);
-    debug!("ser \thbfi 3: \t\t{:?}", m0d.as_ref());
+    trace!("ser \thbfi 3: \t\t{:?}", m0d.as_ref());
     buf.extend_from_slice(fun);
-    debug!("ser \thbfi 4: \t\t{:?}", fun.as_ref());
+    trace!("ser \thbfi 4: \t\t{:?}", fun.as_ref());
     buf.extend_from_slice(arg);
-    debug!("ser \thbfi 5: \t\t{:?}", arg.as_ref());
+    trace!("ser \thbfi 5: \t\t{:?}", arg.as_ref());
     buf.extend_from_slice(ost);
-    debug!("ser \toffset: \t\t{:?}", ost.as_ref());
+    trace!("ser \toffset: \t\t{:?}", ost.as_ref());
     buf.extend_from_slice(&ids_buf);
-    debug!("ser \tids: \t\t\t{:?}", ids_buf);
-    size = res.len() + req.len() + app.len() + m0d.len() + fun.len() + arg.len() + ost.len() + ids_buf.len();
+    trace!("ser \tids: \t\t\t{:?}", ids_buf);
+    let size = res.len() + req.len() + app.len() + m0d.len() + fun.len() + arg.len() + ost.len() + ids_buf.len();
     Ok((size as u8, buf))
 }
 pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
@@ -134,26 +133,26 @@ pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     for _ in 0..BFI_COUNT {
         let mut bbfi = [0u8; BFI_BYTE_SIZE];
         bbfi.clone_from_slice(&data[count..count+BFI_BYTE_SIZE]);
-        debug!("des \thbfi {}: \t\t{:?}", count, bbfi.as_ref());
+        trace!("des \thbfi {}: \t\t{:?}", count, bbfi.as_ref());
         bfis.push(u8_to_bfi(bbfi));
         count += BFI_BYTE_SIZE;
     }
     let mut ost = [0u8; U64_SIZE];
     ost.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
-    debug!("des \toffset: \t\t{:?}", ost.as_ref());
+    trace!("des \toffset: \t\t{:?}", ost.as_ref());
     let ost: u64 = u8_to_u64(ost);
     let mut res_key = [0u8; ID_SIZE];
     res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
-    debug!("des \tres_key: \t\t{:?}", res_key);
+    trace!("des \tres_key: \t\t{:?}", res_key);
     let mut res_ccd = [0u8; CC_SIZE];
     res_ccd.clone_from_slice(&data[HBFI_RESPONSE_CHAIN_CODE_START..HBFI_RESPONSE_CHAIN_CODE_END]);
-    debug!("des \tres_ccd: \t\t{:?}", res_ccd);
+    trace!("des \tres_ccd: \t\t{:?}", res_ccd);
     let mut req_key = [0u8; ID_SIZE];
     req_key.clone_from_slice(&data[HBFI_REQUEST_KEY_START..HBFI_REQUEST_KEY_END]);
-    debug!("des \treq_key: \t\t{:?}", req_key);
+    trace!("des \treq_key: \t\t{:?}", req_key);
     let mut req_ccd = [0u8; CC_SIZE];
     req_ccd.clone_from_slice(&data[HBFI_REQUEST_CHAIN_CODE_START..HBFI_REQUEST_CHAIN_CODE_END]);
-    debug!("des \treq_ccd: \t\t{:?}", req_ccd);
+    trace!("des \treq_ccd: \t\t{:?}", req_ccd);
     Ok(HBFI { response_pid: PublicIdentity::reconstitute(res_key, res_ccd)
             , request_pid: Some(PublicIdentity::reconstitute(req_key, req_ccd))
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
@@ -165,20 +164,20 @@ pub fn deserialize_cleartext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     for _ in 0..BFI_COUNT {
         let mut bbfi = [0u8; BFI_BYTE_SIZE];
         bbfi.clone_from_slice(&data[count..count+BFI_BYTE_SIZE]);
-        debug!("des \thbfi {}: \t\t{:?}", count, bbfi.as_ref());
+        trace!("des \thbfi {}: \t\t{:?}", count, bbfi.as_ref());
         bfis.push(u8_to_bfi(bbfi));
         count += BFI_BYTE_SIZE;
     }
     let mut ost = [0u8; U64_SIZE];
     ost.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
-    debug!("des \toffset: \t\t{:?}", ost.as_ref());
+    trace!("des \toffset: \t\t{:?}", ost.as_ref());
     let ost: u64 = u8_to_u64(ost);
     let mut res_key = [0u8; ID_SIZE];
     res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
-    debug!("des \tres_key: \t\t{:?}", res_key);
+    trace!("des \tres_key: \t\t{:?}", res_key);
     let mut res_ccd = [0u8; CC_SIZE];
     res_ccd.clone_from_slice(&data[HBFI_RESPONSE_CHAIN_CODE_START..HBFI_RESPONSE_CHAIN_CODE_END]);
-    debug!("des \tres_ccd: \t\t{:?}", res_ccd);
+    trace!("des \tres_ccd: \t\t{:?}", res_ccd);
     Ok(HBFI { response_pid: PublicIdentity::reconstitute(res_key, res_ccd)
             , request_pid: None
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
@@ -187,19 +186,19 @@ pub fn deserialize_cleartext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
 pub fn deserialize_cyphertext_narrow_waist_packet_response(data: &Vec<u8>) -> Result<NarrowWaistPacket> {
     let mut signature = [0u8; Signature::SIZE];
     signature.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
-    debug!("des \tsignature: \t\t{:?}", signature.as_ref());
+    trace!("des \tsignature: \t\t{:?}", signature.as_ref());
     let signature: Signature = Signature::reconstitute(&signature);
     let mut offset = [0u8; U64_SIZE];
     offset.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_END]);
-    debug!("des \toffset: \t\t{:?}", offset.as_ref());
+    trace!("des \toffset: \t\t{:?}", offset.as_ref());
     let offset: u64 = u8_to_u64(offset);
     let mut total = [0u8; U64_SIZE];
     total.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_END]);
-    debug!("des \ttotal: \t\t\t{:?}", total.as_ref());
+    trace!("des \ttotal: \t\t\t{:?}", total.as_ref());
     let total: u64 = u8_to_u64(total);
     let mut nonce = [0u8; NONCE_SIZE];
     nonce.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
-    debug!("des \tnonce: \t\t\t{:?}", nonce.as_ref());
+    trace!("des \tnonce: \t\t\t{:?}", nonce.as_ref());
     let hbfi_end = CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CYPHERTEXT_HBFI_SIZE;
     let response_data_end = hbfi_end + CYPHERTEXT_RESPONSE_DATA_SIZE;
     let hbfi: HBFI = deserialize_cyphertext_hbfi(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end].to_vec())?;
@@ -210,19 +209,19 @@ pub fn deserialize_cyphertext_narrow_waist_packet_response(data: &Vec<u8>) -> Re
 pub fn deserialize_cleartext_narrow_waist_packet_response(data: &Vec<u8>) -> Result<NarrowWaistPacket> {
     let mut signature = [0u8; Signature::SIZE];
     signature.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
-    debug!("des \tsignature: \t\t{:?}", signature.as_ref());
+    trace!("des \tsignature: \t\t{:?}", signature.as_ref());
     let signature: Signature = Signature::reconstitute(&signature);
     let mut offset = [0u8; U64_SIZE];
     offset.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_END]);
-    debug!("des \toffset: \t\t{:?}", offset.as_ref());
+    trace!("des \toffset: \t\t{:?}", offset.as_ref());
     let offset: u64 = u8_to_u64(offset);
     let mut total = [0u8; U64_SIZE];
     total.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_END]);
-    debug!("des \ttotal: \t\t\t{:?}", total.as_ref());
+    trace!("des \ttotal: \t\t\t{:?}", total.as_ref());
     let total: u64 = u8_to_u64(total);
     let mut nonce = [0u8; NONCE_SIZE];
     nonce.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
-    debug!("des \tnonce: \t\t\t{:?}", nonce.as_ref());
+    trace!("des \tnonce: \t\t\t{:?}", nonce.as_ref());
     let hbfi_end = CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CLEARTEXT_HBFI_SIZE;
     let response_data_end = hbfi_end + CLEARTEXT_RESPONSE_DATA_SIZE;
     let hbfi: HBFI = deserialize_cleartext_hbfi(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end].to_vec())?;
@@ -250,7 +249,7 @@ pub fn serialize_narrow_waist_packet(nw: &NarrowWaistPacket) -> Result<(u16, Vec
     match nw {
         NarrowWaistPacket::Request { hbfi, nonce } => {
             let (hbfi_size, hbfi) = serialize_hbfi(&hbfi)?;
-            size = hbfi.len() as u16 + nonce.len() as u16;
+            size = hbfi_size as u16 + nonce.len() as u16;
             buf.extend_from_slice(nonce);
             buf.extend_from_slice(&hbfi);
         },
@@ -259,20 +258,19 @@ pub fn serialize_narrow_waist_packet(nw: &NarrowWaistPacket) -> Result<(u16, Vec
             let (response_data_size, response_data) = serialize_response_data(&data);
             let ost = &u64_to_u8(*offset);
             let tot = &u64_to_u8(*total);
-            size = hbfi.len() as u16
+            size = hbfi_size as u16
                 + signature.as_ref().len() as u16
                 + ost.len() as u16
                 + tot.len() as u16
                 + nonce.len() as u16
-                + response_data.len() as u16;
-            let response_data_size = u16_to_u8(response_data_size);
-            debug!("ser \tsignature: \t\t{:?}", signature.as_ref());
+                + response_data_size as u16;
+            trace!("ser \tsignature: \t\t{:?}", signature.as_ref());
             buf.extend_from_slice(signature.as_ref());
-            debug!("ser \toffset: \t\t{:?}", ost.as_ref());
+            trace!("ser \toffset: \t\t{:?}", ost.as_ref());
             buf.extend_from_slice(ost);
-            debug!("ser \ttotal: \t\t\t{:?}", tot.as_ref());
+            trace!("ser \ttotal: \t\t\t{:?}", tot.as_ref());
             buf.extend_from_slice(tot);
-            debug!("ser \tnonce: \t\t\t{:?}", nonce.as_ref());
+            trace!("ser \tnonce: \t\t\t{:?}", nonce.as_ref());
             buf.extend_from_slice(nonce);
             buf.extend_from_slice(&hbfi);
             buf.extend_from_slice(&response_data);
@@ -287,18 +285,18 @@ fn serialize_reply_to(rt: &ReplyTo) -> Result<(u8, Vec<u8>)> {
     match rt {
         ReplyTo::Mpsc => {
             size = 0;
-            debug!("ser rep_to mpsc: \t\t{:?}", [0]);
+            trace!("ser rep_to mpsc: \t\t{:?}", [0]);
         },
         ReplyTo::UdpIp(addr) => {
             let addr_s = bincode::serialize(&addr)?;
             size = addr_s.len() as u8;
-            debug!("ser rep_to udpip: \t\t{:?}", addr_s);
+            trace!("ser rep_to udpip: \t\t{:?}", addr_s);
             buf.extend_from_slice(addr_s.as_ref());
         }
         ReplyTo::Rf(hz) => {
             let hz = bincode::serialize(&hz)?;
             size = hz.len() as u8;
-            debug!("ser rep_to udpip: \t\t{:?}", hz);
+            trace!("ser rep_to udpip: \t\t{:?}", hz);
             buf.extend_from_slice(hz.as_ref());
         }
     }
@@ -337,16 +335,16 @@ pub fn serialize_link_packet(lp: &LinkPacket, lnk_tx_sid: PrivateIdentity, lnk_r
             let reply_to = lp.reply_to();
             let nw = lp.narrow_waist();
             buf.extend_from_slice(lnk_tx_sid.public_id().key().as_ref());
-            debug!("ser link_key: \t\t{:?}", lnk_tx_sid.public_id().key().as_ref());
+            trace!("ser link_key: \t\t{:?}", lnk_tx_sid.public_id().key().as_ref());
             buf.extend_from_slice(lnk_tx_sid.public_id().chain_code().as_ref());
-            debug!("ser link_ccd: \t\t{:?}", lnk_tx_sid.public_id().chain_code().as_ref());
+            trace!("ser link_ccd: \t\t{:?}", lnk_tx_sid.public_id().chain_code().as_ref());
             let (reply_to_size, reply_to) = serialize_reply_to(&reply_to)?;
-            debug!("ser reply_to_size: \t\t{:?}", reply_to_size);
+            trace!("ser reply_to_size: \t\t{:?}", reply_to_size);
             let (nw_size, nw) = serialize_narrow_waist_packet(&nw)?;
-            debug!("ser nw_size: \t\t\t{:?}", nw_size);
+            trace!("ser nw_size: \t\t\t{:?}", nw_size);
             buf.extend_from_slice(&[reply_to_size]);
             buf.extend_from_slice(&u16_to_u8(nw_size));
-            debug!("ser reply_to: \t\t\t{:?}", reply_to);
+            trace!("ser reply_to: \t\t\t{:?}", reply_to);
             buf.extend_from_slice(&reply_to);
             buf.extend_from_slice(&nw);
         },
@@ -355,15 +353,15 @@ pub fn serialize_link_packet(lp: &LinkPacket, lnk_tx_sid: PrivateIdentity, lnk_r
             let nw = lp.narrow_waist();
     // Link Pid
             buf.extend_from_slice(lnk_tx_sid.public_id().key().as_ref());
-            debug!("ser link_tx_pk: \t\t{:?}", lnk_tx_sid.public_id().key().as_ref());
+            trace!("ser link_tx_pk: \t\t{:?}", lnk_tx_sid.public_id().key().as_ref());
     // Link CC
             buf.extend_from_slice(lnk_tx_sid.public_id().chain_code().as_ref());
-            debug!("ser link_cc_pk: \t\t{:?}", lnk_tx_sid.public_id().chain_code().as_ref());
+            trace!("ser link_cc_pk: \t\t{:?}", lnk_tx_sid.public_id().chain_code().as_ref());
     // Nonce
             let mut rng = rand::thread_rng();
             let nonce: Nonce = generate_nonce(&mut rng);
             buf.extend_from_slice(nonce.as_ref());
-            debug!("ser link_nonce: \t\t{:?}", nonce.as_ref());
+            trace!("ser link_nonce: \t\t{:?}", nonce.as_ref());
     // Tag
             let mut tag: Tag = [0; TAG_SIZE];
             let lnk_rx_pk = lnk_rx_pid.derive(&nonce);
@@ -375,14 +373,14 @@ pub fn serialize_link_packet(lp: &LinkPacket, lnk_tx_sid: PrivateIdentity, lnk_r
             ctx.encrypt(&nws, &mut encrypted[..], &mut tag);
             nws.copy_from_slice(&encrypted[..]);
             buf.extend_from_slice(tag.as_ref());
-            debug!("ser link_tag: \t\t\t{:?}", tag.as_ref());
+            trace!("ser link_tag: \t\t\t{:?}", tag.as_ref());
     // Reply To Size
             let (reply_to_size, reply_to) = serialize_reply_to(&reply_to)?;
             buf.extend_from_slice(&[reply_to_size]);
-            debug!("ser link_reply_to_size: \t{:?} actual_size: {}", [reply_to_size], reply_to.len());
+            trace!("ser link_reply_to_size: \t{:?} actual_size: {}", [reply_to_size], reply_to.len());
     // Narrow Waist Size
             buf.extend_from_slice(&u16_to_u8(nws_size));
-            debug!("ser nw_size: \t\t\t{:?} as_u16: {} actual {}", u16_to_u8(nws_size), nws_size, nws.len());
+            trace!("ser nw_size: \t\t\t{:?} as_u16: {} actual {}", u16_to_u8(nws_size), nws_size, nws.len());
             buf.extend_from_slice(&reply_to);
 
     // Narrow Waist
@@ -392,32 +390,32 @@ pub fn serialize_link_packet(lp: &LinkPacket, lnk_tx_sid: PrivateIdentity, lnk_r
     Ok(buf)
 }
 
-pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIdentity) -> Result<LinkPacket> {
+pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIdentity) -> Result<(PublicIdentity, LinkPacket)> {
 // Link Pid
     let mut link_tx_pk = [0u8; ID_SIZE];
     link_tx_pk.clone_from_slice(&data[CYPHERTEXT_LINK_TX_PK_START..CYPHERTEXT_LINK_TX_PK_END]);
-    debug!("des link_tx_pk: \t\t{:?}", link_tx_pk);
+    trace!("des link_tx_pk: \t\t{:?}", link_tx_pk);
 // Link CC
     let mut link_tx_cc = [0u8; CC_SIZE];
-    //debug!("cc_size : {:?}, arr addresses {:?} {:?} {:?}", CC_SIZE, LINK_TX_CC_START, LINK_TX_CC_END,  LINK_TX_CC_END-LINK_TX_CC_START);
+    //trace!("cc_size : {:?}, arr addresses {:?} {:?} {:?}", CC_SIZE, LINK_TX_CC_START, LINK_TX_CC_END,  LINK_TX_CC_END-LINK_TX_CC_START);
     link_tx_cc.clone_from_slice(&data[CYPHERTEXT_LINK_TX_CC_START..CYPHERTEXT_LINK_TX_CC_END]);
-    debug!("des link_tx_cc: \t\t{:?}", link_tx_cc);
+    trace!("des link_tx_cc: \t\t{:?}", link_tx_cc);
     let lnk_tx_pid: PublicIdentity = PublicIdentity::reconstitute(link_tx_pk, link_tx_cc);
 // Nonce
     let mut link_nonce = [0u8; NONCE_SIZE];
     link_nonce.clone_from_slice(&data[CYPHERTEXT_LINK_NONCE_START..CYPHERTEXT_LINK_NONCE_END]);
-    debug!("des link_nonce: \t\t{:?}", link_nonce);
+    trace!("des link_nonce: \t\t{:?}", link_nonce);
 // Tag
     let mut link_tag = [0u8; TAG_SIZE];
     link_tag.clone_from_slice(&data[CYPHERTEXT_LINK_TAG_START..CYPHERTEXT_LINK_TAG_END]);
-    debug!("des link_tag: \t\t\t{:?}", link_tag);
+    trace!("des link_tag: \t\t\t{:?}", link_tag);
 // Reply To Length
     let reply_to_size = &data[CYPHERTEXT_LINK_REPLY_TO_SIZE_START..CYPHERTEXT_LINK_REPLY_TO_SIZE_END];
-    debug!("des reply_to_size: \t\t{:?}", reply_to_size);
+    trace!("des reply_to_size: \t\t{:?}", reply_to_size);
 // Narrow Waist Length
     let mut nw_size = [0u8; 2];
     nw_size.clone_from_slice(&data[CYPHERTEXT_LINK_NARROW_WAIST_SIZE_START..CYPHERTEXT_LINK_NARROW_WAIST_SIZE_END]);
-    debug!("des nw_size: \t\t\t{:?} as_u16: {}", nw_size, u8_to_u16(nw_size));
+    trace!("des nw_size: \t\t\t{:?} as_u16: {}", nw_size, u8_to_u16(nw_size));
     let nw_size: usize = u8_to_u16(nw_size) as usize;
     let reply_to: ReplyTo = deserialize_reply_to(&data[CYPHERTEXT_LINK_NARROW_WAIST_SIZE_END..CYPHERTEXT_LINK_NARROW_WAIST_SIZE_END + reply_to_size[0] as usize].to_vec())?;
     let nw_start = CYPHERTEXT_LINK_NARROW_WAIST_SIZE_END + reply_to_size[0] as usize;
@@ -429,7 +427,7 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIde
         CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
             let mut decrypted = vec![0u8; nw_size];
             let encrypted = &data[nw_start..nw_start + nw_size];
-            //debug!("des encrypted: actual_length: {} NARROW_WAIST_PACKET_ENCRYPTED_RESPONSE_SIZE {}\t\t\t{:?} ", encrypted.len(), CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, encrypted);
+            //trace!("des encrypted: actual_length: {} NARROW_WAIST_PACKET_ENCRYPTED_RESPONSE_SIZE {}\t\t\t{:?} ", encrypted.len(), CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, encrypted);
             if !ctx.decrypt(encrypted, &mut decrypted, &link_tag) {
                 return Err(anyhow!("failed to decrypt link packet"));
             };
@@ -438,56 +436,58 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIde
         CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
             let mut decrypted = vec![0u8; nw_size];
             let encrypted = &data[nw_start..nw_start + nw_size];
-            //debug!("des encrypted: actual_length: {} NARROW_WAIST_PACKET_ENCRYPTED_RESPONSE_SIZE {}\t\t\t{:?} ", encrypted.len(), CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, encrypted);
+            //trace!("des encrypted: actual_length: {} NARROW_WAIST_PACKET_ENCRYPTED_RESPONSE_SIZE {}\t\t\t{:?} ", encrypted.len(), CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, encrypted);
             if !ctx.decrypt(encrypted, &mut decrypted, &link_tag) {
                 return Err(anyhow!("failed to decrypt link packet"));
             };
             deserialize_cyphertext_narrow_waist_packet_response(&decrypted.to_vec())?
         },
         _ => {
-            return Err(anyhow!("Cypher packet arrived with an unrecognised SIZE of {}, where supported sizes are: {} or {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE));
+            return Err(anyhow!("Cyphertext packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: {} or {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE));
         },
     };
-    Ok(LinkPacket::new(reply_to, nw))
+    Ok((lnk_tx_pid, LinkPacket::new(reply_to, nw)))
 }
-pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<LinkPacket> {
+pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<(PublicIdentity, LinkPacket)> {
 // Link Pid
     let mut link_tx_pk = [0u8; ID_SIZE];
     link_tx_pk.clone_from_slice(&data[CLEARTEXT_LINK_TX_PK_START..CLEARTEXT_LINK_TX_PK_END]);
-    debug!("des link_tx_pk: \t\t{:?}", link_tx_pk);
+    trace!("des link_tx_pk: \t\t{:?}", link_tx_pk);
 // Link CC
     let mut link_tx_cc = [0u8; CC_SIZE];
-    //debug!("cc_size : {:?}, arr addresses {:?} {:?} {:?}", CC_SIZE, LINK_TX_CC_START, LINK_TX_CC_END,  LINK_TX_CC_END-LINK_TX_CC_START);
+    //trace!("cc_size : {:?}, arr addresses {:?} {:?} {:?}", CC_SIZE, LINK_TX_CC_START, LINK_TX_CC_END,  LINK_TX_CC_END-LINK_TX_CC_START);
     link_tx_cc.clone_from_slice(&data[CLEARTEXT_LINK_TX_CC_START..CLEARTEXT_LINK_TX_CC_END]);
-    debug!("des link_tx_cc: \t\t{:?}", link_tx_cc);
+    trace!("des link_tx_cc: \t\t{:?}", link_tx_cc);
     let lnk_tx_pid: PublicIdentity = PublicIdentity::reconstitute(link_tx_pk, link_tx_cc);
 // Reply To Length
     let reply_to_size = &data[CLEARTEXT_LINK_REPLY_TO_SIZE_START..CLEARTEXT_LINK_REPLY_TO_SIZE_END];
-    debug!("des reply_to_size: \t\t{:?}", reply_to_size);
+    trace!("des reply_to_size: \t\t{:?}", reply_to_size);
 // Narrow Waist Length
     let mut nw_size = [0u8; 2];
     nw_size.clone_from_slice(&data[CLEARTEXT_LINK_NARROW_WAIST_SIZE_START..CLEARTEXT_LINK_NARROW_WAIST_SIZE_END]);
-    debug!("des nw_size: \t\t\t{:?} as_u16: {}", nw_size, u8_to_u16(nw_size));
+    trace!("des nw_size: \t\t\t{:?} as_u16: {}", nw_size, u8_to_u16(nw_size));
     let nw_size: usize = u8_to_u16(nw_size) as usize;
 
     let reply_to: ReplyTo = deserialize_reply_to(&data[CLEARTEXT_LINK_NARROW_WAIST_SIZE_END..CLEARTEXT_LINK_NARROW_WAIST_SIZE_END + reply_to_size[0] as usize].to_vec())?;
+    trace!("des reply_to: \t\t\t{:?}", reply_to);
     let nw_start = CLEARTEXT_LINK_NARROW_WAIST_SIZE_END + reply_to_size[0] as usize;
     let nw: NarrowWaistPacket = match nw_size {
         CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
-            let cleartext = &data[nw_start..nw_start + nw_size];
-            deserialize_cleartext_narrow_waist_packet_request(&cleartext.to_vec())?
+            let cleartext_nw = &data[nw_start..nw_start + nw_size];
+            trace!("des cleartext_nw: \t\t\t{:?}", cleartext_nw);
+            deserialize_cleartext_narrow_waist_packet_request(&cleartext_nw.to_vec())?
         },
         CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
-            let cleartext = &data[nw_start..nw_start + nw_size];
-            deserialize_cleartext_narrow_waist_packet_response(&cleartext.to_vec())?
+            let cleartext_nw = &data[nw_start..nw_start + nw_size];
+            deserialize_cleartext_narrow_waist_packet_response(&cleartext_nw.to_vec())?
         },
         _ => {
-            return Err(anyhow!("Packet arrived with an unrecognised CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE of {}, where it should be {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE));
+            return Err(anyhow!("Cleartext packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: {} or {}", nw_size, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE));
         },
     };
-    Ok(LinkPacket::new(reply_to, nw))
+    Ok((lnk_tx_pid, LinkPacket::new(reply_to, nw)))
 }
-pub fn deserialize_link_packet(data: &Vec<u8>, lnk_rx_sid: Option<PrivateIdentity>) -> Result<LinkPacket> {
+pub fn deserialize_link_packet(data: &Vec<u8>, lnk_rx_sid: Option<PrivateIdentity>) -> Result<(PublicIdentity, LinkPacket)> {
     match lnk_rx_sid {
         Some(lnk_rx_sid) => {
             deserialize_cyphertext_link_packet(data, lnk_rx_sid)
@@ -497,12 +497,11 @@ pub fn deserialize_link_packet(data: &Vec<u8>, lnk_rx_sid: Option<PrivateIdentit
         },
     }
 }
-pub fn decode(msg: Vec<u8>, lnk_rx_sid: Option<PrivateIdentity>) -> Result<LinkPacket> {
+pub fn decode(msg: Vec<u8>, lnk_rx_sid: Option<PrivateIdentity>) -> Result<(PublicIdentity, LinkPacket)> {
     let dec = Decoder::new(6);
     let reconstituted: Vec<_> = msg.chunks(255).map(|c| Buffer::from_slice(c, c.len())).map(|d| dec.correct(&d,None).unwrap()).collect();
     let reconstituted: Vec<_> = reconstituted.iter().map(|d| d.data()).collect::<Vec<_>>().concat();
-    let lp: LinkPacket = deserialize_link_packet(&reconstituted, lnk_rx_sid)?;
-    Ok(lp)
+    Ok(deserialize_link_packet(&reconstituted, lnk_rx_sid)?)
 }
 pub fn encode(lp: LinkPacket, lnk_tx_sid: PrivateIdentity, lnk_rx_pid: Option<PublicIdentity>) -> Result<Vec<u8>> {
     let mut merged = vec![];

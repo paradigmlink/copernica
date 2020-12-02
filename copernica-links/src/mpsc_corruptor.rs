@@ -69,7 +69,7 @@ impl<'a> Link<'a> for MpscCorruptor {
                     loop {
                         match t2t0_rx.recv(){
                             Ok(msg) => {
-                                let lp = decode(msg, Some(this_link.sid()?))?;
+                                let (lnk_tx_pid, lp) = decode(msg, Some(this_link.sid()?))?;
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp);
                                 debug!("{} {:?}", name, this_link);

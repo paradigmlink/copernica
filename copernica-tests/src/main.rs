@@ -10,7 +10,7 @@ use {
 };
 
 fn main() -> Result<()> {
-    copernica_common::setup_logging(3, None).unwrap();
+    copernica_common::setup_logging(5, None).unwrap();
     task::block_on(async {
         let r =
         //router::resolve_gt_mtu_two_nodes().await;
@@ -24,7 +24,9 @@ fn main() -> Result<()> {
         //sharing::smoke_test().await;
         //ftp::smoke_test().await;
         //test_parse::encrypted_response_encrypted_link().await;
-        test_parse::cleartext_response_encrypted_link().await;
+        //test_parse::cleartext_response_encrypted_link().await;
+        test_parse::encrypted_request_encrypted_link().await;
+        //test_parse::cleartext_request_encrypted_link().await;
         //protocols::transports().await;
         //copernicafs::single_file_less_than_fragment_size().await;
         if let Err(r) = r {
