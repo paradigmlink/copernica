@@ -12,7 +12,7 @@ use {
     copernica_broker::{Broker},
     copernica_common::{HBFI, LinkId, ReplyTo},
     copernica_links::{Link, MpscChannel, //MpscCorruptor,
-        UdpIp
+        UdpIp,
     },
     copernica_identity::{PrivateIdentity, Seed},
     log::{debug},
@@ -46,6 +46,8 @@ pub async fn smoke_test() -> Result<()> {
 
     let ftp0v_b_id = LinkId::listen(fid0.clone(), Some(bid.public_id()), ReplyTo::Mpsc);
     let ftp0_vb_id = LinkId::listen(bid.clone(), Some(fid0.public_id()), ReplyTo::Mpsc);
+    //let ftp0v_b_id = LinkId::listen(fid0.clone(), None, ReplyTo::Mpsc);
+    //let ftp0_vb_id = LinkId::listen(bid.clone(), None, ReplyTo::Mpsc);
     let mut ftp0v_b_link: MpscChannel = Link::new("ftp0v_b".into(), ftp0v_b_id.clone(), ftp0.peer_with_link(ftp0v_b_id)?)?;
     let mut ftp0_vb_link: MpscChannel = Link::new("ftp0_vb".into(), ftp0_vb_id.clone(), b.peer(ftp0_vb_id)?)?;
     ftp0v_b_link.female(ftp0_vb_link.male());
@@ -55,6 +57,8 @@ pub async fn smoke_test() -> Result<()> {
     let ftp1v_b_address = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
     let ftp1_vb_id = LinkId::listen(fid1.clone(), Some(bid.public_id()), ftp1_vb_address.clone());
     let ftp1v_b_id = LinkId::listen(bid.clone(), Some(fid1.public_id()), ftp1v_b_address.clone());
+    //let ftp1_vb_id = LinkId::listen(fid1.clone(), None, ftp1_vb_address.clone());
+    //let ftp1v_b_id = LinkId::listen(bid.clone(), None, ftp1v_b_address.clone());
     let ftp1_vb_link: UdpIp = Link::new("ftp1_vb".into(), ftp1_vb_id.clone(), b.peer(ftp1_vb_id.remote(ftp1v_b_address)?)?)?;
     let ftp1v_b_link: UdpIp = Link::new("ftp1v_b".into(), ftp1v_b_id.clone(), ftp1.peer_with_link(ftp1v_b_id.remote(ftp1_vb_address)?)?)?;
 
@@ -75,8 +79,8 @@ pub async fn smoke_test() -> Result<()> {
 
     let hbfi0: HBFI = HBFI::new(response_sid0.public_id(), None, "app", "m0d", "fun", &name0)?;
     let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    //let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), None, "app", "m0d", "fun", &name1)?;
-    let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), Some(request_sid.public_id()), "app", "m0d", "fun", &name1)?;
+    let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), None, "app", "m0d", "fun", &name1)?;
+    //let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), Some(request_sid.public_id()), "app", "m0d", "fun", &name1)?;
 
     ftp1_c2p_tx.send(FTPCommands::RequestFileList(hbfi0.clone()))?;
     let files0 = ftp1_p2c_rx.recv();

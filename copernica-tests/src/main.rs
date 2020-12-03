@@ -22,10 +22,10 @@ fn main() -> Result<()> {
         //router::fetch_from_self().await;
         //router::single_fetch().await;
         //sharing::smoke_test().await;
-        //ftp::smoke_test().await;
+        ftp::smoke_test().await;
         //test_parse::encrypted_response_encrypted_link().await;
         //test_parse::cleartext_response_encrypted_link().await;
-        test_parse::encrypted_request_encrypted_link().await;
+        //test_parse::encrypted_request_encrypted_link().await;
         //test_parse::cleartext_request_encrypted_link().await;
         //protocols::transports().await;
         //copernicafs::single_file_less_than_fragment_size().await;
