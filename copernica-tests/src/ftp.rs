@@ -77,9 +77,9 @@ pub async fn smoke_test() -> Result<()> {
     ftp0.run()?;
     ftp1.run()?;
 
-    let hbfi0: HBFI = HBFI::new(response_sid0.public_id(), None, "app", "m0d", "fun", &name0)?;
+    let hbfi0: HBFI = HBFI::new(response_sid0.public_id(), Some(response_sid1.public_id()), "app", "m0d", "fun", &name0)?;
     let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), None, "app", "m0d", "fun", &name1)?;
+    let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), Some(response_sid0.public_id()), "app", "m0d", "fun", &name1)?;
     //let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), Some(request_sid.public_id()), "app", "m0d", "fun", &name1)?;
 
     ftp1_c2p_tx.send(FTPCommands::RequestFileList(hbfi0.clone()))?;

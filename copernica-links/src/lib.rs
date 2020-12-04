@@ -463,8 +463,8 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIde
             deserialize_cleartext_narrow_waist_packet_response(&decrypted.to_vec())?
         },
         _ => {
-            let msg = format!("Cyphertext packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}. These sizes shouldn't appear here: CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE);
-            //println!("{}", msg);
+            let msg = format!("Cyphertext link level packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE);
+            println!("{}", msg);
             return Err(anyhow!(msg));
         },
     };
@@ -494,17 +494,29 @@ pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<(PublicIdenti
     trace!("des reply_to: \t\t\t{:?}", reply_to);
     let nw_start = CLEARTEXT_LINK_NARROW_WAIST_SIZE_END + reply_to_size[0] as usize;
     let nw: NarrowWaistPacket = match nw_size {
+        CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
+            let cleartext = &data[nw_start..nw_start + nw_size];
+            trace!("des cyphertext_nw: \t\t{:?}", cleartext);
+            deserialize_cyphertext_narrow_waist_packet_request(&cleartext.to_vec())?
+        },
+        CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
+            let cleartext = &data[nw_start..nw_start + nw_size];
+            trace!("des cyphertext_nw: \t\t{:?}", cleartext);
+            deserialize_cyphertext_narrow_waist_packet_response(&cleartext.to_vec())?
+        },
         CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
-            let cleartext_nw = &data[nw_start..nw_start + nw_size];
-            trace!("des cleartext_nw: \t\t{:?}", cleartext_nw);
-            deserialize_cleartext_narrow_waist_packet_request(&cleartext_nw.to_vec())?
+            let cleartext = &data[nw_start..nw_start + nw_size];
+            trace!("des cleartext_nw: \t\t{:?}", cleartext);
+            deserialize_cleartext_narrow_waist_packet_request(&cleartext.to_vec())?
         },
         CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
-            let cleartext_nw = &data[nw_start..nw_start + nw_size];
-            deserialize_cleartext_narrow_waist_packet_response(&cleartext_nw.to_vec())?
+            let cleartext = &data[nw_start..nw_start + nw_size];
+            deserialize_cleartext_narrow_waist_packet_response(&cleartext.to_vec())?
         },
         _ => {
-            return Err(anyhow!("Cleartext packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: {} or {}", nw_size, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE));
+            let msg = format!("Cleartext link level packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE);
+            println!("{}", msg);
+            return Err(anyhow!(msg));
         },
     };
     Ok((lnk_tx_pid, LinkPacket::new(reply_to, nw)))

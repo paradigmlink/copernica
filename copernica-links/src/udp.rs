@@ -54,7 +54,7 @@ impl Link<'_> for UdpIp {
                                                 Some(_) => decode(buf[..n].to_vec(), Some(this_link.sid()?))?,
                                                 None => decode(buf[..n].to_vec(), None)?,
                                             };
-                                            debug!("{} {:?}", name, this_link);
+                                            //debug!("{} {:?}", name, this_link);
                                             let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, lp);
                                             let _r = l2bs_tx.send(ilp)?;

@@ -75,7 +75,7 @@ impl<'a> Link<'a> for MpscChannel {
                                 };
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp.clone());
-                                debug!("{} {:?}", name, this_link);
+                                //debug!("{} {:?}", name, this_link);
                                 let _r = l2bs_tx.send(ilp)?;
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
@@ -100,7 +100,7 @@ impl<'a> Link<'a> for MpscChannel {
                                 None => encode(lp, this_link.sid()?, None)?,
                             };
                             for s in l2l1_tx.clone() {
-                                debug!("{} {:?}", name, this_link);
+                                //debug!("{} {:?}", name, this_link);
                                 s.send(enc.clone())?;
                             }
                         },
