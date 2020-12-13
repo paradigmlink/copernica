@@ -10,7 +10,7 @@ use {
     std::collections::HashMap,
     log::{
         error, trace,
-        //debug
+        debug
     },
 };
 
@@ -105,6 +105,7 @@ impl Broker {
             loop {
                 match l2b_rx.recv() {
                     Ok(ilp) => {
+                        debug!("l2b");
                         if !blooms.contains_key(&ilp.link_id()) {
                             trace!("ADDING {:?} to BLOOMS", ilp);
                             blooms.insert(ilp.link_id(), Blooms::new());
@@ -114,6 +115,7 @@ impl Broker {
                         while !r2b_rx.is_empty() {
                             let ilp = r2b_rx.recv()?;
                             if let Some((b2l_tx, _)) = b2l.get(&ilp.link_id().lookup_id()?) {
+                                debug!("b2l");
                                 b2l_tx.send(ilp)?;
                             }
                         }

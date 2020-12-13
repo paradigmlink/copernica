@@ -2,6 +2,7 @@ use {
     crate::{
         hbfi::HBFI,
         constants,
+        serialization::*,
     },
     serde::{Deserialize, Serialize},
     std::fmt,
@@ -27,7 +28,6 @@ impl Data {
         self.0.clone()
     }
     pub fn data(&self) -> Result<Vec<u8>> {
-        debug!("{:?}", self.0);
         let length_combined = format!("{:02x}{:02x}", self.0[constants::LENGTH_OF_DATA_STARTING_POSITION], self.0[constants::LENGTH_OF_DATA_ENDING_POSITION]);
         let length = u16::from_str_radix(&length_combined, 16)?;
         let (data, _) = self.0.split_at(length as usize);
@@ -56,10 +56,11 @@ impl fmt::Display for Data {
     }
 }
 
-pub fn manifest(data: Vec<u8>, hbfi: &HBFI, offset: &u64, total: &u64, nonce: &Nonce) -> String {
-    let manifest = format!("{:?}{}{}{}{:?}", data, hbfi, offset, total, nonce);
-    //println!("{:?}", manifest);
-    manifest
+pub fn manifest(data: Vec<u8>, hbfi: &HBFI, offset: &u64, total: &u64, nonce: &Nonce) -> Result<Vec<u8>> {
+    let (_hbfi_size, hbfi) = serialize_hbfi(hbfi)?;
+    let manifest = [data, hbfi, u64_to_u8(*offset).to_vec(), u64_to_u8(*total).to_vec(), nonce.to_vec()].concat();
+    //let manifest = format!("{:?}{}{}{}{:?}", data, hbfi, offset, total, nonce);
+    Ok(manifest)
 }
 
 pub fn generate_nonce<R>(rng: &mut R) -> Nonce

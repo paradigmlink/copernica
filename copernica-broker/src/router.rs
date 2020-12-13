@@ -3,8 +3,7 @@ use {
         bloom_filter::{Blooms},
         Bayes, LinkWeight
     },
-    bincode,
-    copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
+    copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket, serialization::*},
     anyhow::Result,
     //log::{trace},
     crossbeam_channel::Sender,
@@ -25,19 +24,21 @@ impl Router {
         bayes: &mut Bayes,
         choke: &LinkId,
     ) -> Result<()> {
+        debug!("b2r");
         let this_link: LinkId = ilp.link_id();
         let this_link_sid: PrivateIdentity = ilp.link_id().sid()?;
         let nw: NarrowWaistPacket = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
                 NarrowWaistPacket::Request { hbfi, .. } => {
-                    let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
+                    let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
                     match response_store.get(&hbfi_s)? {
                         Some(response) => {
-                            let nw: NarrowWaistPacket = bincode::deserialize(&response)?;
+                            let nw: NarrowWaistPacket = deserialize_narrow_waist_packet(&response.to_vec())?;
                             debug!("********* RESPONSE PACKET FOUND *********");
                             let lp = LinkPacket::new(this_link.reply_to()?, nw);
                             let ilp = InterLinkPacket::new(this_link.clone(), lp);
+                            debug!("r2b");
                             r2b_tx.send(ilp)?;
                             return Ok(());
                         }
@@ -87,10 +88,12 @@ impl Router {
                                     }
                                     if (weight < 0.00) && (forwarded == false) {
                                         that_bloom.create_forwarded_request(&hbfi);
+                                        debug!("r2b");
                                         r2b_tx.send(ilp.change_destination(that_link))?;
                                         continue;
                                     }
                                     that_bloom.create_forwarded_request(&hbfi);
+                                    debug!("r2b");
                                     r2b_tx.send(ilp.change_destination(that_link))?;
                                     forwarded = true;
                                 }
@@ -100,8 +103,8 @@ impl Router {
                 }
                 NarrowWaistPacket::Response { hbfi, .. } => {
                     if this_bloom.contains_forwarded_request(&hbfi) {
-                        let hbfi_s: Vec<u8> = bincode::serialize(&hbfi)?;
-                        let nw_s: Vec<u8> = bincode::serialize(&nw)?;
+                        let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
+                        let (nw_size, nw_s) = serialize_narrow_waist_packet(&nw)?;
                         response_store.insert(hbfi_s, nw_s)?;
                         bayes.super_train(&hbfi.to_vec(), &this_link);
                         // ^^^ think about an attack whereby a response is continually sent thus adjusting the weights
@@ -113,6 +116,7 @@ impl Router {
                             if that_bloom.contains_pending_request(&hbfi) {
                                 that_bloom.delete_pending_request(&hbfi);
                                 debug!("********* RESPONSE DOWNSTREAM *********");
+                                debug!("r2b");
                                 r2b_tx.send(ilp.change_destination(that_link.clone()))?;
                             }
                         }

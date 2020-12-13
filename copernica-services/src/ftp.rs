@@ -68,7 +68,7 @@ impl FTPService {
                     if let Ok(command) = c2p_rx.recv() {
                         match command {
                             FTPCommands::RequestFileList(hbfi) => {
-                                let files: Vec<String> = protocol.file_names(hbfi,)?;
+                                let files: Vec<String> = protocol.file_names(hbfi)?;
                                 p2c_tx.send(FTPCommands::ResponseFileList(Some(files.clone())))?;
                             },
                             FTPCommands::RequestFile(hbfi, name) => {

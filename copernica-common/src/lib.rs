@@ -7,7 +7,7 @@ mod narrow_waist_packet;
 mod inter_link_packet;
 pub mod constants;
 pub mod log;
-
+pub mod serialization;
 pub use crate::{
     hbfi::{HBFI, BFI, bloom_filter_index},
     link::{LinkId, ReplyTo},

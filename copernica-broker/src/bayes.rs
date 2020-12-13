@@ -257,6 +257,8 @@ impl Bayes {
 mod test_bfis {
     use super::*;
     use copernica_common::{BFI, LinkId, ReplyTo, constants};
+    use copernica_identity::{PrivateIdentity, Seed};
+
     #[test]
     fn bfi_add() {
         let mut rng = rand::thread_rng();
@@ -295,6 +297,7 @@ mod test_bfis {
 mod test_linkids {
     use super::*;
     use copernica_common::{LinkId, ReplyTo};
+    use copernica_identity::{PrivateIdentity, Seed};
 
     #[test]
     fn linkid_add() {
@@ -377,6 +380,7 @@ mod test_linkids {
 mod test_bayes {
     use super::*;
     use std::f64::consts::LN_2;
+    use copernica_identity::{PrivateIdentity, Seed};
     use copernica_common::{BFI, LinkId, ReplyTo, constants};
 
     #[test]

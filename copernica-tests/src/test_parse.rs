@@ -15,7 +15,7 @@ pub async fn encrypted_response_encrypted_link() -> Result<()> {
         let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
         let request_pid = request_sid.public_id();
 
-        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg")?;
+        let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
         let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
         let expected_data = vec![0; 600];
         let offset = 100;
@@ -46,7 +46,7 @@ pub async fn cleartext_response_encrypted_link() -> Result<()> {
         let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
         let response_pid = response_sid.public_id();
 
-        let hbfi = HBFI::new(response_pid.clone(), None, "app", "m0d", "fun", "arg")?;
+        let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;
         let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
         let expected_data = vec![0; 600];
         let offset = 100;
@@ -79,7 +79,7 @@ pub async fn encrypted_request_encrypted_link() -> Result<()> {
         let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
         let request_pid = request_sid.public_id();
 
-        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg")?;
+        let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
         let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
         let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
 
@@ -106,7 +106,7 @@ pub async fn cleartext_request_encrypted_link() -> Result<()> {
         let response_pid = response_sid.public_id();
 
 
-        let hbfi = HBFI::new(response_pid.clone(), None, "app", "m0d", "fun", "arg")?;
+        let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;
         let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
 
         let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));

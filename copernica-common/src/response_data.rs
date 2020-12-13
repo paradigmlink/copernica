@@ -8,6 +8,7 @@ use {
     anyhow::{anyhow, Result},
     rand::Rng,
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
+    log::{debug},
 };
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ResponseData {
@@ -48,7 +49,8 @@ impl ResponseData {
         }
         let mut rng = rand::thread_rng();
         let length = data.len();
-        let padding: Vec<u8> = (0..(constants::DATA_SIZE - length)).map(|_| rng.gen()).collect();
+        //let padding: Vec<u8> = (0..(constants::DATA_SIZE - length)).map(|_| rng.gen()).collect();
+        let padding: Vec<u8> = (0..(constants::DATA_SIZE - length)).map(|_| 0).collect();
         let b1 = length as u8;
         let b2 = (length >> 8) as u8;
         let u8_nonce: u8 = rng.gen();
@@ -95,7 +97,7 @@ impl ResponseData {
         };
         data
     }
-    pub fn decrypt_data(&self, request_sid: PrivateIdentity, response_pid: PublicIdentity, nonce: Nonce) -> Result<Option<Vec<u8>>> {
+    pub fn decrypt_data(&self, request_sid: PrivateIdentity, response_pid: PublicIdentity, nonce: Nonce) -> Result<Vec<u8>> {
         match self {
             ResponseData::CypherText { data, tag } => {
                 let request_sk = request_sid.derive(&nonce);
@@ -104,16 +106,16 @@ impl ResponseData {
                 let response_pk = response_pid.derive(&nonce_reverse);
                 let shared_secret = request_sk.exchange(&response_pk);
                 let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce, &[]);
-                let mut decrypted: Vec<u8> = Vec::with_capacity(constants::FRAGMENT_SIZE);
-                if ctx.decrypt(&data.data()?[..], &mut decrypted[..], &tag[..]) {
-                    let data: Data = Data::new(decrypted)?;
-                    Ok(Some(data.data()?))
+                let mut decrypted = [0u8; constants::FRAGMENT_SIZE];
+                if ctx.decrypt(&data.raw_data(), &mut decrypted[..], &tag[..]) {
+                    let data: Data = Data::new(decrypted.to_vec())?;
+                    Ok(data.data()?)
                 } else {
-                    Ok(None)
+                    return Err(anyhow!("Couldn't decrypt the data"))
                 }
             },
             ResponseData::ClearText { data } => {
-                Ok(Some(data.data()?))
+                Ok(data.data()?)
             },
         }
     }
@@ -121,7 +123,7 @@ impl ResponseData {
         match self {
             ResponseData::ClearText { data } => { data.raw_data() },
             ResponseData::CypherText { data, tag } => {
-                format!("{:?}{:?}", data.raw_data(), tag).as_bytes().to_vec()
+                [data.raw_data(), tag[..].to_vec()].concat()
             },
         }
     }

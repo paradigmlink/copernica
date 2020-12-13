@@ -44,7 +44,7 @@ pub async fn populate_tmp_dir(name: String, response_sid: PrivateIdentity, test_
         f.write_all(&data).unwrap();
         f.sync_all().unwrap();
     }
-    let hbfi = HBFI::new(response_sid.public_id(), None, "app", "m0d", "fun", &name)?;
+    let hbfi = HBFI::new(None, response_sid.public_id(), "app", "m0d", "fun", &name)?;
     let packer: FilePacker = FilePacker::new(&source_data_dir, &router_data_dir, hbfi, response_sid.clone())?;
     packer.publish()?;
     Ok((source_data_dir, router_data_dir))
@@ -63,7 +63,7 @@ async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: u64, re
         let mut source_file = fs::File::create(source_file_name).unwrap();
         source_file.write_all(&value).unwrap();
         source_file.sync_all().unwrap();
-        let hbfi = HBFI::new(response_sid.public_id(), None, "app", "m0d", "fun", &name)?;
+        let hbfi = HBFI::new(None, response_sid.public_id(), "app", "m0d", "fun", &name)?;
         let _packer = FilePacker::new(&source_data_dir, &router_data_dir, hbfi, response_sid.clone())?;
         _packer.publish()?;
     }

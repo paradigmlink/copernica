@@ -12,10 +12,10 @@ pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]; // Bloom Fil
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct HBFI {
     // Hierarchical Bloom Filter Index
-    pub response_pid: PublicIdentity,
     pub request_pid: Option<PublicIdentity>,
-    pub res: BFI, // response PublicIdentity
+    pub response_pid: PublicIdentity,
     pub req: BFI, // request PublicIdentity, when set indicates Response will be encrypted.
+    pub res: BFI, // response PublicIdentity
     pub app: BFI, // Application
     pub m0d: BFI, // Module
     pub fun: BFI, // Function
@@ -24,8 +24,8 @@ pub struct HBFI {
 }
 
 impl HBFI {
-    pub fn new(response_pid: PublicIdentity
-        , request_pid: Option<PublicIdentity>
+    pub fn new(request_pid: Option<PublicIdentity>
+        ,response_pid: PublicIdentity
         , app: &str
         , m0d: &str
         , fun: &str
@@ -38,10 +38,10 @@ impl HBFI {
             None => [0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH],
         };
         Ok(HBFI {
-            response_pid: response_pid.clone(),
             request_pid,
-            res: bloom_filter_index(&format!("{}", response_pid))?,
+            response_pid: response_pid.clone(),
             req,
+            res: bloom_filter_index(&format!("{}", response_pid))?,
             app: bloom_filter_index(app)?,
             m0d: bloom_filter_index(m0d)?,
             fun: bloom_filter_index(fun)?,
@@ -61,6 +61,34 @@ impl HBFI {
     pub fn offset(mut self, ost: u64) -> Self {
         self.ost = ost;
         self
+    }
+}
+
+impl HBFI {
+    pub fn encrypt_for(&self, request_pid: PublicIdentity) -> Result<Self> {
+        let req = bloom_filter_index(&format!("{}", request_pid))?;
+        Ok(HBFI { request_pid: Some(request_pid)
+            , response_pid: self.response_pid.clone()
+            , req
+            , res: self.res.clone()
+            , app: self.app.clone()
+            , m0d: self.m0d.clone()
+            , fun: self.fun.clone()
+            , arg: self.arg.clone()
+            , ost: self.ost.clone()
+        })
+    }
+    pub fn cleartext_repr(&self) -> Self {
+        HBFI { request_pid: None
+            , response_pid: self.response_pid.clone()
+            , req: [0u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]
+            , res: self.res.clone()
+            , app: self.app.clone()
+            , m0d: self.m0d.clone()
+            , fun: self.fun.clone()
+            , arg: self.arg.clone()
+            , ost: self.ost.clone()
+        }
     }
 }
 

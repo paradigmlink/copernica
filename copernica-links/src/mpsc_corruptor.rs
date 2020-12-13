@@ -75,7 +75,7 @@ impl<'a> Link<'a> for MpscCorruptor {
                                 };
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp);
-                                debug!("{} {:?}", name, this_link);
+                                debug!("{}:{}", name, this_link.lookup_id()?);
                                 let _r = t2c_tx.send(ilp)?;
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
@@ -104,7 +104,7 @@ impl<'a> Link<'a> for MpscCorruptor {
                                 corrupted[i] = 0x0;
                             }
                             for s in t2t1_tx.clone() {
-                                debug!("{} {:?}", name, this_link);
+                                debug!("{}:{}", name, this_link.lookup_id()?);
                                 s.send(corrupted.clone())?;
                             }
                         },

@@ -22,13 +22,13 @@ pub async fn smoke_test() -> Result<()> {
     let mut rng = rand::thread_rng();
 
     let mut test_data0 = TestData::new();
-    test_data0.push(("0.txt".into(), 0, 1024));
+    test_data0.push(("0.txt".into(), 0, 1010));
     let name0: String = "namable0".into();
     let response_sid0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), response_sid0.clone(), test_data0).await?;
 
     let mut test_data1 = TestData::new();
-    test_data1.push(("1.txt".into(), 1, 1024));
+    test_data1.push(("1.txt".into(), 1, 1010));
     let name1: String = "namable1".into();
     let response_sid1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), response_sid1.clone(), test_data1).await?;
@@ -37,36 +37,36 @@ pub async fn smoke_test() -> Result<()> {
     let rs1 = sled::open(packaged_data_dir1)?;
     let rs2 = sled::open(generate_random_dir_name().await)?;
 
-    let bid= PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let bid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let mut b = Broker::new(rs2);
-    let fid0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let mut ftp0 = FTPService::new(rs0, fid0.clone());
-    let fid1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let mut ftp1 = FTPService::new(rs1, fid1.clone());
+    let id0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let mut ftp0 = FTPService::new(rs0, id0.clone());
+    let id1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let mut ftp1 = FTPService::new(rs1, id1.clone());
 
-    let ftp0v_b_id = LinkId::listen(fid0.clone(), Some(bid.public_id()), ReplyTo::Mpsc);
-    let ftp0_vb_id = LinkId::listen(bid.clone(), Some(fid0.public_id()), ReplyTo::Mpsc);
-    //let ftp0v_b_id = LinkId::listen(fid0.clone(), None, ReplyTo::Mpsc);
-    //let ftp0_vb_id = LinkId::listen(bid.clone(), None, ReplyTo::Mpsc);
-    let mut ftp0v_b_link: MpscChannel = Link::new("ftp0v_b".into(), ftp0v_b_id.clone(), ftp0.peer_with_link(ftp0v_b_id)?)?;
-    let mut ftp0_vb_link: MpscChannel = Link::new("ftp0_vb".into(), ftp0_vb_id.clone(), b.peer(ftp0_vb_id)?)?;
-    ftp0v_b_link.female(ftp0_vb_link.male());
-    ftp0_vb_link.female(ftp0v_b_link.male());
+    let mpscv_b_id = LinkId::listen(id0.clone(), Some(bid.public_id()), ReplyTo::Mpsc);
+    let mpsc_vb_id = LinkId::listen(bid.clone(), Some(id0.public_id()), ReplyTo::Mpsc);
+    //let mpscv_b_id = LinkId::listen(id0.clone(), None, ReplyTo::Mpsc);
+    //let mpsc_vb_id = LinkId::listen(bid.clone(), None, ReplyTo::Mpsc);
+    let mut mpscv_b_link: MpscChannel = Link::new("lv_b".into(), mpscv_b_id.clone(), ftp0.peer_with_link(mpscv_b_id)?)?;
+    let mut mpsc_vb_link: MpscChannel = Link::new("l_vb".into(), mpsc_vb_id.clone(), b.peer(mpsc_vb_id)?)?;
+    mpscv_b_link.female(mpsc_vb_link.male());
+    mpsc_vb_link.female(mpscv_b_link.male());
 
-    let ftp1_vb_address = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
-    let ftp1v_b_address = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
-    let ftp1_vb_id = LinkId::listen(fid1.clone(), Some(bid.public_id()), ftp1_vb_address.clone());
-    let ftp1v_b_id = LinkId::listen(bid.clone(), Some(fid1.public_id()), ftp1v_b_address.clone());
-    //let ftp1_vb_id = LinkId::listen(fid1.clone(), None, ftp1_vb_address.clone());
-    //let ftp1v_b_id = LinkId::listen(bid.clone(), None, ftp1v_b_address.clone());
-    let ftp1_vb_link: UdpIp = Link::new("ftp1_vb".into(), ftp1_vb_id.clone(), b.peer(ftp1_vb_id.remote(ftp1v_b_address)?)?)?;
-    let ftp1v_b_link: UdpIp = Link::new("ftp1v_b".into(), ftp1v_b_id.clone(), ftp1.peer_with_link(ftp1v_b_id.remote(ftp1_vb_address)?)?)?;
+    let ftp_vb_address = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
+    let ftpv_b_address = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
+    let ftp_vb_id = LinkId::listen(id1.clone(), Some(bid.public_id()), ftp_vb_address.clone());
+    let ftpv_b_id = LinkId::listen(bid.clone(), Some(id1.public_id()), ftpv_b_address.clone());
+    //let ftp_vb_id = LinkId::listen(id1.clone(), None, ftp_vb_address.clone());
+    //let ftpv_b_id = LinkId::listen(bid.clone(), None, ftpv_b_address.clone());
+    let ftp_vb_link: UdpIp = Link::new("l_vb".into(), ftp_vb_id.clone(), b.peer(ftp_vb_id.remote(ftpv_b_address)?)?)?;
+    let ftpv_b_link: UdpIp = Link::new("lv_b".into(), ftpv_b_id.clone(), ftp1.peer_with_link(ftpv_b_id.remote(ftp_vb_address)?)?)?;
 
     let links: Vec<Box<dyn Link>> = vec![
-        Box::new(ftp0_vb_link),
-        Box::new(ftp0v_b_link),
-        Box::new(ftp1_vb_link),
-        Box::new(ftp1v_b_link)
+        Box::new(mpsc_vb_link),
+        Box::new(mpscv_b_link),
+        Box::new(ftp_vb_link),
+        Box::new(ftpv_b_link)
     ];
     for link in links {
         link.run()?;
@@ -77,18 +77,21 @@ pub async fn smoke_test() -> Result<()> {
     ftp0.run()?;
     ftp1.run()?;
 
-    let hbfi0: HBFI = HBFI::new(response_sid0.public_id(), Some(response_sid1.public_id()), "app", "m0d", "fun", &name0)?;
-    let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), Some(response_sid0.public_id()), "app", "m0d", "fun", &name1)?;
-    //let hbfi1: HBFI = HBFI::new(response_sid1.public_id(), Some(request_sid.public_id()), "app", "m0d", "fun", &name1)?;
+    //let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let hbfi0: HBFI = HBFI::new(Some(id1.public_id()), response_sid0.public_id(), "app", "m0d", "fun", &name0)?;
+    //let hbfi0: HBFI = HBFI::new(None, response_sid0.public_id(), "app", "m0d", "fun", &name0)?;
+    //let hbfi1: HBFI = HBFI::new(Some(request_sid.public_id()), response_sid1.public_id(), "app", "m0d", "fun", &name1)?;
+    //let hbfi1: HBFI = HBFI::new(None, response_sid1.public_id(), "app", "m0d", "fun", &name1)?;
 
     ftp1_c2p_tx.send(FTPCommands::RequestFileList(hbfi0.clone()))?;
     let files0 = ftp1_p2c_rx.recv();
     if let FTPCommands::ResponseFileList(Some(files)) = files0? {
         debug!("files 1: {:?}", files);
         for file_name in files {
+            debug!("c2p");
             ftp1_c2p_tx.send(FTPCommands::RequestFile(hbfi0.clone(), file_name.clone()))?;
             if let FTPCommands::ResponseFile(Some(actual_file)) = ftp1_p2c_rx.recv()? {
+                debug!("p2c");
                 let expected_file_path = raw_data_dir0.join(file_name);
                 let mut expected_file = fs::File::open(&expected_file_path)?;
                 let mut expected_buffer = Vec::new();
@@ -97,7 +100,7 @@ pub async fn smoke_test() -> Result<()> {
             }
         }
     }
-
+/*
     ftp0_c2p_tx.send(FTPCommands::RequestFileList(hbfi1.clone()))?;
     let files1 = ftp0_p2c_rx.recv();
     if let FTPCommands::ResponseFileList(Some(files)) = files1? {
@@ -113,6 +116,7 @@ pub async fn smoke_test() -> Result<()> {
             }
         }
     }
+*/
     Ok(())
 }
 /*
