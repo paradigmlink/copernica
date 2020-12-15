@@ -22,16 +22,16 @@ pub async fn smoke_test() -> Result<()> {
     let mut rng = rand::thread_rng();
 
     let mut test_data0 = TestData::new();
-    test_data0.push(("0.txt".into(), 0, 1010));
+    test_data0.push(("0.txt".into(), 0, 100));
     let name0: String = "namable0".into();
-    let response_sid0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), response_sid0.clone(), test_data0).await?;
+    let user_sid0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), user_sid0.clone(), test_data0).await?;
 
     let mut test_data1 = TestData::new();
-    test_data1.push(("1.txt".into(), 1, 1010));
+    test_data1.push(("1.txt".into(), 1, 100));
     let name1: String = "namable1".into();
-    let response_sid1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), response_sid1.clone(), test_data1).await?;
+    let user_sid1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), user_sid1.clone(), test_data1).await?;
 
     let rs0 = sled::open(packaged_data_dir0)?;
     let rs1 = sled::open(packaged_data_dir1)?;
@@ -39,14 +39,15 @@ pub async fn smoke_test() -> Result<()> {
 
     let bid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let mut b = Broker::new(rs2);
-    let id0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let mut ftp0 = FTPService::new(rs0, id0.clone());
-    let id1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let mut ftp1 = FTPService::new(rs1, id1.clone());
+    let mut ftp0 = FTPService::new(rs0, user_sid0.clone());
+    let mut ftp1 = FTPService::new(rs1, user_sid1.clone());
 
-    let mpscv_b_id = LinkId::listen(id0.clone(), Some(bid.public_id()), ReplyTo::Mpsc);
-    let mpsc_vb_id = LinkId::listen(bid.clone(), Some(id0.public_id()), ReplyTo::Mpsc);
-    //let mpscv_b_id = LinkId::listen(id0.clone(), None, ReplyTo::Mpsc);
+    //let lnk_sid0 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    //let lnk_sid1 = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+
+    let mpscv_b_id = LinkId::listen(user_sid0.clone(), Some(bid.public_id()), ReplyTo::Mpsc);
+    let mpsc_vb_id = LinkId::listen(bid.clone(), Some(user_sid0.public_id()), ReplyTo::Mpsc);
+    //let mpscv_b_id = LinkId::listen(user_sid0.clone(), None, ReplyTo::Mpsc);
     //let mpsc_vb_id = LinkId::listen(bid.clone(), None, ReplyTo::Mpsc);
     let mut mpscv_b_link: MpscChannel = Link::new("lv_b".into(), mpscv_b_id.clone(), ftp0.peer_with_link(mpscv_b_id)?)?;
     let mut mpsc_vb_link: MpscChannel = Link::new("l_vb".into(), mpsc_vb_id.clone(), b.peer(mpsc_vb_id)?)?;
@@ -55,9 +56,9 @@ pub async fn smoke_test() -> Result<()> {
 
     let ftp_vb_address = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
     let ftpv_b_address = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
-    let ftp_vb_id = LinkId::listen(id1.clone(), Some(bid.public_id()), ftp_vb_address.clone());
-    let ftpv_b_id = LinkId::listen(bid.clone(), Some(id1.public_id()), ftpv_b_address.clone());
-    //let ftp_vb_id = LinkId::listen(id1.clone(), None, ftp_vb_address.clone());
+    let ftp_vb_id = LinkId::listen(user_sid1.clone(), Some(bid.public_id()), ftp_vb_address.clone());
+    let ftpv_b_id = LinkId::listen(bid.clone(), Some(user_sid1.public_id()), ftpv_b_address.clone());
+    //let ftp_vb_id = LinkId::listen(user_sid1.clone(), None, ftp_vb_address.clone());
     //let ftpv_b_id = LinkId::listen(bid.clone(), None, ftpv_b_address.clone());
     let ftp_vb_link: UdpIp = Link::new("l_vb".into(), ftp_vb_id.clone(), b.peer(ftp_vb_id.remote(ftpv_b_address)?)?)?;
     let ftpv_b_link: UdpIp = Link::new("lv_b".into(), ftpv_b_id.clone(), ftp1.peer_with_link(ftpv_b_id.remote(ftp_vb_address)?)?)?;
@@ -77,156 +78,55 @@ pub async fn smoke_test() -> Result<()> {
     ftp0.run()?;
     ftp1.run()?;
 
-    //let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let hbfi0: HBFI = HBFI::new(Some(id1.public_id()), response_sid0.public_id(), "app", "m0d", "fun", &name0)?;
-    //let hbfi0: HBFI = HBFI::new(None, response_sid0.public_id(), "app", "m0d", "fun", &name0)?;
-    //let hbfi1: HBFI = HBFI::new(Some(request_sid.public_id()), response_sid1.public_id(), "app", "m0d", "fun", &name1)?;
-    //let hbfi1: HBFI = HBFI::new(None, response_sid1.public_id(), "app", "m0d", "fun", &name1)?;
+    let hbfi0: HBFI = HBFI::new(Some(user_sid1.public_id()), user_sid0.public_id(), "app", "m0d", "fun", &name0)?;
+    //let hbfi0: HBFI = HBFI::new(None, user_sid0.public_id(), "app", "m0d", "fun", &name0)?;
+    //let hbfi1: HBFI = HBFI::new(Some(user_sid0.public_id()), user_sid1.public_id(), "app", "m0d", "fun", &name1)?;
+    let hbfi1: HBFI = HBFI::new(None, user_sid1.public_id(), "app", "m0d", "fun", &name1)?;
 
+    debug!("\t\tclient-to-protocol");
     ftp1_c2p_tx.send(FTPCommands::RequestFileList(hbfi0.clone()))?;
     let files0 = ftp1_p2c_rx.recv();
+    debug!("\t\tprotocol-to-client");
     if let FTPCommands::ResponseFileList(Some(files)) = files0? {
-        debug!("files 1: {:?}", files);
+        debug!("\t\t\tfiles 0: {:?}", files);
         for file_name in files {
-            debug!("c2p");
+            debug!("\t\tclient-to-protocol");
             ftp1_c2p_tx.send(FTPCommands::RequestFile(hbfi0.clone(), file_name.clone()))?;
             if let FTPCommands::ResponseFile(Some(actual_file)) = ftp1_p2c_rx.recv()? {
-                debug!("p2c");
+                debug!("\t\tprotocol-to-client");
                 let expected_file_path = raw_data_dir0.join(file_name);
                 let mut expected_file = fs::File::open(&expected_file_path)?;
                 let mut expected_buffer = Vec::new();
                 expected_file.read_to_end(&mut expected_buffer)?;
+                debug!("\t\t\texpected_file {:?}", expected_file);
                 assert_eq!(actual_file, expected_buffer);
             }
         }
     }
-/*
+
+    debug!("\t\tclient-to-protocol");
     ftp0_c2p_tx.send(FTPCommands::RequestFileList(hbfi1.clone()))?;
+    debug!("\t\tprotocol-to-client");
     let files1 = ftp0_p2c_rx.recv();
     if let FTPCommands::ResponseFileList(Some(files)) = files1? {
-        debug!("files 0: {:?}", files);
+        debug!("files 1: {:?}", files);
         for file_name in files {
+            debug!("\t\tclient-to-protocol");
             ftp0_c2p_tx.send(FTPCommands::RequestFile(hbfi1.clone(), file_name.clone()))?;
             if let FTPCommands::ResponseFile(Some(actual_file)) = ftp0_p2c_rx.recv()? {
+                debug!("\t\tprotocol-to-client");
                 let expected_file_path = raw_data_dir1.join(file_name);
                 let mut expected_file = fs::File::open(&expected_file_path)?;
                 let mut expected_buffer = Vec::new();
                 expected_file.read_to_end(&mut expected_buffer)?;
+                debug!("\t\t\texpected_file {:?}", expected_file);
                 assert_eq!(actual_file, expected_buffer);
             }
         }
     }
-*/
     Ok(())
 }
-/*
-pub async fn transports() -> Result<()> {
-    let drop_hook = Box::new(move || {});
 
-    let mut test_data0 = TestData::new();
-    test_data0.push(("0.txt".into(), 2, 2024));
-    let name0: String = "namable0".into();
-    let id0: String = "namable_id0".into();
-    let (raw_data_dir0, packaged_data_dir0) = populate_tmp_dir(name0.clone(), id0.clone(), test_data0).await?;
-
-    let mut test_data1 = TestData::new();
-    test_data1.push(("1.txt".into(), 1, 1024));
-    let name1: String = "namable1".into();
-    let id1: String = "namable_id1".into();
-    let (raw_data_dir1, packaged_data_dir1) = populate_tmp_dir(name1.clone(), id1.clone(), test_data1).await?;
-
-    let brs0 = generate_random_dir_name().await;
-    let brs1 = generate_random_dir_name().await;
-
-    let frs0 = sled::open(packaged_data_dir0)?;
-    let brs0 = sled::open(brs0)?;
-    let brs1 = sled::open(brs1)?;
-    let frs1 = sled::open(packaged_data_dir1)?;
-
-    let mut f0: FTP = Protocol::new(frs0, drop_hook.clone());
-    let mut b0 = Broker::new(brs0);
-    let mut b1 = Broker::new(brs1);
-    let mut f1: FTP = Protocol::new(frs1, drop_hook);
-
-    let lid0to1 = LinkId::listen(ReplyTo::Mpsc);
-    let lid1to0 = LinkId::listen(ReplyTo::Mpsc);
-
-    let lid1to2 = LinkId::listen(ReplyTo::Mpsc);
-    let lid2to1 = LinkId::listen(ReplyTo::Mpsc);
-
-    let lid2to3_address = ReplyTo::UdpIp("127.0.0.1:50000".parse()?);
-    let lid3to2_address = ReplyTo::UdpIp("127.0.0.1:50001".parse()?);
-    let lid2to3 = LinkId::listen(lid2to3_address.clone());
-    let lid3to2 = LinkId::listen(lid3to2_address.clone());
-
-    let mut mpscchannel0: MpscCorruptor = Link::new(lid0to1.clone(), f0.peer(lid0to1)?)?;
-    let mut mpscchannel1: MpscCorruptor = Link::new(lid1to0.clone(), b0.peer(lid1to0)?)?;
-    let mut mpscchannel2: MpscChannel   = Link::new(lid1to2.clone(), b0.peer(lid1to2)?)?;
-    let mut mpscchannel3: MpscChannel   = Link::new(lid2to1.clone(), b1.peer(lid2to1)?)?;
-    let udpip4:           UdpIp         = Link::new(lid2to3.clone(), b1.peer(lid2to3.remote(lid3to2_address))?)?;
-    let udpip5:           UdpIp         = Link::new(lid3to2.clone(), f1.peer(lid3to2.remote(lid2to3_address))?)?;
-
-    mpscchannel0.female(mpscchannel1.male());
-    mpscchannel1.female(mpscchannel0.male());
-    mpscchannel2.female(mpscchannel3.male());
-    mpscchannel3.female(mpscchannel2.male());
-
-    let links: Vec<Box<dyn Link>> = vec![
-        Box::new(mpscchannel0),
-        Box::new(mpscchannel1),
-        Box::new(mpscchannel2),
-        Box::new(mpscchannel3),
-        Box::new(udpip4),
-        Box::new(udpip5)
-    ];
-    for link in links {
-        link.run()?;
-    }
-
-    f0.run()?;
-    b0.run()?;
-    b1.run()?;
-    f1.run()?;
-
-    let hbfi0: HBFI = HBFI::new(&name0, &id0)?;
-    let hbfi1: HBFI = HBFI::new(&name1, &id1)?;
-
-    let manifest1: Manifest = f0.manifest(hbfi1.clone())?;
-    let manifest0: Manifest = f1.manifest(hbfi0.clone())?;
-    debug!("manifest 0: {:?}", manifest0);
-    debug!("manifest 1: {:?}", manifest1);
-
-    let file_manifest0: FileManifest = f1.file_manifest(hbfi0.clone())?;
-    let file_manifest1: FileManifest = f0.file_manifest(hbfi1.clone())?;
-    debug!("file manifest 0: {:?}", file_manifest0);
-    debug!("file manifest 1: {:?}", file_manifest1);
-
-    let files0 = f1.file_names(hbfi0.clone())?;
-    let files1 = f0.file_names(hbfi1.clone())?;
-    debug!("files 0: {:?}", files0);
-    debug!("files 1: {:?}", files1);
-
-    for file_name in files0 {
-        let actual_file = f1.file(hbfi0.clone(), file_name.clone())?;
-        debug!("{:?}", actual_file);
-        let expected_file_path = raw_data_dir0.join(file_name);
-        let mut expected_file = fs::File::open(&expected_file_path)?;
-        let mut expected_buffer = Vec::new();
-        expected_file.read_to_end(&mut expected_buffer)?;
-        assert_eq!(actual_file, expected_buffer);
-    }
-    for file_name in files1 {
-        let actual_file = f0.file(hbfi1.clone(), file_name.clone())?;
-        debug!("{:?}", actual_file);
-        let expected_file_path = raw_data_dir1.join(file_name);
-        let mut expected_file = fs::File::open(&expected_file_path)?;
-        let mut expected_buffer = Vec::new();
-        expected_file.read_to_end(&mut expected_buffer)?;
-        assert_eq!(actual_file, expected_buffer);
-    }
-    Ok(())
-}
-*/
 #[cfg(test)]
 mod copernicafs {
     use super::*;

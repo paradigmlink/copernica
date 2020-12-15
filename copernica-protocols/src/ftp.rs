@@ -6,6 +6,7 @@ use {
     sled::{Db},
     bincode,
     anyhow::{Result, anyhow},
+    log::{debug},
 };
 #[derive(Clone)]
 pub struct FTP {

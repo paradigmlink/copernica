@@ -6,6 +6,7 @@ use {
     copernica_identity::{PrivateIdentity},
     //sled::{Db, Event},
     anyhow::{Result},
+    log::{debug},
 };
 
 #[derive(Clone, Debug)]
@@ -72,7 +73,7 @@ impl FTPService {
                                 p2c_tx.send(FTPCommands::ResponseFileList(Some(files.clone())))?;
                             },
                             FTPCommands::RequestFile(hbfi, name) => {
-                                let file: Vec<u8> = protocol.file(hbfi, name)?;
+                                let file: Vec<u8> = protocol.file(hbfi, name.clone())?;
                                 p2c_tx.send(FTPCommands::ResponseFile(Some(file)))?;
                             },
                             _ => {}

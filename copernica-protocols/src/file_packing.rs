@@ -100,11 +100,10 @@ impl FilePacker {
                 for file_chunk in file_chunks {
                     let hbfi = hbfi.clone().offset(counter);
                     let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
-                    // response_sid: PrivateIdentity, hbfi: HBFI, data: Vec<u8>, offset: u64, total: u64
                     let resp = NarrowWaistPacket::response(self.response_sid.clone(), hbfi.clone(), file_chunk.to_vec(), counter, total_offset)?;
                     //let resp = create_response(hbfi.clone(), file_chunk, counter, total_offset)?;
-                    let (resp_size, resp) = serialize_narrow_waist_packet(&resp)?;
-                    rs.insert(&hbfi_s, resp)?;
+                    let (resp_size, resp_s) = serialize_narrow_waist_packet(&resp)?;
+                    rs.insert(&hbfi_s, resp_s)?;
                     current_offset += 1;
                     counter += 1;
                 }

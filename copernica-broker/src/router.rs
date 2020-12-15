@@ -24,7 +24,7 @@ impl Router {
         bayes: &mut Bayes,
         choke: &LinkId,
     ) -> Result<()> {
-        debug!("b2r");
+        debug!("\t|  |  |  broker-to-router");
         let this_link: LinkId = ilp.link_id();
         let this_link_sid: PrivateIdentity = ilp.link_id().sid()?;
         let nw: NarrowWaistPacket = ilp.narrow_waist();
@@ -35,15 +35,15 @@ impl Router {
                     match response_store.get(&hbfi_s)? {
                         Some(response) => {
                             let nw: NarrowWaistPacket = deserialize_narrow_waist_packet(&response.to_vec())?;
-                            debug!("********* RESPONSE PACKET FOUND *********");
+                            debug!("\t|  |  |  |  RESPONSE PACKET FOUND");
                             let lp = LinkPacket::new(this_link.reply_to()?, nw);
                             let ilp = InterLinkPacket::new(this_link.clone(), lp);
-                            debug!("r2b");
+                            debug!("\t|  |  |  router-to-broker");
                             r2b_tx.send(ilp)?;
                             return Ok(());
                         }
                         None => {
-                            debug!("********* NO   RESPONSE   FOUND *********");
+                            debug!("\t|  |  |  |  FORWARD REQUEST UPSTREAM");
                             this_bloom.create_pending_request(&hbfi);
                             let link_weights = bayes.classify(&hbfi.to_vec());
                             //std::thread::sleep_ms(500);
@@ -88,12 +88,12 @@ impl Router {
                                     }
                                     if (weight < 0.00) && (forwarded == false) {
                                         that_bloom.create_forwarded_request(&hbfi);
-                                        debug!("r2b");
+                                        debug!("\t|  |  |  router-to-broker");
                                         r2b_tx.send(ilp.change_destination(that_link))?;
                                         continue;
                                     }
                                     that_bloom.create_forwarded_request(&hbfi);
-                                    debug!("r2b");
+                                    debug!("\t|  |  |  router-to-broker");
                                     r2b_tx.send(ilp.change_destination(that_link))?;
                                     forwarded = true;
                                 }
@@ -115,8 +115,8 @@ impl Router {
                             }
                             if that_bloom.contains_pending_request(&hbfi) {
                                 that_bloom.delete_pending_request(&hbfi);
-                                debug!("********* RESPONSE DOWNSTREAM *********");
-                                debug!("r2b");
+                                debug!("\t|  |  |  |  FORWARD RESPONSE DOWNSTREAM");
+                                debug!("\t|  |  |  router-to-broker");
                                 r2b_tx.send(ilp.change_destination(that_link.clone()))?;
                             }
                         }

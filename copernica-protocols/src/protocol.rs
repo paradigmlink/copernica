@@ -31,7 +31,6 @@ use {
     +-----------+               +-----------+               |           Broker           |   +-----------+   +-----------+
                                                             +----------------------------+
 */
-
 pub trait Protocol<'a> {
     fn response_store(&self) -> Db;
     fn get_l2p_rx(&mut self) -> Option<Receiver<InterLinkPacket>>;
@@ -52,7 +51,6 @@ pub trait Protocol<'a> {
         self.set_l2p_rx(l2p_rx.clone());
         Ok((l2p_tx, p2l_rx))
     }
-
     #[allow(unreachable_code)]
     fn run(&mut self) -> Result<()> {
         let rs = self.response_store();
@@ -63,22 +61,20 @@ pub trait Protocol<'a> {
             if let (Some(l2p_rx), Some(p2l_tx), Some(link_id)) = (l2p_rx, p2l_tx, link_id) {
                 loop {
                     if let Ok(ilp) = l2p_rx.recv() {
-                        debug!("l2p");
+                        debug!("\t|  link-to-protocol");
                         let nw: NarrowWaistPacket = ilp.narrow_waist();
                         match nw.clone() {
                             NarrowWaistPacket::Request { hbfi, .. } => {
-                                // if hbfi has request_pid then query for hbfi with 0,0,0,0 req, get it then encrypt_for
-                                //println!("HHHHHHH raw hbfi {:?}", hbfi.clone());
                                 let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
                                 if rs.contains_key(hbfi_s.clone())? {
                                     let nw = rs.get(hbfi_s)?;
                                     match nw {
                                         Some(nw) => {
-                                            debug!("********* RESPONSE PACKET FOUND *********");
+                                            debug!("\t|  RESPONSE PACKET FOUND");
                                             let nw = deserialize_narrow_waist_packet(&nw.to_vec())?;
                                             let lp = LinkPacket::new(link_id.reply_to()?, nw);
                                             let ilp = InterLinkPacket::new(link_id.clone(), lp);
-                                            debug!("p2l");
+                                            debug!("\t|      protocol-to-link");
                                             p2l_tx.send(ilp)?;
                                         },
                                         None => {},
@@ -92,22 +88,20 @@ pub trait Protocol<'a> {
                                             Some(nw) => {
                                                 match hbfi.request_pid {
                                                     Some(request_pid) => {
-                                                        debug!("********* RESPONSE PACKET FOUND *********");
-                                                        debug!("*********      ENCRYPT     *********");
+                                                        debug!("\t|  RESPONSE PACKET FOUND ENCRYPT IT");
                                                         let nw = deserialize_narrow_waist_packet(&nw.to_vec())?;
                                                         let nw = nw.encrypt_for(link_id.sid()?, request_pid)?;
                                                         let lp = LinkPacket::new(link_id.reply_to()?, nw);
                                                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
-                                                        debug!("p2l");
+                                                        debug!("\t|  protocol-to-link");
                                                         p2l_tx.send(ilp.clone())?;
                                                     },
                                                     None => {
-                                                        debug!("********* RESPONSE PACKET FOUND *********");
-                                                        debug!("*********      DON'T ENCRYPT     *********");
+                                                        debug!("\t|  RESPONSE PACKET FOUND CLEARTEXT IT");
                                                         let nw = deserialize_narrow_waist_packet(&nw.to_vec())?;
                                                         let lp = LinkPacket::new(link_id.reply_to()?, nw);
                                                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
-                                                        debug!("p2l");
+                                                        debug!("\t|  protocol-to-link");
                                                         p2l_tx.send(ilp)?;
                                                     },
                                                 }
@@ -118,7 +112,7 @@ pub trait Protocol<'a> {
                                 }
                             },
                             NarrowWaistPacket::Response { hbfi, .. } => {
-                                debug!("response arrived");
+                                debug!("\t|  RESPONSE PACKET ARRIVED");
                                 let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
                                 let (nw_size, nw_s) = serialize_narrow_waist_packet(&nw)?;
                                 rs.insert(hbfi_s, nw_s)?;
@@ -131,7 +125,6 @@ pub trait Protocol<'a> {
         });
         Ok(())
     }
-
     fn get(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
         let mut counter = start;
         let mut reconstruct: Vec<u8> = vec![];
@@ -145,7 +138,14 @@ pub trait Protocol<'a> {
                 match rs.get(hbfi_s.clone())? {
                     Some(resp) => {
                         let nw = deserialize_narrow_waist_packet(&resp.to_vec())?;
-                        let chunk = nw.data(None)?;
+                        let chunk = match hbfi.request_pid {
+                            Some(_) => {
+                                nw.data(Some(self.get_request_sid()))?
+                            },
+                            None => {
+                                nw.data(None)?
+                            },
+                        };
                         reconstruct.append(&mut chunk.clone());
                     }
                     None => {
@@ -153,7 +153,7 @@ pub trait Protocol<'a> {
                         let lp = LinkPacket::new(link_id.reply_to()?, nw);
                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
                         let subscriber = rs.watch_prefix(hbfi_s);
-                        debug!("p2l");
+                        debug!("\t|  protocol-to-link");
                         p2l_tx.send(ilp)?;
                         /*while let Some(event) = (&mut subscriber).await {
                             match event {
@@ -174,9 +174,16 @@ pub trait Protocol<'a> {
                             //debug!("{:?}", event);
                             match event {
                                 Event::Insert{ key: key, value } => {
-                                    //debug!("value {:?}", value);
                                     let nw = deserialize_narrow_waist_packet(&value.to_vec())?;
-                                    let chunk = nw.data(Some(self.get_request_sid()))?;
+                                    let chunk = match hbfi.request_pid {
+                                        Some(_) => {
+                                            nw.data(Some(self.get_request_sid()))?
+                                        },
+                                        None => {
+                                            nw.data(None)?
+                                        },
+                                    };
+                                    debug!("value {:?}", chunk);
                                     reconstruct.append(&mut chunk.clone());
                                 }
                                 Event::Remove {key:_ } => {}

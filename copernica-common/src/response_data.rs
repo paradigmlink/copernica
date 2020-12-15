@@ -66,6 +66,7 @@ impl ResponseData {
         let mut rng = rand::thread_rng();
         let length = data.len();
         let padding: Vec<u8> = (0..(constants::DATA_SIZE - length)).map(|_| rng.gen()).collect();
+        //let padding: Vec<u8> = (0..(constants::DATA_SIZE - length)).map(|_| 0).collect();
         let b1 = length as u8;
         let b2 = (length >> 8) as u8;
         let u8_nonce: u8 = rng.gen();

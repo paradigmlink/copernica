@@ -149,6 +149,7 @@ impl Debug for SecretKey {
         #[cfg(not(feature = "nightly"))]
         {
             f.debug_struct("SecretKey<Ed25519Extended>")
+                //.field("0", &hex::encode(&self.0.as_ref()))
                 .field("0", &"...")
                 .finish()
         }

@@ -50,7 +50,7 @@ impl Link<'_> for UdpIp {
                                     let mut buf = vec![0u8; 1500];
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
-                                            debug!("{}:{}", name, this_link.lookup_id()?);
+                                            debug!("\t\t|  |  {}:{}", name, this_link.lookup_id()?);
                                             let (lnk_tx_pid, lp) = match this_link.rx_pid()? {
                                                 Some(_) => decode(buf[..n].to_vec(), Some(this_link.sid()?))?,
                                                 None => decode(buf[..n].to_vec(), None)?,
@@ -84,7 +84,7 @@ impl Link<'_> for UdpIp {
                                     match ilp.reply_to()? {
                                         ReplyTo::UdpIp(remote_addr) => {
                                             let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
-                                            debug!("{}:{}", name, this_link.lookup_id()?);
+                                            debug!("\t\t|  |  {}:{}", name, this_link.lookup_id()?);
                                             let enc = match this_link.rx_pid()? {
                                                 Some(lnk_rx_pid) => encode(lp, this_link.sid()?, Some(lnk_rx_pid))?,
                                                 None => encode(lp, this_link.sid()?, None)?,

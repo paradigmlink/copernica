@@ -7,7 +7,7 @@ use {
     },
     std::fmt,
     serde::{Deserialize, Serialize},
-    copernica_identity::{PrivateIdentity, PublicIdentity, Signature},
+    copernica_identity::{PrivateIdentity, PublicIdentity, Signature, Seed},
     anyhow::{anyhow, Result},
     log::{debug},
 };
@@ -85,13 +85,11 @@ impl NarrowWaistPacket {
                         let hbfi = hbfi.encrypt_for(request_pid.clone())?;
 
                         let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data.data()?, nonce)?;
-                        let manifest = manifest(data.manifest_data(), &hbfi, offset, total, &nonce)?;
+                        let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
 
                         let response_signk = response_sid.signing_key();
-                        let signature = response_signk.sign(manifest);
-                        let nw = NarrowWaistPacket::Response{ data, signature, hbfi, offset: *offset, total: *total, nonce};
-                        debug!("PROBLEM IS IN THIS FUNCTION -> should be true but it's: {}", nw.verify()?);
-                        Ok(nw)
+                        let signature = response_signk.sign(manifest.clone());
+                        return Ok(NarrowWaistPacket::Response{ data, signature, hbfi: hbfi.clone(), offset: *offset, total: *total, nonce});
                     },
                     ResponseData::CypherText { .. } => {
                         return Err(anyhow!("No point in encrypting an already encrypted packet"))
@@ -159,7 +157,6 @@ impl NarrowWaistPacket {
                 let manifest = manifest(data.manifest_data(), hbfi, offset, total, nonce)?;
                 let verify_key = hbfi.response_pid.verify_key()?;
                 let verified = verify_key.verify(&signature, manifest);
-                debug!("{:?}", verified);
                 return Ok(verified);
             },
         }
@@ -178,15 +175,24 @@ impl NarrowWaistPacket {
                         return Ok(data.cleartext_data()?)
                     },
                     ResponseData::CypherText { .. } => {
-                        if let Some(request_sid) = request_sid {
-                            if let Some(request_pid) = hbfi.request_pid.clone() {
-                                if request_pid != request_sid.public_id() {
-                                    return Err(anyhow!("The Response's Request_PublicIdentity doesn't match the Public Identity used to sign or decypt the Response"));
+                        match request_sid {
+                            Some(request_sid) => {
+                                match hbfi.request_pid.clone() {
+                                    Some(request_pid) => {
+                                        if request_pid != request_sid.public_id() {
+                                            return Err(anyhow!("The Response's Request_PublicIdentity doesn't match the Public Identity used to sign or decypt the Response"));
+                                        }
+                                        return Ok(data.decrypt_data(request_sid, hbfi.response_pid.clone(), *nonce)?)
+                                    },
+                                    None => {
+                                        return Err(anyhow!("Decrypting an encrypted data packet requires a PublicIdentity to do so"))
+                                    },
                                 }
-                                return Ok(data.decrypt_data(request_sid, hbfi.response_pid.clone(), *nonce)?)
-                            }
+                            },
+                            None => {
+                                return Err(anyhow!("Decrypting an encrypted data packet requires a PrivateIdentity to do so"))
+                            },
                         }
-                        return return Err(anyhow!("Decrypting an encrypted data packet requires a PrivateIdentity to do so"))
                     },
                 };
             },
