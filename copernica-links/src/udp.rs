@@ -50,11 +50,8 @@ impl Link<'_> for UdpIp {
                                     let mut buf = vec![0u8; 1500];
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
-                                            debug!("\t\t|  |  {}:{}", name, this_link.lookup_id()?);
-                                            let (lnk_tx_pid, lp) = match this_link.rx_pid()? {
-                                                Some(_) => decode(buf[..n].to_vec(), Some(this_link.sid()?))?,
-                                                None => decode(buf[..n].to_vec(), None)?,
-                                            };
+                                            trace!("\t\t|  |  {}:{}", name, this_link.lookup_id()?);
+                                            let (_lnk_tx_pid, lp) = decode(buf[..n].to_vec(), this_link.clone())?;
                                             let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, lp);
                                             let _r = l2bs_tx.send(ilp)?;
@@ -84,11 +81,9 @@ impl Link<'_> for UdpIp {
                                     match ilp.reply_to()? {
                                         ReplyTo::UdpIp(remote_addr) => {
                                             let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
-                                            debug!("\t\t|  |  {}:{}", name, this_link.lookup_id()?);
-                                            let enc = match this_link.rx_pid()? {
-                                                Some(lnk_rx_pid) => encode(lp, this_link.sid()?, Some(lnk_rx_pid))?,
-                                                None => encode(lp, this_link.sid()?, None)?,
-                                            };
+                                            debug!("\t\t\t|  |  link-to-broker");
+                                            trace!("\t\t\t|  |  {}:{}", name, this_link.lookup_id()?);
+                                            let enc = encode(lp, this_link.clone())?;
                                             socket.send_to(&enc, remote_addr).await?;
                                         },
                                         _ => {},

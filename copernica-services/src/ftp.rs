@@ -6,7 +6,7 @@ use {
     copernica_identity::{PrivateIdentity},
     //sled::{Db, Event},
     anyhow::{Result},
-    log::{debug},
+    //log::{debug},
 };
 
 #[derive(Clone, Debug)]

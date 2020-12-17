@@ -2,12 +2,12 @@ use {
     crate::{
         constants::*,
         common::*,
-        HBFI, ReplyTo,
+        HBFI, ReplyTo, LinkId,
         NarrowWaistPacket, ResponseData, LinkPacket, BFI,
     },
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
-    copernica_identity::{ PrivateIdentity, PublicIdentity, Signature },
-    log::{trace},
+    copernica_identity::{ PublicIdentity, Signature},
+    log::{trace, error},
     anyhow::{anyhow, Result},
 };
 fn u16_to_u8(i: u16) -> [u8; 2] {
@@ -333,9 +333,10 @@ fn deserialize_reply_to(data: &Vec<u8>) -> Result<ReplyTo> {
     Ok(rt)
 }
 
-pub fn serialize_link_packet(lp: &LinkPacket, lnk_tx_sid: PrivateIdentity, lnk_rx_pid: Option<PublicIdentity>) -> Result<Vec<u8>> {
+pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
     let mut buf: Vec<u8> = vec![];
-    match lnk_rx_pid {
+    let lnk_tx_sid = link_id.sid()?;
+    match link_id.rx_pid()? {
         None => {
             let reply_to = lp.reply_to();
             let nw = lp.narrow_waist();
@@ -395,7 +396,7 @@ pub fn serialize_link_packet(lp: &LinkPacket, lnk_tx_sid: PrivateIdentity, lnk_r
     Ok(buf)
 }
 
-pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIdentity) -> Result<(PublicIdentity, LinkPacket)> {
+pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
 // Link Pid
     let mut link_tx_pk = [0u8; ID_SIZE];
     link_tx_pk.clone_from_slice(&data[CYPHERTEXT_LINK_TX_PK_START..CYPHERTEXT_LINK_TX_PK_END]);
@@ -427,7 +428,7 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIde
     let nw_start = CYPHERTEXT_LINK_NARROW_WAIST_SIZE_END + reply_to_size[0] as usize;
     trace!("des nw_start: \t\t\t{:?}", nw_start);
     let lnk_tx_pk = lnk_tx_pid.derive(&link_nonce);
-    let lnk_rx_sk = lnk_rx_sid.derive(&link_nonce);
+    let lnk_rx_sk = link_id.sid()?.derive(&link_nonce);
     let shared_secret = lnk_rx_sk.exchange(&lnk_tx_pk);
     let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &link_nonce, &[]);
     let nw: NarrowWaistPacket = match nw_size {
@@ -436,7 +437,9 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIde
             let encrypted = &data[nw_start..nw_start + nw_size];
             //trace!("des encrypted: actual_length: {} NARROW_WAIST_PACKET_ENCRYPTED_RESPONSE_SIZE {}\t\t\t{:?} ", encrypted.len(), CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, encrypted);
             if !ctx.decrypt(encrypted, &mut decrypted, &link_tag) {
-                return Err(anyhow!("failed to decrypt link packet"));
+                let err_msg = "failed to decrypt link packet";
+                error!("{}", err_msg);
+                return Err(anyhow!(err_msg))
             };
             deserialize_cyphertext_narrow_waist_packet_request(&decrypted.to_vec())?
         },
@@ -445,7 +448,9 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIde
             let encrypted = &data[nw_start..nw_start + nw_size];
             //trace!("des encrypted: actual_length: {} NARROW_WAIST_PACKET_ENCRYPTED_RESPONSE_SIZE {}\t\t\t{:?} ", encrypted.len(), CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, encrypted);
             if !ctx.decrypt(encrypted, &mut decrypted, &link_tag) {
-                return Err(anyhow!("failed to decrypt link packet"));
+                let err_msg = "failed to decrypt link packet";
+                error!("{}", err_msg);
+                return Err(anyhow!(err_msg))
             };
             deserialize_cyphertext_narrow_waist_packet_response(&decrypted.to_vec())?
         },
@@ -454,7 +459,9 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIde
             let encrypted = &data[nw_start..nw_start + nw_size];
             //trace!("des encrypted: actual_length: {} NARROW_WAIST_PACKET_ENCRYPTED_RESPONSE_SIZE {}\t\t\t{:?} ", encrypted.len(), CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, encrypted);
             if !ctx.decrypt(encrypted, &mut decrypted, &link_tag) {
-                return Err(anyhow!("failed to decrypt link packet"));
+                let err_msg = "failed to decrypt link packet";
+                error!("{}", err_msg);
+                return Err(anyhow!(err_msg))
             };
             deserialize_cleartext_narrow_waist_packet_request(&decrypted.to_vec())?
         },
@@ -463,16 +470,24 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, lnk_rx_sid: PrivateIde
             let encrypted = &data[nw_start..nw_start + nw_size];
             //trace!("des encrypted: actual_length: {} NARROW_WAIST_PACKET_ENCRYPTED_RESPONSE_SIZE {}\t\t\t{:?} ", encrypted.len(), CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, encrypted);
             if !ctx.decrypt(encrypted, &mut decrypted, &link_tag) {
-                return Err(anyhow!("failed to decrypt link packet"));
+                let err_msg = "failed to decrypt link packet";
+                error!("{}", err_msg);
+                return Err(anyhow!(err_msg))
             };
             deserialize_cleartext_narrow_waist_packet_response(&decrypted.to_vec())?
         },
         _ => {
             let msg = format!("Cyphertext link level packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE);
-            println!("{}", msg);
+            error!("{}", msg);
             return Err(anyhow!(msg));
         },
     };
+    //debug!("{:?}", nw);
+    if !nw.verify()? {
+        let err_msg = "The manifest signature check failed when extracting the data from a NarrowWaistPacket::Response";
+        error!("{}", err_msg);
+        return Err(anyhow!(err_msg))
+    }
     Ok((lnk_tx_pid, LinkPacket::new(reply_to, nw)))
 }
 pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<(PublicIdentity, LinkPacket)> {
@@ -526,10 +541,10 @@ pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<(PublicIdenti
     };
     Ok((lnk_tx_pid, LinkPacket::new(reply_to, nw)))
 }
-pub fn deserialize_link_packet(data: &Vec<u8>, lnk_rx_sid: Option<PrivateIdentity>) -> Result<(PublicIdentity, LinkPacket)> {
-    match lnk_rx_sid {
-        Some(lnk_rx_sid) => {
-            deserialize_cyphertext_link_packet(data, lnk_rx_sid)
+pub fn deserialize_link_packet(data: &Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
+    match link_id.rx_pid()? {
+        Some(_) => {
+            deserialize_cyphertext_link_packet(data, link_id)
         },
         None => {
             deserialize_cleartext_link_packet(data)

@@ -8,7 +8,7 @@ use {
     std::fmt,
     rand_core::{CryptoRng, RngCore},
     anyhow::{anyhow, Result},
-    log::{debug},
+    //log::{debug},
 };
 
 pub type Nonce = [u8; constants::NONCE_SIZE];

@@ -8,7 +8,7 @@ use {
     anyhow::{anyhow, Result},
     rand::Rng,
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
-    log::{debug},
+    //log::{debug},
 };
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ResponseData {

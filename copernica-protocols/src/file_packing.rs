@@ -11,7 +11,7 @@ use {
     walkdir::{WalkDir},
     anyhow::{Result, anyhow},
     copernica_identity::{PrivateIdentity},
-    log::{debug},
+    //log::{debug},
 };
 
 pub type PathsWithSizes = Vec<(PathBuf, u64)>;
@@ -87,7 +87,7 @@ impl FilePacker {
 
         // this concludes the calculation of the total size and file chunk sizes.
         let hbfi = self.hbfi.clone();
-        let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
+        let (_, hbfi_s) = serialize_hbfi(&hbfi)?;
 
         let mut current_offset: u64 = 1;
         for (file_path, (start, end)) in absolute_files_offsets {
@@ -99,10 +99,10 @@ impl FilePacker {
                 let mut counter = start;
                 for file_chunk in file_chunks {
                     let hbfi = hbfi.clone().offset(counter);
-                    let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
+                    let (_, hbfi_s) = serialize_hbfi(&hbfi)?;
                     let resp = NarrowWaistPacket::response(self.response_sid.clone(), hbfi.clone(), file_chunk.to_vec(), counter, total_offset)?;
                     //let resp = create_response(hbfi.clone(), file_chunk, counter, total_offset)?;
-                    let (resp_size, resp_s) = serialize_narrow_waist_packet(&resp)?;
+                    let (_, resp_s) = serialize_narrow_waist_packet(&resp)?;
                     rs.insert(&hbfi_s, resp_s)?;
                     current_offset += 1;
                     counter += 1;
@@ -113,10 +113,10 @@ impl FilePacker {
         let file_manifest_chunks = file_manifest.chunks(chunk_size as usize);
         for file_manifest_chunk in file_manifest_chunks {
             let hbfi = hbfi.clone().offset(current_offset);
-            let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
+            let (_, hbfi_s) = serialize_hbfi(&hbfi)?;
             let resp = NarrowWaistPacket::response(self.response_sid.clone(), hbfi.clone(), file_manifest_chunk.to_vec(), current_offset, total_offset)?;
             //let resp = create_response(hbfi.clone(), file_manifest_chunk, current_offset, total_offset)?;
-            let (resp_size, resp) = serialize_narrow_waist_packet(&resp)?;
+            let (_, resp) = serialize_narrow_waist_packet(&resp)?;
             rs.insert(&hbfi_s, resp)?;
             current_offset += 1;
         }
@@ -125,7 +125,7 @@ impl FilePacker {
         let manifest_s: Vec<u8> = bincode::serialize(&manifest)?;
         let resp = NarrowWaistPacket::response(self.response_sid.clone(), hbfi.clone(), manifest_s.to_vec(), 0, total_offset)?;
         //let resp = create_response(hbfi.clone(), &manifest_s, 0, total_offset)?;
-        let (resp_size, resp) = serialize_narrow_waist_packet(&resp)?;
+        let (_, resp) = serialize_narrow_waist_packet(&resp)?;
         rs.insert(hbfi_s, resp)?;
 
         Ok(())

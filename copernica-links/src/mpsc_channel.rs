@@ -69,13 +69,10 @@ impl<'a> Link<'a> for MpscChannel {
                     loop {
                         match l2l0_rx.recv(){
                             Ok(msg) => {
-                                let (lnk_tx_pid, lp) = match this_link.rx_pid()? {
-                                    Some(_) => decode(msg, Some(this_link.sid()?))?,
-                                    None => decode(msg, None)?,
-                                };
+                                let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp.clone());
-                                debug!("\t|  |  {}:{}", name, this_link.lookup_id()?);
+                                trace!("\t|  |  {}:{}", name, this_link.lookup_id()?);
                                 let _r = l2bs_tx.send(ilp)?;
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
@@ -95,12 +92,10 @@ impl<'a> Link<'a> for MpscChannel {
                     match bs2l_rx.recv(){
                         Ok(ilp) => {
                             let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
-                            let enc = match this_link.rx_pid()? {
-                                Some(lnk_rx_pid) => encode(lp, this_link.sid()?, Some(lnk_rx_pid))?,
-                                None => encode(lp, this_link.sid()?, None)?,
-                            };
+                            let enc = encode(lp, this_link.clone())?;
                             for s in l2l1_tx.clone() {
-                                debug!("\t|  |  {}:{}", name, this_link.lookup_id()?);
+                                debug!("\t\t|  |  link-to-broker");
+                                trace!("\t\t|  |  {}:{}", name, this_link.lookup_id()?);
                                 s.send(enc.clone())?;
                             }
                         },

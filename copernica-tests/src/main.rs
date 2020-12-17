@@ -3,11 +3,11 @@ mod router;
 mod common;
 mod protocols;
 mod ftp;
-mod test_parse;
 mod crypto;
 use {
-    async_std::{ task, },
+    async_std::{task},
     anyhow::{Result},
+    log::{error},
 };
 
 fn main() -> Result<()> {
@@ -23,17 +23,23 @@ fn main() -> Result<()> {
         //router::fetch_from_self().await;
         //router::single_fetch().await;
         //sharing::smoke_test().await;
-        ftp::smoke_test().await;
+        //ftp::encrypted_response_encrypted_link().await;
+        ftp::cleartext_response_cleartext_link().await;
         //crypto::encrypted_response_encrypted_link().await;
         //crypto::cleartext_response_encrypted_link().await;
         //crypto::encrypted_request_encrypted_link().await;
         //crypto::cleartext_request_encrypted_link().await;
+        //crypto::encrypted_response_cleartext_link().await;
+        //crypto::cleartext_response_cleartext_link().await;
+        //crypto::encrypted_request_cleartext_link().await;
+        //crypto::cleartext_request_cleartext_link().await;
         //crypto::request_transmute_and_decrypt().await;
         //crypto::cleartext_response_encrypt_then_decrypt().await;
         //protocols::transports().await;
         //copernicafs::single_file_less_than_fragment_size().await;
-        if let Err(r) = r {
-            println!("error {}", r);
+        match r {
+            Ok(_) => println!("successful"),
+            Err(r) =>  error!("{}", r)
         }
     });
     Ok(())

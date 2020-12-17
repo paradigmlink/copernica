@@ -216,8 +216,6 @@ pub async fn transports() -> Result<()> {
 */
 #[cfg(test)]
 mod copernicafs {
-    use super::*;
-    use async_std::{ task, };
 /*
     #[test]
     fn test_smoke_test() {

@@ -24,26 +24,25 @@ impl Router {
         bayes: &mut Bayes,
         choke: &LinkId,
     ) -> Result<()> {
-        debug!("\t|  |  |  broker-to-router");
+        //debug!("\t|  |  |  broker-to-router");
         let this_link: LinkId = ilp.link_id();
         let this_link_sid: PrivateIdentity = ilp.link_id().sid()?;
         let nw: NarrowWaistPacket = ilp.narrow_waist();
         if let Some(this_bloom) = blooms.get_mut(&this_link) {
             match nw.clone() {
                 NarrowWaistPacket::Request { hbfi, .. } => {
-                    let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
+                    let (_hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
                     match response_store.get(&hbfi_s)? {
                         Some(response) => {
                             let nw: NarrowWaistPacket = deserialize_narrow_waist_packet(&response.to_vec())?;
-                            debug!("\t|  |  |  |  RESPONSE PACKET FOUND");
+                            debug!("\t\t|  |  |  |  RESPONSE PACKET FOUND");
                             let lp = LinkPacket::new(this_link.reply_to()?, nw);
                             let ilp = InterLinkPacket::new(this_link.clone(), lp);
-                            debug!("\t|  |  |  router-to-broker");
                             r2b_tx.send(ilp)?;
                             return Ok(());
                         }
                         None => {
-                            debug!("\t|  |  |  |  FORWARD REQUEST UPSTREAM");
+                            debug!("\t\t|  |  |  |  FORWARD REQUEST UPSTREAM");
                             this_bloom.create_pending_request(&hbfi);
                             let link_weights = bayes.classify(&hbfi.to_vec());
                             //std::thread::sleep_ms(500);
@@ -88,12 +87,10 @@ impl Router {
                                     }
                                     if (weight < 0.00) && (forwarded == false) {
                                         that_bloom.create_forwarded_request(&hbfi);
-                                        debug!("\t|  |  |  router-to-broker");
                                         r2b_tx.send(ilp.change_destination(that_link))?;
                                         continue;
                                     }
                                     that_bloom.create_forwarded_request(&hbfi);
-                                    debug!("\t|  |  |  router-to-broker");
                                     r2b_tx.send(ilp.change_destination(that_link))?;
                                     forwarded = true;
                                 }
@@ -103,8 +100,8 @@ impl Router {
                 }
                 NarrowWaistPacket::Response { hbfi, .. } => {
                     if this_bloom.contains_forwarded_request(&hbfi) {
-                        let (hbfi_size, hbfi_s) = serialize_hbfi(&hbfi)?;
-                        let (nw_size, nw_s) = serialize_narrow_waist_packet(&nw)?;
+                        let (_, hbfi_s) = serialize_hbfi(&hbfi)?;
+                        let (_, nw_s) = serialize_narrow_waist_packet(&nw)?;
                         response_store.insert(hbfi_s, nw_s)?;
                         bayes.super_train(&hbfi.to_vec(), &this_link);
                         // ^^^ think about an attack whereby a response is continually sent thus adjusting the weights
@@ -115,8 +112,7 @@ impl Router {
                             }
                             if that_bloom.contains_pending_request(&hbfi) {
                                 that_bloom.delete_pending_request(&hbfi);
-                                debug!("\t|  |  |  |  FORWARD RESPONSE DOWNSTREAM");
-                                debug!("\t|  |  |  router-to-broker");
+                                debug!("\t\t|  |  |  |  FORWARD RESPONSE DOWNSTREAM");
                                 r2b_tx.send(ilp.change_destination(that_link.clone()))?;
                             }
                         }

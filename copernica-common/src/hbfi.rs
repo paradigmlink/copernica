@@ -143,12 +143,6 @@ pub fn bloom_filter_index(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        link::{ReplyTo},
-        narrow_waist_packet::{NarrowWaistPacket},
-        link_packet::{LinkPacket},
-    };
-    use copernica_identity::{PrivateIdentity, Seed};
 
     #[test]
     fn test_bloom_filter_index() {
@@ -157,36 +151,4 @@ mod tests {
             [4804, 63297, 3290, 20147];
         assert_eq!(actual, expected);
     }
-/*
-    #[test]
-    fn less_than_mtu() {
-        // https://gafferongames.com/post/packet_fragmentation_and_reassembly
-        let mut rng = rand::thread_rng();
-        let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let response_pid = response_sid.public_id();
-
-        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let request_pid = response_sid.public_id();
-
-
-        let hbfi = HBFI::new(response_pid.clone(), Some(request_pid), "app", "m0d", "fun", "arg").unwrap();
-        let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone()).unwrap();
-        let expected_data = vec![0; 600];
-        let offset = 0;
-        let total = 1;
-        let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total).unwrap();
-
-        let link_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-        let link_pid = link_sid.public_id();
-
-        let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50000".parse().unwrap());
-        let lp: LinkPacket = LinkPacket::new(reply_to, nw);
-        println!("{:?}", lp);
-        let lp_ser = bincode::serialize(&lp).unwrap();
-        let lp_ser_len = lp_ser.len();
-        println!("must be less than 1472, current length: {}", lp_ser_len);
-        let lt1472 = if lp_ser_len <= 1472 { true } else { false };
-        assert_eq!(true, lt1472);
-    }
-    */
 }
