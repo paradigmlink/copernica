@@ -23,11 +23,11 @@ pub async fn cleartext_response_cleartext_link() -> Result<()> {
     let name: String = "namable0".into();
     let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let (raw_data_dir, packaged_data_dir) = populate_tmp_dir(name.clone(), response_sid.clone(), test_data0).await?;
+    let (raw_data_dir, packaged_data_dir) = populate_tmp_dir(name.clone(), response_sid.clone(), test_data0)?;
 
     let rs0 = sled::open(packaged_data_dir)?;
-    let rs1 = sled::open(generate_random_dir_name().await)?;
-    let brs = sled::open(generate_random_dir_name().await)?;
+    let rs1 = sled::open(generate_random_dir_name())?;
+    let brs = sled::open(generate_random_dir_name())?;
 
     let mut b = Broker::new(brs);
     let mut ftp0 = FTPService::new(rs0, response_sid.clone());
@@ -104,11 +104,11 @@ pub async fn encrypted_response_encrypted_link() -> Result<()> {
     let name: String = "namable0".into();
     let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let (raw_data_dir, packaged_data_dir) = populate_tmp_dir(name.clone(), response_sid.clone(), test_data0).await?;
+    let (raw_data_dir, packaged_data_dir) = populate_tmp_dir(name.clone(), response_sid.clone(), test_data0)?;
 
     let rs0 = sled::open(packaged_data_dir)?;
-    let rs1 = sled::open(generate_random_dir_name().await)?;
-    let brs = sled::open(generate_random_dir_name().await)?;
+    let rs1 = sled::open(generate_random_dir_name())?;
+    let brs = sled::open(generate_random_dir_name())?;
 
     let mut b = Broker::new(brs);
     let mut ftp0 = FTPService::new(rs0, response_sid.clone());
@@ -185,13 +185,13 @@ mod copernicafs {
     #[test]
     fn test_encrypted_response_encrypted_link() {
         task::block_on(async {
-            let _r = encrypted_response_encrypted_link().await;
+            let _r = encrypted_response_encrypted_link();
         })
     }
     #[test]
     fn test_cleartext_response_cleartext_link() {
         task::block_on(async {
-            let _r = cleartext_response_cleartext_link().await;
+            let _r = cleartext_response_cleartext_link();
         })
     }
 }

@@ -14,7 +14,7 @@ use {
     copernica_identity::{PrivateIdentity},
 };
 
-pub async fn generate_random_dir_name() -> PathBuf {
+pub fn generate_random_dir_name() -> PathBuf {
     use std::iter;
     use rand::{Rng, thread_rng};
     use rand::distributions::Alphanumeric;
@@ -34,9 +34,9 @@ pub async fn generate_random_dir_name() -> PathBuf {
 
 pub type TestData = Vec<(PathBuf, u8, usize)>;
 
-pub async fn populate_tmp_dir(name: String, response_sid: PrivateIdentity, test_data: TestData) -> Result<(PathBuf, PathBuf)> {
-    let router_data_dir = generate_random_dir_name().await;
-    let source_data_dir = generate_random_dir_name().await;
+pub fn populate_tmp_dir(name: String, response_sid: PrivateIdentity, test_data: TestData) -> Result<(PathBuf, PathBuf)> {
+    let router_data_dir = generate_random_dir_name();
+    let source_data_dir = generate_random_dir_name();
     for (path, data, size) in test_data {
         let dir = source_data_dir.join(path);
         let data = vec![data; size];
@@ -50,11 +50,11 @@ pub async fn populate_tmp_dir(name: String, response_sid: PrivateIdentity, test_
     Ok((source_data_dir, router_data_dir))
 }
 
-async fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: u64, response_sid: PrivateIdentity) -> Result<Vec<(String, String)>> {
+fn populate_tmp_dir_dispersed_gt_mtu(node_count: usize, data_size: u64, response_sid: PrivateIdentity) -> Result<Vec<(String, String)>> {
     let mut tmp_dirs: Vec<(PathBuf, PathBuf)> = Vec::with_capacity(node_count);
     for n in 0..node_count {
-        let source_data_dir = generate_random_dir_name().await;
-        let router_data_dir = generate_random_dir_name().await;
+        let source_data_dir = generate_random_dir_name();
+        let router_data_dir = generate_random_dir_name();
         tmp_dirs.push((source_data_dir.clone(), router_data_dir.clone()));
         let name = format!("hello{}", n.clone());
         let value = vec![n.clone() as u8; data_size as usize];
