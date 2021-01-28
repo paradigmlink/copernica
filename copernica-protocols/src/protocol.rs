@@ -39,7 +39,7 @@ pub trait Protocol<'a> {
     fn set_p2l_tx(&mut self, s: Sender<InterLinkPacket>);
     fn get_link_id(&mut self) -> Option<LinkId>;
     fn set_link_id(&mut self, link_id: LinkId);
-    fn get_request_sid(&mut self) -> PrivateIdentity;
+    fn get_response_sid(&mut self) -> PrivateIdentity;
     fn peer(
         &mut self,
         link_id: LinkId,
@@ -57,11 +57,12 @@ pub trait Protocol<'a> {
         let l2p_rx = self.get_l2p_rx();
         let p2l_tx = self.get_p2l_tx();
         let link_id = self.get_link_id();
-        let request_sid = self.get_request_sid();
+        let response_sid = self.get_response_sid();
         thread::spawn(move || {
             if let (Some(l2p_rx), Some(p2l_tx), Some(link_id)) = (l2p_rx, p2l_tx, link_id) {
                 loop {
                     if let Ok(ilp) = l2p_rx.recv() {
+                        /*
                         debug!("\t\t|  link-to-protocol");
                         let nw: NarrowWaistPacket = ilp.narrow_waist();
                         match nw.clone() {
@@ -91,7 +92,7 @@ pub trait Protocol<'a> {
                                                     Some(request_pid) => {
                                                         debug!("\t\t|  RESPONSE PACKET FOUND ENCRYPT IT");
                                                         let nw = deserialize_narrow_waist_packet(&nw.to_vec())?;
-                                                        let nw = nw.encrypt_for(request_pid, request_sid.clone())?;
+                                                        let nw = nw.encrypt_for(request_pid, response_sid.clone())?;
                                                         let lp = LinkPacket::new(link_id.reply_to()?, nw);
                                                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
                                                         debug!("\t\t|  protocol-to-link");
@@ -119,6 +120,7 @@ pub trait Protocol<'a> {
                                 rs.insert(hbfi_s, nw_s)?;
                             },
                         }
+                    */
                     }
                 }
             }
@@ -141,7 +143,7 @@ pub trait Protocol<'a> {
                         let nw = deserialize_narrow_waist_packet(&resp.to_vec())?;
                         let chunk = match hbfi.request_pid {
                             Some(_) => {
-                                nw.data(Some(self.get_request_sid()))?
+                                nw.data(Some(self.get_response_sid()))?
                             },
                             None => {
                                 nw.data(None)?
@@ -178,7 +180,7 @@ pub trait Protocol<'a> {
                                     let nw = deserialize_narrow_waist_packet(&value.to_vec())?;
                                     let chunk = match hbfi.request_pid {
                                         Some(_) => {
-                                            nw.data(Some(self.get_request_sid()))?
+                                            nw.data(Some(self.get_response_sid()))?
                                         },
                                         None => {
                                             nw.data(None)?

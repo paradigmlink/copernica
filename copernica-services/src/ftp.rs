@@ -1,12 +1,12 @@
 use {
-    copernica_common::{LinkId, InterLinkPacket, HBFI},
+    copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, serialization::*},
     copernica_protocols::{FTP, Protocol},
     std::{thread},
     crossbeam_channel::{Sender, Receiver, unbounded},
     copernica_identity::{PrivateIdentity},
     //sled::{Db, Event},
     anyhow::{Result},
-    //log::{debug},
+    log::{debug},
 };
 
 #[derive(Clone, Debug)]

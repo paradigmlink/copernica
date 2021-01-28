@@ -58,6 +58,15 @@ impl HBFI {
             , self.arg.clone()
         ]
     }
+    pub fn to_tup(&self) -> (BFI, BFI, BFI, BFI, BFI, BFI){
+        ( self.req.clone()
+        , self.res.clone()
+        , self.app.clone()
+        , self.m0d.clone()
+        , self.fun.clone()
+        , self.arg.clone()
+        )
+    }
     pub fn offset(mut self, ost: u64) -> Self {
         self.ost = ost;
         self

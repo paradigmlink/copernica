@@ -75,8 +75,12 @@ impl NarrowWaistPacket {
         let mut rng = rand::thread_rng();
         let nonce: Nonce = generate_nonce(&mut rng);
         match hbfi.request_pid.clone() {
-            Some(_request_pid) => {
-                return Err(anyhow!("Initial creation of a NarrowWaistPacket::Response should be clear text (at least for now). Your service application should call NarrowWaistPacket::encrypt() using the nonce from the inbound NarrowWaistPacket::Request packets as an argument."))
+            Some(request_pid) => {
+                let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, nonce)?;
+                let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
+                let response_signkey = response_sid.signing_key();
+                let signature = response_signkey.sign(manifest);
+                Ok(NarrowWaistPacket::Response { hbfi, nonce, offset, total, data, signature })
             },
             None => {
                 let data = ResponseData::clear_text(data)?;
