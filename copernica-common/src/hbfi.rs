@@ -2,7 +2,6 @@ use {
     crate::{constants},
     anyhow::Result,
     serde::{Deserialize, Serialize},
-    sha3::{Digest, Sha3_512},
     std::fmt,
     copernica_identity::{PublicIdentity},
 };
@@ -123,17 +122,29 @@ pub fn bloom_filter_index(
     s: &str,
 ) -> Result<[u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize]> {
     use std::str;
-    let mut hasher = Sha3_512::new();
-    hasher.input(s.as_bytes());
-    let hash = hasher.result();
+    use cryptoxide::digest::Digest as _;
+    let mut hash_orig = [0; 32];
+    let mut b = cryptoxide::blake2b::Blake2b::new(32);
+    b.input(&s.as_bytes());
+    b.result(&mut hash_orig);
     let mut bloom_filter_index_array: BFI =
         [0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize];
     let mut count = 0;
     for n in 0..constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH {
-        let mut hasher = Sha3_512::new();
-        hasher.input(format!("{:x}{}", hash, n));
-        let hs = format!("{:x}", hasher.result());
-        let subs = hs
+        let mut hash_derived = [0; 32];
+        let mut b = cryptoxide::blake2b::Blake2b::new(32);
+        let mut s: String = "".into();
+        for byte in hash_orig.iter() {
+            s.push_str(format!("{:x}", byte).as_str());
+        }
+        s.push_str(format!("{}", n).as_str());
+        b.input(&s.as_bytes());
+        b.result(&mut hash_derived);
+        s = "".into();
+        for byte in hash_derived.iter() {
+            s.push_str(format!("{:x}", byte).as_str());
+        }
+        let subs = s
             .as_bytes()
             .chunks(16)
             .map(str::from_utf8)
