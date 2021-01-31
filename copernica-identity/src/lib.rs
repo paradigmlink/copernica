@@ -404,11 +404,6 @@ impl PublicIdentity {
     pub fn chain_code(&self) -> &key::ed25519_hd::ChainCode {
         self.0.chain_code()
     }
-    pub fn reconstitute(key: [u8; 32], chain_code: [u8; 32]) -> Self {
-        let key = key::ed25519::PublicKey::new(key);
-        let chain_code = key::ed25519_hd::ChainCode::from_bytes(chain_code);
-        PublicIdentity(key::ed25519_hd::PublicKey::reconstitute(key, chain_code))
-    }
 }
 
 impl PrivateSigningKey {

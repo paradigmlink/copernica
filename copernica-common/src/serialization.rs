@@ -7,7 +7,7 @@ use {
     },
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
     copernica_identity::{ PublicIdentity, Signature},
-    log::{trace, error},
+    log::{trace, error, debug},
     anyhow::{anyhow, Result},
 };
 fn u16_to_u8(i: u16) -> [u8; 2] {
@@ -129,20 +129,14 @@ pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     ost.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
     trace!("des \toffset: \t\t{:?}", ost.as_ref());
     let ost: u64 = u8_to_u64(ost);
-    let mut res_key = [0u8; ID_SIZE];
+    let mut res_key = [0u8; ID_SIZE + CC_SIZE];
     res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
-    trace!("des \tres_key: \t\t{:?}", res_key);
-    let mut res_ccd = [0u8; CC_SIZE];
-    res_ccd.clone_from_slice(&data[HBFI_RESPONSE_CHAIN_CODE_START..HBFI_RESPONSE_CHAIN_CODE_END]);
-    trace!("des \tres_ccd: \t\t{:?}", res_ccd);
-    let mut req_key = [0u8; ID_SIZE];
+    //trace!("des \tres_key: \t\t{:?}", res_key);
+    let mut req_key = [0u8; ID_SIZE + CC_SIZE];
     req_key.clone_from_slice(&data[HBFI_REQUEST_KEY_START..HBFI_REQUEST_KEY_END]);
-    trace!("des \treq_key: \t\t{:?}", req_key);
-    let mut req_ccd = [0u8; CC_SIZE];
-    req_ccd.clone_from_slice(&data[HBFI_REQUEST_CHAIN_CODE_START..HBFI_REQUEST_CHAIN_CODE_END]);
-    trace!("des \treq_ccd: \t\t{:?}", req_ccd);
-    Ok(HBFI { response_pid: PublicIdentity::reconstitute(res_key, res_ccd)
-            , request_pid: Some(PublicIdentity::reconstitute(req_key, req_ccd))
+    //trace!("des \treq_key: \t\t{:?}", req_key);
+    Ok(HBFI { response_pid: PublicIdentity::from(res_key)
+            , request_pid: Some(PublicIdentity::from(req_key))
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
             , ost})
 }
@@ -160,13 +154,10 @@ pub fn deserialize_cleartext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     ost.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
     trace!("des \toffset: \t\t{:?}", ost.as_ref());
     let ost: u64 = u8_to_u64(ost);
-    let mut res_key = [0u8; ID_SIZE];
+    let mut res_key = [0u8; ID_SIZE + CC_SIZE];
     res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
-    trace!("des \tres_key: \t\t{:?}", res_key);
-    let mut res_ccd = [0u8; CC_SIZE];
-    res_ccd.clone_from_slice(&data[HBFI_RESPONSE_CHAIN_CODE_START..HBFI_RESPONSE_CHAIN_CODE_END]);
-    trace!("des \tres_ccd: \t\t{:?}", res_ccd);
-    Ok(HBFI { response_pid: PublicIdentity::reconstitute(res_key, res_ccd)
+    //trace!("des \tres_key: \t\t{:?}", res_key);
+    Ok(HBFI { response_pid: PublicIdentity::from(res_key)
             , request_pid: None
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
             , ost})
@@ -175,7 +166,7 @@ pub fn deserialize_cyphertext_narrow_waist_packet_response(data: &Vec<u8>) -> Re
     let mut signature = [0u8; Signature::SIZE];
     signature.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
     trace!("des \tsignature: \t\t{:?}", signature.as_ref());
-    let signature: Signature = Signature::reconstitute(&signature);
+    let signature: Signature = Signature::from(signature);
     let mut offset = [0u8; U64_SIZE];
     offset.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_END]);
     trace!("des \toffset: \t\t{:?}", offset.as_ref());
@@ -198,7 +189,7 @@ pub fn deserialize_cleartext_narrow_waist_packet_response(data: &Vec<u8>) -> Res
     let mut signature = [0u8; Signature::SIZE];
     signature.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
     trace!("des \tsignature: \t\t{:?}", signature.as_ref());
-    let signature: Signature = Signature::reconstitute(&signature);
+    let signature: Signature = Signature::from(signature);
     let mut offset = [0u8; U64_SIZE];
     offset.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_END]);
     trace!("des \toffset: \t\t{:?}", offset.as_ref());
@@ -398,15 +389,10 @@ pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>
 
 pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
 // Link Pid
-    let mut link_tx_pk = [0u8; ID_SIZE];
+    let mut link_tx_pk = [0u8; ID_SIZE + CC_SIZE];
     link_tx_pk.clone_from_slice(&data[CYPHERTEXT_LINK_TX_PK_START..CYPHERTEXT_LINK_TX_PK_END]);
-    trace!("des link_tx_pk: \t\t{:?}", link_tx_pk);
-// Link CC
-    let mut link_tx_cc = [0u8; CC_SIZE];
-    //trace!("cc_size : {:?}, arr addresses {:?} {:?} {:?}", CC_SIZE, LINK_TX_CC_START, LINK_TX_CC_END,  LINK_TX_CC_END-LINK_TX_CC_START);
-    link_tx_cc.clone_from_slice(&data[CYPHERTEXT_LINK_TX_CC_START..CYPHERTEXT_LINK_TX_CC_END]);
-    trace!("des link_tx_cc: \t\t{:?}", link_tx_cc);
-    let lnk_tx_pid: PublicIdentity = PublicIdentity::reconstitute(link_tx_pk, link_tx_cc);
+    //trace!("des link_tx_pk: \t\t{:?}", link_tx_pk);
+    let lnk_tx_pid: PublicIdentity = PublicIdentity::from(link_tx_pk);
 // Nonce
     let mut link_nonce = [0u8; NONCE_SIZE];
     link_nonce.clone_from_slice(&data[CYPHERTEXT_LINK_NONCE_START..CYPHERTEXT_LINK_NONCE_END]);
@@ -492,15 +478,10 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, link_id: LinkId) -> Re
 }
 pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<(PublicIdentity, LinkPacket)> {
 // Link Pid
-    let mut link_tx_pk = [0u8; ID_SIZE];
+    let mut link_tx_pk = [0u8; ID_SIZE + CC_SIZE];
     link_tx_pk.clone_from_slice(&data[CLEARTEXT_LINK_TX_PK_START..CLEARTEXT_LINK_TX_PK_END]);
-    trace!("des link_tx_pk: \t\t{:?}", link_tx_pk);
-// Link CC
-    let mut link_tx_cc = [0u8; CC_SIZE];
-    //trace!("cc_size : {:?}, arr addresses {:?} {:?} {:?}", CC_SIZE, LINK_TX_CC_START, LINK_TX_CC_END,  LINK_TX_CC_END-LINK_TX_CC_START);
-    link_tx_cc.clone_from_slice(&data[CLEARTEXT_LINK_TX_CC_START..CLEARTEXT_LINK_TX_CC_END]);
-    trace!("des link_tx_cc: \t\t{:?}", link_tx_cc);
-    let lnk_tx_pid: PublicIdentity = PublicIdentity::reconstitute(link_tx_pk, link_tx_cc);
+    //trace!("des link_tx_pk: \t\t{:?}", link_tx_pk);
+    let lnk_tx_pid: PublicIdentity = PublicIdentity::from(link_tx_pk);
 // Reply To Length
     let reply_to_size = &data[CLEARTEXT_LINK_REPLY_TO_SIZE_START..CLEARTEXT_LINK_REPLY_TO_SIZE_END];
     trace!("des reply_to_size: \t\t{:?}", reply_to_size);

@@ -139,11 +139,6 @@ impl Signature {
     const fn zero() -> Self {
         Self([0; Self::SIZE])
     }
-
-    pub fn reconstitute(bytes: &[u8; Self::SIZE]) -> Self {
-        Signature(*bytes)
-    }
-
 }
 
 /* Format ****************************************************************** */

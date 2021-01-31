@@ -197,10 +197,6 @@ impl PublicKey {
         &self.chain_code
     }
 
-    pub fn reconstitute(key: ed25519_extended::PublicKey, chain_code: ChainCode) -> Self {
-        PublicKey { key, chain_code }
-    }
-
     pub fn derive<P>(&self, path: P) -> Option<Self>
     where
         P: AsRef<[u8]>,
