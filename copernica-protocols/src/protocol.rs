@@ -40,7 +40,7 @@ pub trait Protocol<'a> {
     fn get_link_id(&mut self) -> Option<LinkId>;
     fn set_link_id(&mut self, link_id: LinkId);
     fn get_response_sid(&mut self) -> PrivateIdentity;
-    fn peer(
+    fn peer_with_link(
         &mut self,
         link_id: LinkId,
     ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {

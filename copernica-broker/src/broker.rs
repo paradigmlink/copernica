@@ -72,7 +72,7 @@ impl Broker {
         }
     }
 
-    pub fn peer(
+    pub fn peer_with_link(
         &mut self,
         link_id: LinkId,
     ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
