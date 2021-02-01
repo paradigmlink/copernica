@@ -15,7 +15,7 @@ pub struct FTP {
     rs: Db,
     l2p_rx: Option<Receiver<InterLinkPacket>>,
     p2l_tx: Option<Sender<InterLinkPacket>>,
-    response_sid: PrivateIdentity,
+    sid: PrivateIdentity,
 }
 impl<'a> FTP {
     pub fn manifest(&mut self, hbfi: HBFI) -> Result<Manifest> {
@@ -48,9 +48,9 @@ impl<'a> FTP {
     }
 }
 impl<'a> Protocol<'a> for FTP {
-    fn new(rs: Db, response_sid: PrivateIdentity) -> FTP {
+    fn new(rs: Db, sid: PrivateIdentity) -> FTP {
         FTP {
-            response_sid,
+            sid,
             link_id: None,
             l2p_rx: None,
             p2l_tx: None,
@@ -62,7 +62,7 @@ impl<'a> Protocol<'a> for FTP {
         let l2p_rx = self.get_l2p_rx();
         let p2l_tx = self.get_p2l_tx();
         let link_id = self.get_link_id();
-        let response_sid = self.get_response_sid();
+        let sid = self.get_sid();
         thread::spawn(move || {
             if let (Some(l2p_rx), Some(p2l_tx), Some(link_id)) = (l2p_rx, p2l_tx, link_id) {
                 loop {
@@ -96,7 +96,7 @@ impl<'a> Protocol<'a> for FTP {
                                                     Some(request_pid) => {
                                                         debug!("\t\t|  RESPONSE PACKET FOUND ENCRYPT IT");
                                                         let nw = deserialize_narrow_waist_packet(&nw.to_vec())?;
-                                                        let nw = nw.encrypt_for(request_pid, response_sid.clone())?;
+                                                        let nw = nw.encrypt_for(request_pid, sid.clone())?;
                                                         let lp = LinkPacket::new(link_id.reply_to()?, nw);
                                                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
                                                         debug!("\t\t|  protocol-to-link");
@@ -152,8 +152,8 @@ impl<'a> Protocol<'a> for FTP {
     fn get_link_id(&mut self) -> Option<LinkId> {
         self.link_id.clone()
     }
-    fn get_response_sid(&mut self) -> PrivateIdentity {
-        self.response_sid.clone()
+    fn get_sid(&mut self) -> PrivateIdentity {
+        self.sid.clone()
     }
 }
 

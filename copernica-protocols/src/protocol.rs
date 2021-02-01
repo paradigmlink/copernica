@@ -1,7 +1,7 @@
 use {
     copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, serialization::*},
     copernica_identity::{PrivateIdentity},
-    std::{thread},
+    //std::{thread},
     log::{debug},
     crossbeam_channel::{Sender, Receiver, unbounded},
     sled::{Db, Event},
@@ -39,7 +39,7 @@ pub trait Protocol<'a> {
     fn set_p2l_tx(&mut self, s: Sender<InterLinkPacket>);
     fn get_link_id(&mut self) -> Option<LinkId>;
     fn set_link_id(&mut self, link_id: LinkId);
-    fn get_response_sid(&mut self) -> PrivateIdentity;
+    fn get_sid(&mut self) -> PrivateIdentity;
     fn peer_with_link(
         &mut self,
         link_id: LinkId,
@@ -52,17 +52,16 @@ pub trait Protocol<'a> {
         Ok((l2p_tx, p2l_rx))
     }
     #[allow(unreachable_code)]
-    fn run(&mut self) -> Result<()> {
+    fn run(&mut self) -> Result<()>; /*{
         let rs = self.response_store();
         let l2p_rx = self.get_l2p_rx();
         let p2l_tx = self.get_p2l_tx();
         let link_id = self.get_link_id();
-        let response_sid = self.get_response_sid();
+        let sid = self.get_sid();
         thread::spawn(move || {
             if let (Some(l2p_rx), Some(p2l_tx), Some(link_id)) = (l2p_rx, p2l_tx, link_id) {
                 loop {
                     if let Ok(ilp) = l2p_rx.recv() {
-                        /*
                         debug!("\t\t|  link-to-protocol");
                         let nw: NarrowWaistPacket = ilp.narrow_waist();
                         match nw.clone() {
@@ -92,7 +91,7 @@ pub trait Protocol<'a> {
                                                     Some(request_pid) => {
                                                         debug!("\t\t|  RESPONSE PACKET FOUND ENCRYPT IT");
                                                         let nw = deserialize_narrow_waist_packet(&nw.to_vec())?;
-                                                        let nw = nw.encrypt_for(request_pid, response_sid.clone())?;
+                                                        let nw = nw.encrypt_for(request_pid, sid.clone())?;
                                                         let lp = LinkPacket::new(link_id.reply_to()?, nw);
                                                         let ilp = InterLinkPacket::new(link_id.clone(), lp);
                                                         debug!("\t\t|  protocol-to-link");
@@ -120,14 +119,13 @@ pub trait Protocol<'a> {
                                 rs.insert(hbfi_s, nw_s)?;
                             },
                         }
-                    */
                     }
                 }
             }
             Ok::<(), anyhow::Error>(())
         });
         Ok(())
-    }
+    }*/
     fn get(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
         let mut counter = start;
         let mut reconstruct: Vec<u8> = vec![];
@@ -143,7 +141,7 @@ pub trait Protocol<'a> {
                         let nw = deserialize_narrow_waist_packet(&resp.to_vec())?;
                         let chunk = match hbfi.request_pid {
                             Some(_) => {
-                                nw.data(Some(self.get_response_sid()))?
+                                nw.data(Some(self.get_sid()))?
                             },
                             None => {
                                 nw.data(None)?
@@ -180,7 +178,7 @@ pub trait Protocol<'a> {
                                     let nw = deserialize_narrow_waist_packet(&value.to_vec())?;
                                     let chunk = match hbfi.request_pid {
                                         Some(_) => {
-                                            nw.data(Some(self.get_response_sid()))?
+                                            nw.data(Some(self.get_sid()))?
                                         },
                                         None => {
                                             nw.data(None)?
@@ -199,5 +197,5 @@ pub trait Protocol<'a> {
         }
         Ok(reconstruct)
     }
-    fn new(db: sled::Db, response_sid: PrivateIdentity) -> Self where Self: Sized; //kept at end cause amp syntax highlighting falls over on the last :
+    fn new(db: sled::Db, sid: PrivateIdentity) -> Self where Self: Sized; //kept at end cause amp syntax highlighting falls over on the last :
 }

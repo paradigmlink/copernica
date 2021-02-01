@@ -7,7 +7,7 @@ use {
     },
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
     copernica_identity::{ PublicIdentity, Signature},
-    log::{trace, error, debug},
+    log::{trace, error},
     anyhow::{anyhow, Result},
 };
 fn u16_to_u8(i: u16) -> [u8; 2] {
@@ -516,7 +516,7 @@ pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<(PublicIdenti
         },
         _ => {
             let msg = format!("Cleartext link level packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE);
-            println!("{}", msg);
+            error!("{}", msg);
             return Err(anyhow!(msg));
         },
     };
