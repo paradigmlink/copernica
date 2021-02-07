@@ -69,6 +69,7 @@ impl NarrowWaistPacket {
         }
     }
     pub fn response(response_sid: PrivateIdentity, hbfi: HBFI, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
+        // consider returning Result<Vec<Self>>
         if hbfi.response_pid != response_sid.public_id() {
             return Err(anyhow!("The Request's Response Public Identity doesn't match the Public Identity used to sign or encypt the Response"));
         }

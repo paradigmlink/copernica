@@ -1,8 +1,10 @@
+/*
 mod ftp;
 
 pub use {
     self::{
-        ftp::{FTPService, FTPCommands},
+        ftp::{FTPService},
     },
 };
 
+*/

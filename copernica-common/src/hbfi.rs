@@ -1,6 +1,6 @@
 use {
     crate::{constants},
-    anyhow::Result,
+    anyhow::{Result, anyhow},
     serde::{Deserialize, Serialize},
     std::fmt,
     copernica_identity::{PublicIdentity},
@@ -159,7 +159,7 @@ mod tests {
     fn test_bloom_filter_index() {
         let actual = bloom_filter_index("9".into()).unwrap();
         let expected: [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize] =
-            [4804, 63297, 3290, 20147];
+            [19283, 50425, 20212, 47266];
         assert_eq!(actual, expected);
     }
 }

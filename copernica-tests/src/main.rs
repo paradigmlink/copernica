@@ -2,7 +2,6 @@
 mod router;
 mod common;
 mod protocols;
-mod ftp;
 mod crypto;
 use {
     async_std::{task},
@@ -24,8 +23,8 @@ fn main() -> Result<()> {
         //router::single_fetch().await;
         //sharing::smoke_test().await;
         //ftp::encrypted_response_encrypted_link().await;
-        ftp::cleartext_response_cleartext_link().await;
-        //crypto::encrypted_response_encrypted_link().await;
+        //ftp::cleartext_response_cleartext_link().await;
+        crypto::encrypted_response_encrypted_link().await;
         //crypto::cleartext_response_encrypted_link().await;
         //crypto::encrypted_request_encrypted_link().await;
         //crypto::cleartext_request_encrypted_link().await;
