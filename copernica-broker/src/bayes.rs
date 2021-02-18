@@ -1,11 +1,19 @@
-use std::collections::HashMap; use std::collections::HashSet;
-use std::collections::hash_map::Keys;
-use std::iter::FromIterator;
-use std::vec::Vec;
-use copernica_common::{LinkId, BFI};
+use {
+    std::{
+        collections::{
+            HashMap,
+            HashSet,
+            hash_map::Keys
+        },
+        iter::FromIterator,
+        vec::Vec
+    },
+    copernica_common::{LinkId, BFIS},
+    log::{debug},
+};
 
 struct BFIs {
-    bfis: HashMap<BFI, HashMap<LinkId, i64>>,
+    bfis: HashMap<BFIS, HashMap<LinkId, i64>>,
 }
 
 impl BFIs {
@@ -15,25 +23,27 @@ impl BFIs {
         }
     }
 
-    fn train(&mut self, bfi: &BFI, link: &LinkId) {
+    fn train(&mut self, bfis: &BFIS, link: &LinkId) {
+        //debug!("train {:?}", bfis);
         let linkids = self.bfis
-            .entry(*bfi)
+            .entry(*bfis)
             .or_insert(HashMap::new());
         let value = linkids.entry(link.clone()).or_insert(0);
         *value += 1;
     }
 
 
-    fn super_train(&mut self, bfi: &BFI, link: &LinkId) {
+    fn super_train(&mut self, bfis: &BFIS, link: &LinkId) {
+        //debug!("supertrain {:?}", bfis);
         let linkids = self.bfis
-            .entry(*bfi)
+            .entry(*bfis)
             .or_insert(HashMap::new());
         let value = linkids.entry(link.clone()).or_insert(0);
         *value += 4;
     }
 
-    fn get_frequency(&mut self, bfi: &BFI, linkid: &LinkId) -> (Option<&i64>, bool) {
-        match self.bfis.get(bfi) {
+    fn get_frequency(&mut self, bfis: &BFIS, linkid: &LinkId) -> (Option<&i64>, bool) {
+        match self.bfis.get(bfis) {
             Some(linkids) => match linkids.get(linkid) {
                 Some(value) => return (Some(value), true),
                 None => return (None, true),
@@ -94,18 +104,14 @@ impl Model {
     fn add_link(&mut self, linkid: &LinkId) {
         self.links.train(linkid);
     }
-    fn train(&mut self, data: &Vec<BFI>, linkid: &LinkId) {
+    fn train(&mut self, data: &BFIS, linkid: &LinkId) {
         self.links.train(linkid);
-        for bfi in data {
-            self.bfis.train(bfi, linkid);
-        }
+        self.bfis.train(data, linkid);
     }
 
-    fn super_train(&mut self, data: &Vec<BFI>, linkid: &LinkId) {
+    fn super_train(&mut self, data: &BFIS, linkid: &LinkId) {
         self.links.super_train(linkid);
-        for bfi in data {
-            self.bfis.super_train(bfi, linkid);
-        }
+        self.bfis.super_train(data, linkid);
     }
 }
 
@@ -154,8 +160,8 @@ impl Bayes {
         }
     }
 
-    fn calculate_attr_prob(&mut self, bfi: &BFI, linkid: &LinkId) -> Option<f64> {
-        match self.model.bfis.get_frequency(bfi, linkid) {
+    fn calculate_attr_prob(&mut self, bfis: &BFIS, linkid: &LinkId) -> Option<f64> {
+        match self.model.bfis.get_frequency(bfis, linkid) {
             (Some(frequency), true) => match self.model.links.get_count(linkid) {
                 Some(count) => return Some((*frequency as f64) / (*count as f64)),
                 None => return None,
@@ -166,8 +172,8 @@ impl Bayes {
         }
     }
 
-    fn calculate_attr_log_prob(&mut self, bfi: &BFI, linkid: &LinkId) -> Option<f64> {
-        match self.model.bfis.get_frequency(bfi, linkid) {
+    fn calculate_attr_log_prob(&mut self, bfis: &BFIS, linkid: &LinkId) -> Option<f64> {
+        match self.model.bfis.get_frequency(bfis, linkid) {
             (Some(frequency), true) => match self.model.links.get_count(linkid) {
                 Some(count) => return Some((*frequency as f64).ln() - (*count as f64).ln()),
                 None => return None,
@@ -178,10 +184,10 @@ impl Bayes {
         }
     }
 
-    fn link_prob(&mut self, linkid: &LinkId, bfis: &HashSet<BFI>) -> Vec<f64> {
+    fn link_prob(&mut self, linkid: &LinkId, bfismap: &HashSet<BFIS>) -> Vec<f64> {
         let mut probs: Vec<f64> = Vec::new();
-        for bfi in bfis {
-            match self.calculate_attr_prob(bfi, linkid) {
+        for bfis in bfismap {
+            match self.calculate_attr_prob(bfis, linkid) {
                 Some(p) => {
                     probs.push(p);
                 }
@@ -191,10 +197,10 @@ impl Bayes {
         return probs;
     }
 
-    fn link_log_prob(&mut self, linkid: &LinkId, bfis: &HashSet<BFI>) -> Vec<f64> {
+    fn link_log_prob(&mut self, linkid: &LinkId, bfismap: &HashSet<BFIS>) -> Vec<f64> {
         let mut probs: Vec<f64> = Vec::new();
-        for bfi in bfis {
-            match self.calculate_attr_log_prob(bfi, linkid) {
+        for bfis in bfismap {
+            match self.calculate_attr_log_prob(bfis, linkid) {
                 Some(p) => {
                     probs.push(p);
                 }
@@ -204,22 +210,23 @@ impl Bayes {
         return probs;
     }
 
-    /// trains the model with a `Vec<BFI>`, associating it with a `LinkId` link.
-    pub fn train(&mut self, data: &Vec<BFI>, linkid: &LinkId) {
+    /// trains the model with a `BFIS`, associating it with a `LinkId` link.
+    pub fn train(&mut self, data: &BFIS, linkid: &LinkId) {
         self.model.train(data, linkid);
     }
 
-    pub fn super_train(&mut self, data: &Vec<BFI>, linkid: &LinkId) {
+    pub fn super_train(&mut self, data: &BFIS, linkid: &LinkId) {
         self.model.super_train(data, linkid);
     }
 
-    pub fn classify(&mut self, data: &Vec<BFI>) -> Vec<LinkWeight> {
-        let bfi_set: HashSet<BFI> = HashSet::from_iter(data.iter().cloned());
+    pub fn classify(&mut self, data: &BFIS) -> Vec<LinkWeight> {
+        let mut bfis_set: HashSet<BFIS> = HashSet::new();
+        bfis_set.insert(data.clone());
         let mut result: Vec<LinkWeight> = vec![];
         let linkids: HashSet<LinkId> =
             HashSet::from_iter(self.model.links.get_linkids().into_iter().cloned());
         for linkid in linkids {
-            let p = self.link_prob(&linkid, &bfi_set);
+            let p = self.link_prob(&linkid, &bfis_set);
             let p_iter = p.into_iter().fold(1.0, |acc, x| acc * x);
             let weight = p_iter * self.prior(&linkid).unwrap();
             let linkid = linkid.clone();
@@ -231,15 +238,16 @@ impl Bayes {
         result
     }
 
-    /// classify a `Vec<BFI>` returning a map of links and log-probabilities
+    /// classify a `BFIS` returning a map of links and log-probabilities
     /// as keys and values, respectively. Using `log_classify` may prevent underflows.
-    pub fn log_classify(&mut self, data: &Vec<BFI>) -> Vec<LinkWeight> {
-        let bfi_set: HashSet<BFI> = HashSet::from_iter(data.iter().cloned());
+    pub fn log_classify(&mut self, data: &BFIS) -> Vec<LinkWeight> {
+        let mut bfis_set: HashSet<BFIS> = HashSet::new();
+        bfis_set.insert(data.clone());
         let mut result: Vec<LinkWeight> = vec![];
         let linkids: HashSet<LinkId> =
             HashSet::from_iter(self.model.links.get_linkids().into_iter().cloned());
         for linkid in linkids {
-            let p = self.link_log_prob(&linkid, &bfi_set);
+            let p = self.link_log_prob(&linkid, &bfis_set);
             let max = p.iter().cloned().fold(-1./0. /* inf */, f64::max);
             let p_iter = p.into_iter().fold(0.0, |acc, x| acc + (x - max).exp());
             let weight = max + p_iter.ln() + self.log_prior(&linkid).unwrap();
@@ -256,7 +264,7 @@ impl Bayes {
 #[cfg(test)]
 mod test_bfis {
     use super::*;
-    use copernica_common::{BFI, LinkId, ReplyTo, constants};
+    use copernica_common::{BFI, BFIS, LinkId, ReplyTo, constants};
     use copernica_identity::{PrivateIdentity, Seed};
 
     #[test]

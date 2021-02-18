@@ -7,6 +7,7 @@ use {
 };
 
 pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]; // Bloom Filter Index
+pub type BFIS = [BFI; constants::BFI_COUNT]; // Bloom Filter Index
 
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct HBFI {
@@ -48,13 +49,22 @@ impl HBFI {
             ost: 0,
         })
     }
-    pub fn to_vec(&self) -> Vec<BFI> {
+/*    pub fn to_vec(&self) -> Vec<BFI> {
         vec![ self.req.clone()
             , self.res.clone()
             , self.app.clone()
             , self.m0d.clone()
             , self.fun.clone()
             , self.arg.clone()
+        ]
+    }*/
+    pub fn to_bfis(&self) -> BFIS {
+        [ self.req.clone()
+        , self.res.clone()
+        , self.app.clone()
+        , self.m0d.clone()
+        , self.fun.clone()
+        , self.arg.clone()
         ]
     }
     pub fn offset(mut self, ost: u64) -> Self {

@@ -44,9 +44,9 @@ impl Router {
                         None => {
                             debug!("\t\t|  |  |  |  FORWARD REQUEST UPSTREAM");
                             this_bloom.create_pending_request(&hbfi);
-                            let link_weights = bayes.classify(&hbfi.to_vec());
+                            let link_weights = bayes.classify(&hbfi.to_bfis());
                             //std::thread::sleep_ms(500);
-                            bayes.train(&hbfi.to_vec(), choke);
+                            bayes.train(&hbfi.to_bfis(), choke);
                             if link_weights[0].linkid == *choke {
                                 //warn!("{}, {:?}", link_weights[0].weight, link_weights[0].linkid);
                                 let litmus_weight = (link_weights[0].weight * 100.00) as u64;
@@ -103,7 +103,7 @@ impl Router {
                         let (_, hbfi_s) = serialize_hbfi(&hbfi)?;
                         let (_, nw_s) = serialize_narrow_waist_packet(&nw)?;
                         response_store.insert(hbfi_s, nw_s)?;
-                        bayes.super_train(&hbfi.to_vec(), &this_link);
+                        bayes.super_train(&hbfi.to_bfis(), &this_link);
                         // ^^^ think about an attack whereby a response is continually sent thus adjusting the weights
                         this_bloom.delete_forwarded_request(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {

@@ -9,7 +9,7 @@ pub mod constants;
 pub mod log;
 pub mod serialization;
 pub use crate::{
-    hbfi::{HBFI, BFI, bloom_filter_index},
+    hbfi::{HBFI, BFI, BFIS,bloom_filter_index},
     link::{LinkId, ReplyTo},
     common::{Data, Nonce, Tag, generate_nonce, manifest},
     response_data::{ResponseData},

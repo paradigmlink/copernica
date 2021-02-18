@@ -1,12 +1,12 @@
 use {
-    copernica_common::{HBFI, BFI},
+    copernica_common::{HBFI, BFI, BFIS},
     std::{ collections::HashMap, },
 };
 
 #[derive(Clone)]
 pub struct Blooms {
-    pending_request: HashMap<Vec<BFI>, u64>,
-    forwarded_request: HashMap<Vec<BFI>, u64>,
+    pending_request: HashMap<BFIS, u64>,
+    forwarded_request: HashMap<BFIS, u64>,
 }
 
 impl Blooms {
@@ -24,10 +24,10 @@ impl Blooms {
     // specifically which nodes to not forward to again.
 
     pub fn create_pending_request(&mut self, hbfi: &HBFI) {
-        *self.pending_request.entry(hbfi.to_vec()).or_insert(0) += 1;
+        *self.pending_request.entry(hbfi.to_bfis()).or_insert(0) += 1;
     }
     pub fn contains_pending_request(&self, hbfi: &HBFI) -> bool {
-        if let Some(contains) = self.pending_request.get(&hbfi.to_vec()) {
+        if let Some(contains) = self.pending_request.get(&hbfi.to_bfis()) {
             if contains > &0 {
                 return true
             } else {
@@ -39,7 +39,7 @@ impl Blooms {
     }
     #[allow(dead_code)]
     pub fn delete_pending_request(&mut self, hbfi: &HBFI) {
-        *self.pending_request.entry(hbfi.to_vec()).or_insert(0) -= 1;
+        *self.pending_request.entry(hbfi.to_bfis()).or_insert(0) -= 1;
     }
 
     // Forwarded Request Sparse Distributed Representation
@@ -48,10 +48,10 @@ impl Blooms {
     // this mixed up with Pending Requests, which has the specific purpose
     // of determining which faces are upstream nodes
     pub fn create_forwarded_request(&mut self, hbfi: &HBFI) {
-        *self.forwarded_request.entry(hbfi.to_vec()).or_insert(0) += 1;
+        *self.forwarded_request.entry(hbfi.to_bfis()).or_insert(0) += 1;
     }
     pub fn contains_forwarded_request(&self, hbfi: &HBFI) -> bool {
-        if let Some(contains) = self.forwarded_request.get(&hbfi.to_vec()) {
+        if let Some(contains) = self.forwarded_request.get(&hbfi.to_bfis()) {
             if contains > &0 {
                 return true
             } else {
@@ -63,6 +63,6 @@ impl Blooms {
     }
     #[allow(dead_code)]
     pub fn delete_forwarded_request(&mut self, hbfi: &HBFI) {
-        *self.forwarded_request.entry(hbfi.to_vec()).or_insert(0) -= 1;
+        *self.forwarded_request.entry(hbfi.to_bfis()).or_insert(0) -= 1;
     }
 }

@@ -117,7 +117,6 @@ impl Broker {
                             let ilp = r2b_rx.recv()?;
                             if let Some((b2l_tx, _)) = b2l.get(&ilp.link_id().lookup_id()?) {
                                 debug!("\t\t|  |  |  router-to-broker");
-                                //debug!("\t|  |  broker-to-link");
                                 b2l_tx.send(ilp)?;
                             }
                         }
