@@ -5,12 +5,11 @@ use {
         ResponseData, Nonce,
     },
     std::fmt,
-    serde::{Deserialize, Serialize},
     copernica_identity::{PrivateIdentity, PublicIdentity, Signature},
     anyhow::{anyhow, Result},
     log::{debug, error},
 };
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum NarrowWaistPacket {
     Request {
         hbfi: HBFI,

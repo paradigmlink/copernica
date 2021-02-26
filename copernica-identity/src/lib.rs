@@ -1,253 +1,18 @@
-/*!
-# Keynesis: key management for signing and e2e communication
-
-Keynesis leverage the curve25519 and ed25519 to provide some keys
-and APIs to use for different purpose
-
-## Identity
-
-The identity is the **pivot** component of the scheme. It is the root keys
-from which everything can be derived. There is a `PrivateIdentity` and a
-`PublicIdentity`. The `PrivateIdentity` key needs to be kept private while the
-`PublicIdentity` can be safely shared... "Publicly".
-
-Conveniently, the `PrivateIdentity` exposes the `shield` method to safely
-password protect the content of the `PrivateIdentity`. The scheme uses
-(HMAC PBKDF2 with 10_000 iteration to derive the password into the key of
-32 bytes long and a salt of 16 bytes long; for the encryption we use
-ChaCha20Poly1305 with a nonce of 12 bytes).
-
-```
-# use rand::thread_rng as secure_rng;
-# const PASSWORD: &str = "Very Secure Password. This is important: it's my private identity!";
-use keynesis::{PrivateIdentity, Seed};
-
-let seed = Seed::generate(&mut secure_rng());
-let private_id = PrivateIdentity::from_seed(seed);
-let public_id = private_id.public_id();
-println!("Public Identity: {}", public_id);
-
-let shielded_private_id = private_id.shield(&mut secure_rng(), PASSWORD);
-println!("Shielded Private Identity: {}", shielded_private_id);
-#
-# let unshielded = PrivateIdentity::unshield(&shielded_private_id, PASSWORD).unwrap();
-# assert_eq!(private_id, unshielded);
-```
-
-## Signing Keys
-
-From the `PrivateIdentity` it is possible to "derive" the `PrivateSigningKey`.
-This key can then be used to sign messages that can be verified with the
-associated `VerifyPublicKey`. This key can be retrieved from the `PrivateSigningKey`
-or it can be derived from the `PublicIdentity`.
-
-```
-# use rand::thread_rng as secure_rng;
-# use keynesis::{Seed, PrivateIdentity};
-#
-# let seed = Seed::generate(&mut secure_rng());
-# let private_id = PrivateIdentity::from_seed(seed);
-# let public_id = private_id.public_id();
-#
-# const MESSAGE: &str = "Important message to sign";
-let signing_key = private_id.signing_key();
-let verify_key = public_id.verify_key();
-# assert_eq!(verify_key, signing_key.public());
-
-let signature = signing_key.sign(MESSAGE);
-assert!(verify_key.verify(&signature, MESSAGE));
-```
-
-## Establishing secure stream
-
-Now it is possible to generate a `SharedSecret` between 2 `PrivateIdentity` owners
-so long they have each other's `PublicIdentity`. To do so we will can generate keys
-from the identity keys using an arbitrarily defined scheme to generate a
-derivation _path_.
-
-### Alice's and Bob's generating each other's key
-
-First alice will generate her key and send the `PublicIdentity` to Bob.
-
-```
-# use rand::thread_rng as secure_rng;
-use keynesis::{PrivateIdentity, Seed};
-
-let alice_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
-let alice_public_id = alice_private_id.public_id();
-
-// send `alice_public_id` to Bob
-```
-
-Then Bob does the same and send the `PublicIdentity` to Alice.
-
-```
-# use rand::thread_rng as secure_rng;
-use keynesis::{PrivateIdentity, Seed};
-
-let bob_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
-let bob_public_id = bob_private_id.public_id();
-
-// send `bob_public_id` to Alice
-```
-
-### Generating the keys to establish a shared secret
-
-Now that they both have each other's `PublicIdentity` they can
-generate each other's public key. Let say Alice is the initiator
-of the channel and tells Bob to generate a `SharedSecret` to
-establish an encrypted connection with the nonce.
-
-Alice will have generate the secret key as follow:
-
-```
-# use rand::thread_rng as secure_rng;
-# use keynesis::{PrivateIdentity, Seed};
-#
-# const NONCE: &str = "A nonce for our secure communication channel";
-#
-# let alice_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
-# let alice_public_id = alice_private_id.public_id();
-#
-# let bob_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
-# let bob_public_id = bob_private_id.public_id();
-#
-let alice_path = format!("/example/alice/bob/{}", NONCE);
-let bob_path = format!("/example/bob/alice/{}", NONCE);
-
-let alice_private_key = alice_private_id.derive(&alice_path);
-let bob_public_key = bob_public_id.derive(&bob_path);
-#
-# assert_eq!(alice_private_key.public(), alice_public_id.derive(alice_path));
-# assert_eq!(bob_public_key, bob_private_id.derive(&bob_path).public());
-
-let alice_shared_secret = alice_private_key.exchange(&bob_public_key);
-```
-
-Once the request received by Bob (the nonce), bob can derived
-the appropriate key on her side:
-
-```
-# use rand::thread_rng as secure_rng;
-# use keynesis::{PrivateIdentity, Seed};
-#
-# const NONCE: &str = "A nonce for our secure communication channel";
-#
-# let alice_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
-# let alice_public_id = alice_private_id.public_id();
-#
-# let bob_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
-# let bob_public_id = bob_private_id.public_id();
-#
-let alice_path = format!("/example/alice/bob/{}", NONCE);
-let bob_path = format!("/example/bob/alice/{}", NONCE);
-
-let bob_private_key = bob_private_id.derive(&bob_path);
-let alice_public_key = alice_public_id.derive(&alice_path);
-#
-# assert_eq!(bob_private_key.public(), bob_public_id.derive(bob_path));
-# assert_eq!(alice_public_key, alice_private_id.derive(alice_path).public());
-
-let bob_shared_secret = bob_private_key.exchange(&alice_public_key);
-```
-
-Now these 2 shared secrets (alice's and bob's) are both the **same**.
-
-```
-# use rand::thread_rng as secure_rng;
-# use keynesis::{PrivateIdentity, Seed};
-#
-# const NONCE: &str = "A nonce for our secure communication channel";
-#
-# let alice_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
-# let alice_public_id = alice_private_id.public_id();
-#
-# let bob_private_id = PrivateIdentity::from_seed(Seed::generate(&mut secure_rng()));
-# let bob_public_id = bob_private_id.public_id();
-#
-# let alice_path = format!("/example/alice/bob/{}", NONCE);
-# let bob_path = format!("/example/bob/alice/{}", NONCE);
-#
-# let bob_private_key = bob_private_id.derive(&bob_path);
-# let alice_private_key = alice_private_id.derive(&alice_path);
-#
-# let alice_shared_secret = alice_private_key.exchange(&bob_private_key.public());
-# let bob_shared_secret = bob_private_key.exchange(&alice_private_key.public());
-assert_eq!(alice_shared_secret, bob_shared_secret);
-```
-
-The `SharedSecret` can now be used to seed a symmetric cipher, [`ChaCha20`]
-for example (don't forget an extra random nonce to make the cipher more
-secure).
-
-# Understanding the link between Identity and the other keys
-
-We use the `PrivateIdentity` and `PublicIdentity` as root keys. From
-there we derive the other keys. It's much like with BIP32 and HD Wallet
-for cryptocurrencies except that instead of using 32bits integer as
-derivation index, we accept any array as derivation index. Allowing
-512bits of derivation possibilities per derivation levels.
-
-```text
-+--------+                                              +--------+
-|Private +- - - - - - - - - - - - - - - - - - - - - - ->+Public  |
-|Identity|                                              |Identity|
-++-----+-+                                              +-+---+--+
- |     |                                                  |   |
- |     |                                                  |   |
- |     |     +----------+              +---------+        |   |
- |     |     |Private   |              |Public   |        |   |
- |     +---->+SigningKey+- - - - - - ->+VerifyKey+<-------+   |
- |           +----------+              +---------+            |
- |                                                            |
- |                                                            |
- |                                                            |
- |                                                            |
- |     +-------+                             +-------+        |
- |     |Private|                             |Public |        |
- +---->+Key    +- - - - - - - - - - - - - -->+Key    +<-------+
- |     +-------+                             +-------+        |
- |                                                            |
- |     +-------+                             +-------+        |
- |     |Private|                             |Public |        |
- +---->+Key    +- - - - - - - - - - - - - -->+Key    +<-------+
- |     +-------+                             +-------+        |
- |                                                            |
- |     +-------+                             +-------+        |
- |     |Private|                             |Public |        |
- +---->+Key    +- - - - - - - - - - - - - -->+Key    <--------+
-       +-------+                             +-------+
-
-
-                                  +---------------------+
-                                  | +----->  Derivation |
-                                  |                     |
-                                  | - - -->  To Public  |
-                                  |                     |
-                                  +---------------------+
-```
-
-[`ChaCha20`]: https://docs.rs/cryptoxide/0.2.1/cryptoxide/chacha20/index.html
-*/
-
 #[cfg(test)]
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
-
-pub mod key;
-pub mod memsec;
-pub mod passport;
-mod seed;
 mod shielded;
-mod time;
-
 use self::memsec::Scrubbed as _;
-pub use self::{
-    key::{ed25519::Signature, SharedSecret},
-    passport::Passport,
-    seed::Seed,
+use self::{
     shielded::Shielded,
-    time::Time,
+};
+use keynesis::{
+    key, memsec,
+    key::{SharedSecret},
+};
+pub use keynesis::{
+    key::{ed25519::Signature},
+    Seed,
 };
 use anyhow::{anyhow};
 use rand_core::{CryptoRng, RngCore};
@@ -323,7 +88,7 @@ impl PrivateIdentity {
         let mut rng = seed.into_rand_chacha();
         Self(key::ed25519_hd::SecretKey::new(&mut rng))
     }
-
+/*
     /// retrieve the `PrivateIdentity` from the shielded data
     /// and the given key
     pub fn unshield<K>(shielded: &Shielded, key: K) -> Option<Self>
@@ -357,7 +122,7 @@ impl PrivateIdentity {
 
         shielded
     }
-
+*/
     pub fn public_id(&self) -> PublicIdentity {
         PublicIdentity(self.0.public_key())
     }
