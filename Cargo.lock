@@ -356,8 +356,8 @@ dependencies = [
  "copernica-identity",
  "crossbeam-channel 0.3.9",
  "log",
- "rand 0.7.3",
- "rand_core 0.5.1",
+ "rand 0.8.3",
+ "rand_core 0.6.2",
  "serde",
  "sled",
 ]
@@ -374,7 +374,7 @@ dependencies = [
  "copernica-protocols",
  "ctrlc",
  "log",
- "rand 0.7.3",
+ "rand 0.8.3",
 ]
 
 [[package]]
@@ -388,8 +388,8 @@ dependencies = [
  "cryptoxide",
  "fern",
  "log",
- "rand 0.7.3",
- "rand_core 0.5.1",
+ "rand 0.8.3",
+ "rand_core 0.6.2",
  "serde",
  "serde-big-array",
 ]
@@ -426,8 +426,8 @@ dependencies = [
  "crossbeam-channel 0.3.9",
  "cryptoxide",
  "log",
- "rand 0.7.3",
- "rand_core 0.5.1",
+ "rand 0.8.3",
+ "rand_core 0.6.2",
  "reed-solomon",
  "serde",
 ]

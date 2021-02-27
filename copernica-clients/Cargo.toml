@@ -24,7 +24,7 @@ copernica-broker = { path = "../copernica-broker" }
 copernica-protocols = { path = "../copernica-protocols" }
 copernica-links = { path = "../copernica-links" }
 anyhow = "1.0"
-rand = "0.7.2"
+rand = "0.8.3"
 clap = { version = "2.33.0", features = ["yaml"] }
 ctrlc = "3.1.4"
 log = "0.4"
