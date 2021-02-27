@@ -1,11 +1,7 @@
 #[cfg(test)]
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
-mod shielded;
 use self::memsec::Scrubbed as _;
-use self::{
-    shielded::Shielded,
-};
 use keynesis::{
     key, memsec,
     key::{SharedSecret},
@@ -88,41 +84,6 @@ impl PrivateIdentity {
         let mut rng = seed.into_rand_chacha();
         Self(key::ed25519_hd::SecretKey::new(&mut rng))
     }
-/*
-    /// retrieve the `PrivateIdentity` from the shielded data
-    /// and the given key
-    pub fn unshield<K>(shielded: &Shielded, key: K) -> Option<Self>
-    where
-        K: AsRef<[u8]>,
-    {
-        use std::convert::TryFrom as _;
-        let mut data = shielded::decrypt(key, shielded.as_ref())?;
-
-        let key = key::ed25519_hd::SecretKey::try_from(data.as_slice()).ok()?;
-
-        data.scrub();
-        Some(Self(key))
-    }
-
-    /// password protect the PrivateIdentity
-    ///
-    /// Use a strong password to protect your identity
-    pub fn shield<RNG, K>(&self, rng: &mut RNG, key: K) -> Shielded
-    where
-        RNG: CryptoRng + RngCore,
-        K: AsRef<[u8]>,
-    {
-        let mut data = [0; key::ed25519_hd::SecretKey::SIZE];
-        data[..key::ed25519_extended::SecretKey::SIZE].copy_from_slice(self.0.key().leak_as_ref());
-        data[key::ed25519_extended::SecretKey::SIZE..].copy_from_slice(self.0.chain().as_ref());
-
-        let shielded = shielded::encrypt(rng, key, &data).into();
-
-        data.scrub();
-
-        shielded
-    }
-*/
     pub fn public_id(&self) -> PublicIdentity {
         PublicIdentity(self.0.public_key())
     }
@@ -353,43 +314,3 @@ impl<'a> TryFrom<&'a [u8]> for PublicKey {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{Arbitrary, Gen, TestResult};
-
-    impl Arbitrary for PrivateIdentity {
-        fn arbitrary<G: Gen>(g: &mut G) -> Self {
-            Self(Arbitrary::arbitrary(g))
-        }
-    }
-
-    impl Arbitrary for PublicIdentity {
-        fn arbitrary<G: Gen>(g: &mut G) -> Self {
-            PrivateIdentity::arbitrary(g).public_id()
-        }
-    }
-
-    #[quickcheck]
-    fn public_identity_to_from_str(public_id: PublicIdentity) -> TestResult {
-        let s = public_id.to_string();
-        dbg!(&s);
-        let pid = match s.parse::<PublicIdentity>() {
-            Ok(pid) => pid,
-            Err(error) => {
-                use std::error::Error as _;
-                return TestResult::error(format!("{}: {:?}", error.to_string(), error.source()));
-            }
-        };
-
-        TestResult::from_bool(pid == public_id)
-    }
-
-    #[quickcheck]
-    fn public_identity_to_from_serde_json(public_id: PublicIdentity) -> bool {
-        let e = serde_json::to_string(&public_id).unwrap();
-        let decoded = serde_json::from_str(&e).unwrap();
-
-        public_id == decoded
-    }
-}
