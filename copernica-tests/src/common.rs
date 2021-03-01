@@ -4,11 +4,7 @@ use {
         fs,
         env,
         path::PathBuf,
-        io::Write,
     },
-    copernica_common::{HBFI},
-    anyhow::{Result},
-    copernica_identity::{PrivateIdentity},
 };
 
 pub fn generate_random_dir_name() -> PathBuf {

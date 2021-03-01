@@ -1,6 +1,6 @@
 use {
     crate::{constants},
-    anyhow::{Result, anyhow},
+    anyhow::{Result},
     serde::{Deserialize, Serialize},
     std::fmt,
     copernica_identity::{PublicIdentity},

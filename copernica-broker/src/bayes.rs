@@ -9,7 +9,7 @@ use {
         vec::Vec
     },
     copernica_common::{LinkId, BFIS},
-    log::{debug},
+    //log::{debug},
 };
 
 struct BFIs {

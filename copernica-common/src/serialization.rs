@@ -326,15 +326,15 @@ fn deserialize_reply_to(data: &Vec<u8>) -> Result<ReplyTo> {
 
 pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
     let mut buf: Vec<u8> = vec![];
-    let lnk_tx_sid = link_id.sid()?;
+    let lnk_tx_pid = link_id.tx_pid()?;
     match link_id.rx_pid()? {
         None => {
             let reply_to = lp.reply_to();
             let nw = lp.narrow_waist();
-            buf.extend_from_slice(lnk_tx_sid.public_id().key().as_ref());
-            trace!("ser link_key: \t\t\t{:?}", lnk_tx_sid.public_id().key().as_ref());
-            buf.extend_from_slice(lnk_tx_sid.public_id().chain_code().as_ref());
-            trace!("ser link_ccd: \t\t\t{:?}", lnk_tx_sid.public_id().chain_code().as_ref());
+            buf.extend_from_slice(lnk_tx_pid.key().as_ref());
+            trace!("ser link_key: \t\t\t{:?}", lnk_tx_pid.key().as_ref());
+            buf.extend_from_slice(lnk_tx_pid.chain_code().as_ref());
+            trace!("ser link_ccd: \t\t\t{:?}", lnk_tx_pid.chain_code().as_ref());
             let (reply_to_size, reply_to) = serialize_reply_to(&reply_to)?;
             trace!("ser reply_to_size: \t\t{:?}", reply_to_size);
             let (nw_size, nw) = serialize_narrow_waist_packet(&nw)?;
@@ -349,11 +349,11 @@ pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>
             let reply_to = lp.reply_to();
             let nw = lp.narrow_waist();
     // Link Pid
-            buf.extend_from_slice(lnk_tx_sid.public_id().key().as_ref());
-            trace!("ser link_tx_pk: \t\t{:?}", lnk_tx_sid.public_id().key().as_ref());
+            buf.extend_from_slice(lnk_tx_pid.key().as_ref());
+            trace!("ser link_tx_pk: \t\t{:?}", lnk_tx_pid.key().as_ref());
     // Link CC
-            buf.extend_from_slice(lnk_tx_sid.public_id().chain_code().as_ref());
-            trace!("ser link_cc_pk: \t\t{:?}", lnk_tx_sid.public_id().chain_code().as_ref());
+            buf.extend_from_slice(lnk_tx_pid.chain_code().as_ref());
+            trace!("ser link_cc_pk: \t\t{:?}", lnk_tx_pid.chain_code().as_ref());
     // Nonce
             let mut rng = rand::thread_rng();
             let nonce: Nonce = generate_nonce(&mut rng);
@@ -361,10 +361,9 @@ pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>
             trace!("ser link_nonce: \t\t{:?}", nonce.as_ref());
     // Tag
             let mut tag: Tag = [0; TAG_SIZE];
-            let lnk_rx_pk = lnk_rx_pid.derive(&nonce);
-            let lnk_tx_sk = lnk_tx_sid.derive(&nonce);
-            let shared_secret = lnk_tx_sk.exchange(&lnk_rx_pk);
+            let shared_secret = link_id.shared_secret(nonce, lnk_rx_pid)?;
             let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce, &[]);
+            drop(shared_secret);
             let (nws_size, mut nws) = serialize_narrow_waist_packet(&nw)?;
             let mut encrypted = vec![0u8; nws.len()];
             ctx.encrypt(&nws, &mut encrypted[..], &mut tag);
@@ -389,10 +388,10 @@ pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>
 
 pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
 // Link Pid
-    let mut link_tx_pk = [0u8; ID_SIZE + CC_SIZE];
-    link_tx_pk.clone_from_slice(&data[CYPHERTEXT_LINK_TX_PK_START..CYPHERTEXT_LINK_TX_PK_END]);
+    let mut link_tx_pk_with_cc = [0u8; ID_SIZE + CC_SIZE];
+    link_tx_pk_with_cc.clone_from_slice(&data[CYPHERTEXT_LINK_TX_PK_START..CYPHERTEXT_LINK_TX_PK_END]);
     //trace!("des link_tx_pk: \t\t{:?}", link_tx_pk);
-    let lnk_tx_pid: PublicIdentity = PublicIdentity::from(link_tx_pk);
+    let lnk_tx_pid: PublicIdentity = PublicIdentity::from(link_tx_pk_with_cc);
 // Nonce
     let mut link_nonce = [0u8; NONCE_SIZE];
     link_nonce.clone_from_slice(&data[CYPHERTEXT_LINK_NONCE_START..CYPHERTEXT_LINK_NONCE_END]);
@@ -413,10 +412,9 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, link_id: LinkId) -> Re
     trace!("des reply_to: \t\t\t{:?}", reply_to);
     let nw_start = CYPHERTEXT_LINK_NARROW_WAIST_SIZE_END + reply_to_size[0] as usize;
     trace!("des nw_start: \t\t\t{:?}", nw_start);
-    let lnk_tx_pk = lnk_tx_pid.derive(&link_nonce);
-    let lnk_rx_sk = link_id.sid()?.derive(&link_nonce);
-    let shared_secret = lnk_rx_sk.exchange(&lnk_tx_pk);
+    let shared_secret = link_id.shared_secret(link_nonce, lnk_tx_pid.clone())?;
     let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &link_nonce, &[]);
+    drop(shared_secret);
     let nw: NarrowWaistPacket = match nw_size {
         CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
             let mut decrypted = vec![0u8; nw_size];

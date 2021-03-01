@@ -14,7 +14,6 @@ pub async fn encrypted_response_encrypted_link() -> Result<()> {
 
     let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
     let request_pid = request_sid.public_id();
-
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
     let expected_data = vec![0; 600];

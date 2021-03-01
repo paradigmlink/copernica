@@ -1,17 +1,14 @@
 #[cfg(test)]
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
-use self::memsec::Scrubbed as _;
 use keynesis::{
-    key, memsec,
-    key::{SharedSecret},
+    key
 };
 pub use keynesis::{
-    key::{ed25519::Signature},
+    key::{ed25519::Signature, SharedSecret},
     Seed,
 };
 use anyhow::{anyhow};
-use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::{
     convert::{TryFrom, TryInto as _},

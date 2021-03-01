@@ -2,10 +2,10 @@ use {
     copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, serialization::*},
     copernica_identity::{PrivateIdentity},
     //std::{thread},
-    log::{debug, error},
+    log::{debug},
     crossbeam_channel::{Sender, Receiver, unbounded},
     sled::{Db, Event, Subscriber},
-    anyhow::{Result, anyhow},
+    anyhow::{Result},
     futures::future::{join_all},
     async_std::{task},
 };
@@ -42,17 +42,17 @@ pub struct TxRx {
     pub l2p_rx: Receiver<InterLinkPacket>,
 }
 async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentity) -> Result<Vec<u8>> {
-    let mut chunk = vec![];
+    let chunk = vec![];
     while let Some(event) = (&mut subscriber).await {
     //for event in subscriber.take(1) {
         match event {
-            Event::Insert{ key: key, value } => {
-                let key_s: HBFI = deserialize_cyphertext_hbfi(&key.to_vec())?;
+            Event::Insert{ key, value } => {
+                //let _key_s: HBFI = deserialize_cyphertext_hbfi(&key.to_vec())?;
                 debug!("HBFI {:?}", key);
                 let nw = deserialize_narrow_waist_packet(&value.to_vec())?;
                     match nw.clone() {
                         NarrowWaistPacket::Request {..} => {},
-                        NarrowWaistPacket::Response {hbfi, data, ..} => {
+                        NarrowWaistPacket::Response {hbfi, ..} => {
                             match hbfi.request_pid {
                                 Some(_) => {
                                     nw.data(Some(sid.clone()))?

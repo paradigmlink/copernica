@@ -1,5 +1,5 @@
 use {
-    copernica_common::{HBFI, BFI, BFIS},
+    copernica_common::{HBFI, BFIS},
     std::{ collections::HashMap, },
 };
 

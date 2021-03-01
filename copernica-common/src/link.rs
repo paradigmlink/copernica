@@ -1,9 +1,10 @@
 use {
     serde::{Deserialize, Serialize},
     std::{fmt, net::SocketAddr},
-    copernica_identity::{PrivateIdentity, PublicIdentity},
+    copernica_identity::{PrivateIdentity, PublicIdentity, SharedSecret},
     anyhow::{Result, anyhow},
     rand::Rng,
+    crate::{Nonce},
 };
 pub type Hertz = u32;
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -39,6 +40,12 @@ impl LinkId {
             }
         }
     }
+    pub fn shared_secret(&self, nonce: Nonce, lnk_rx_pid: PublicIdentity) -> Result<SharedSecret> {
+        let lnk_rx_pk = lnk_rx_pid.derive(&nonce);
+        let lnk_tx_sk = self.sid()?.derive(&nonce);
+        let shared_secret = lnk_tx_sk.exchange(&lnk_rx_pk);
+        Ok(shared_secret)
+    }
     pub fn choke() -> Self {
         LinkId::Choke
     }
@@ -66,6 +73,16 @@ impl LinkId {
         match self {
             LinkId::Identity { sid, ..} => {
                 Ok(sid.clone())
+            },
+            LinkId::Choke => {
+                Err(anyhow!("Requesting a PrivateIdentity when in state Choke. Not going to happen buddy"))
+            }
+        }
+    }
+    pub fn tx_pid(&self) -> Result<PublicIdentity> {
+        match self {
+            LinkId::Identity { sid, .. } => {
+                Ok(sid.public_id())
             },
             LinkId::Choke => {
                 Err(anyhow!("Requesting a PrivateIdentity when in state Choke. Not going to happen buddy"))
