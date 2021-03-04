@@ -3,9 +3,9 @@ use {
         hbfi::HBFI,
         manifest, generate_nonce,
         ResponseData, Nonce,
+        PrivateIdentityInterface, PublicIdentity, Signature
     },
     std::fmt,
-    copernica_identity::{PrivateIdentityInterface, PublicIdentity, Signature},
     anyhow::{anyhow, Result},
     log::{debug, error},
 };
@@ -255,9 +255,9 @@ impl fmt::Debug for NarrowWaistPacket {
 mod tests {
     use super::*;
     use crate::{
+        PrivateIdentityInterface,
         narrow_waist_packet::{NarrowWaistPacket},
     };
-    use copernica_identity::{PrivateIdentityInterface};
     #[test]
     fn request_transmute_and_decrypt() {
         let response_sid = PrivateIdentityInterface::new_key();

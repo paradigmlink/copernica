@@ -8,10 +8,9 @@ pub use {
 };
 use {
     copernica_common::{
-        InterLinkPacket, LinkId, LinkPacket,
+        InterLinkPacket, LinkId, LinkPacket, PublicIdentity,
         serialization::*,
     },
-    copernica_identity::{PublicIdentity },
     crossbeam_channel::{Sender, Receiver},
     anyhow::{Result},
     reed_solomon::{Buffer, Encoder, Decoder},

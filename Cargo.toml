@@ -8,5 +8,4 @@ members = [
     "copernica-tests",
     "copernica-clients",
     "copernica-protocols",
-    "copernica-identity",
 ]

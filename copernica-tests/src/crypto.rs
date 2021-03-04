@@ -1,9 +1,8 @@
 #![allow(dead_code)]
 use {
     anyhow::{Result},
-    copernica_common::{HBFI, ReplyTo, NarrowWaistPacket, LinkPacket, LinkId},
+    copernica_common::{HBFI, ReplyTo, NarrowWaistPacket, LinkPacket, LinkId, PrivateIdentityInterface},
     copernica_links::{encode, decode },
-    copernica_identity::{PrivateIdentityInterface},
     std::net::{IpAddr, Ipv6Addr, SocketAddr},
 };
 

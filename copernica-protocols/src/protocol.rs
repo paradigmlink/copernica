@@ -1,6 +1,5 @@
 use {
-    copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, serialization::*},
-    copernica_identity::{PrivateIdentityInterface},
+    copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, serialization::*, PrivateIdentityInterface},
     //std::{thread},
     log::{debug},
     crossbeam_channel::{Sender, Receiver, unbounded},

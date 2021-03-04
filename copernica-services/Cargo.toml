@@ -14,5 +14,4 @@ sled = "0.32.0"
 serde = { version = "1.0", features = ["derive"] }
 crossbeam-channel = "0.3"
 walkdir = "2.3.1"
-copernica-identity = { path = "../copernica-identity" }
 

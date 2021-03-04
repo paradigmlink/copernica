@@ -228,8 +228,7 @@ impl Bayes {
 #[cfg(test)]
 mod test_bfis {
     use super::*;
-    use copernica_common::{BFIS, LinkId, ReplyTo, constants};
-    use copernica_identity::{PrivateIdentityInterface};
+    use copernica_common::{BFIS, LinkId, ReplyTo, constants, PrivateIdentityInterface};
     fn generate_bfis() -> BFIS {
         let h1: BFIS = [
             [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize],
@@ -273,8 +272,7 @@ mod test_bfis {
 #[cfg(test)]
 mod test_linkids {
     use super::*;
-    use copernica_common::{LinkId, ReplyTo};
-    use copernica_identity::{PrivateIdentityInterface};
+    use copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface};
     #[test]
     fn linkid_add() {
         let mut linkids = Links::new();
@@ -342,8 +340,7 @@ mod test_linkids {
 mod test_bayes {
     use super::*;
     use std::f64::consts::LN_2;
-    use copernica_identity::{PrivateIdentityInterface};
-    use copernica_common::{LinkId, ReplyTo, constants};
+    use copernica_common::{LinkId, ReplyTo, constants, PrivateIdentityInterface};
     fn generate_max_bfis() -> BFIS {
         let h1: BFIS = [
             [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize],

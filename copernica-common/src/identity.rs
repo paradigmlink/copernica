@@ -8,6 +8,7 @@ use {
         },
         Seed,
     },
+    crate::{ Nonce },
     anyhow::{anyhow},
     serde::{Deserialize, Serialize},
     std::{
@@ -26,7 +27,7 @@ const EXCHANGE_PATH_ROOT_V1: &[u8] = b"/copernica/v1/exchange";
 /// the needs and protocols.
 ///
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub(crate) struct PrivateIdentity(ed25519_hd::SecretKey);
+struct PrivateIdentity(ed25519_hd::SecretKey);
 
 /// Public identity
 ///
@@ -62,7 +63,7 @@ pub struct PublicVerifyKey(ed25519::PublicKey);
 /// This key is derived from the `PrivateIdentity` and are used
 /// to established a key exchange (Diffie-Hellman) with a `PublicKey`.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct SecretKey(ed25519_extended::SecretKey);
+struct SecretKey(ed25519_extended::SecretKey);
 
 /// Public key to use for key exchange
 ///
@@ -154,10 +155,11 @@ impl PublicVerifyKey {
 }
 
 impl SecretKey {
+/*
     pub fn public(&self) -> PublicKey {
         PublicKey(self.0.public_key())
     }
-
+*/
     pub fn exchange(&self, key: &PublicKey) -> SharedSecret {
         self.0.exchange(&key.0)
     }
@@ -310,4 +312,80 @@ impl<'a> TryFrom<&'a [u8]> for PublicKey {
         value.try_into().map(Self)
     }
 }
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+enum PrivateIdentityState {
+    SentinelOne { key: PrivateIdentity },
+    FileSystem  { key: PrivateIdentity },
+    Key         { key: PrivateIdentity },
+}
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PrivateIdentityInterface {
+    inner: PrivateIdentityState,
+}
+impl PrivateIdentityInterface {
+    pub fn new_key() -> Self {
+        let mut rng = rand::thread_rng();
+        let key = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        Self { inner: PrivateIdentityState::Key { key } }
+    }
+    pub fn new_fs() -> Self {
+        let mut rng = rand::thread_rng();
+        let key = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        Self { inner: PrivateIdentityState::FileSystem { key } }
+    }
+    pub fn new_sentinel() -> Self  {
+        let mut rng = rand::thread_rng();
+        let key = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        Self { inner: PrivateIdentityState::SentinelOne { key } }
+    }
+    pub fn public_id(&self) -> PublicIdentity {
+        match &self.inner {
+            PrivateIdentityState::Key { key } => {
+                key.public_id()
+            },
+            PrivateIdentityState::FileSystem { key } => {
+                key.public_id()
+            },
+            PrivateIdentityState::SentinelOne { key } => {
+                key.public_id()
+            },
+        }
+    }
+    pub fn shared_secret(&self, nonce: Nonce, rx_pid: PublicIdentity) -> SharedSecret {
+        let rx_pk = rx_pid.derive(&nonce);
+        match &self.inner {
+            PrivateIdentityState::Key { key } => {
+                let tx_sk = key.derive(&nonce);
+                let shared_secret = tx_sk.exchange(&rx_pk);
+                shared_secret
+            },
+            PrivateIdentityState::FileSystem { key } => {
+                let tx_sk = key.derive(&nonce);
+                let shared_secret = tx_sk.exchange(&rx_pk);
+                shared_secret
+            },
+            PrivateIdentityState::SentinelOne { key } => {
+                let tx_sk = key.derive(&nonce);
+                let shared_secret = tx_sk.exchange(&rx_pk);
+                shared_secret
+            },
+        }
+    }
+    pub fn signing_key(&self) -> PrivateSigningKey {
+        match &self.inner {
+            PrivateIdentityState::Key { key } => {
+                key.signing_key()
+            },
+            PrivateIdentityState::FileSystem { key } => {
+                key.signing_key()
+            },
+            PrivateIdentityState::SentinelOne { key } => {
+                key.signing_key()
+            },
+        }
+    }
+}
+
+
 

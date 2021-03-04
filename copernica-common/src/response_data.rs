@@ -1,10 +1,9 @@
 use {
     crate::{
-        constants, Data, Tag, Nonce,
+        constants, Data, PublicIdentity, PrivateIdentityInterface, Tag, Nonce
     },
     std::fmt,
     serde::{Deserialize, Serialize},
-    copernica_identity::{PublicIdentity, PrivateIdentityInterface},
     anyhow::{anyhow, Result},
     rand::Rng,
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
@@ -75,11 +74,9 @@ impl ResponseData {
         let flattened = data.into_iter().flatten().collect::<Vec<u8>>();
         let mut data: [u8; constants::FRAGMENT_SIZE] = [0; constants::FRAGMENT_SIZE];
         data.copy_from_slice(&flattened[0..constants::FRAGMENT_SIZE]);
-        let request_pk = request_pid.derive(&nonce);
         let mut nonce_reverse = nonce;
         nonce_reverse.reverse();
-        let response_sk = response_sid.derive(&nonce_reverse);
-        let shared_secret = response_sk.exchange(&request_pk);
+        let shared_secret = response_sid.shared_secret(nonce_reverse, request_pid);
         let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce, &[]);
         let mut encrypted: Vec<u8> = vec![0; data.len()];
         let mut tag: Tag = [0; constants::TAG_SIZE];
@@ -101,11 +98,9 @@ impl ResponseData {
     pub fn decrypt_data(&self, request_sid: PrivateIdentityInterface, response_pid: PublicIdentity, nonce: Nonce) -> Result<Vec<u8>> {
         match self {
             ResponseData::CypherText { data, tag } => {
-                let request_sk = request_sid.derive(&nonce);
                 let mut nonce_reverse = nonce;
                 nonce_reverse.reverse();
-                let response_pk = response_pid.derive(&nonce_reverse);
-                let shared_secret = request_sk.exchange(&response_pk);
+                let shared_secret = request_sid.shared_secret(nonce_reverse, response_pid);
                 let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce, &[]);
                 let mut decrypted = [0u8; constants::FRAGMENT_SIZE];
                 if ctx.decrypt(&data.raw_data(), &mut decrypted[..], &tag[..]) {

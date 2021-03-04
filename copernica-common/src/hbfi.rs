@@ -1,9 +1,8 @@
 use {
-    crate::{constants},
+    crate::{constants, PublicIdentity},
     anyhow::{Result},
     serde::{Deserialize, Serialize},
     std::fmt,
-    copernica_identity::{PublicIdentity},
 };
 
 pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]; // Bloom Filter Index

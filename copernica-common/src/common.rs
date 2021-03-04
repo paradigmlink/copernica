@@ -10,13 +10,10 @@ use {
     anyhow::{anyhow, Result},
     //log::{debug},
 };
-
 pub type Nonce = [u8; constants::NONCE_SIZE];
 pub type Tag = [u8; constants::TAG_SIZE];
-
 #[derive(Clone, Eq, Debug, Serialize, Deserialize)]
 pub struct Data(Vec<u8>);
-
 impl Data {
     pub fn new(data: Vec<u8>) -> Result<Data> {
         if data.len() != constants::FRAGMENT_SIZE {

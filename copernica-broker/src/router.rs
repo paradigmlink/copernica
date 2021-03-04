@@ -9,7 +9,6 @@ use {
     crossbeam_channel::Sender,
     log::{debug, warn},
     std::collections::HashMap,
-    //copernica_identity::{PublicIdentity},
 };
 
 #[derive(Clone)]

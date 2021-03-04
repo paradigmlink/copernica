@@ -8,6 +8,7 @@ mod inter_link_packet;
 pub mod constants;
 pub mod log;
 pub mod serialization;
+mod identity;
 pub use crate::{
     hbfi::{HBFI, BFI, BFIS,bloom_filter_index},
     link::{LinkId, ReplyTo},
@@ -17,4 +18,9 @@ pub use crate::{
     inter_link_packet::{InterLinkPacket},
     narrow_waist_packet::{NarrowWaistPacket},
     log::setup_logging,
+    identity::{PublicIdentity, PrivateIdentityInterface},
+};
+pub use keynesis::{
+    key::{ed25519::Signature, SharedSecret},
+    Seed,
 };

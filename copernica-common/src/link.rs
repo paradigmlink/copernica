@@ -1,10 +1,11 @@
 use {
     serde::{Deserialize, Serialize},
     std::{fmt, net::SocketAddr},
-    copernica_identity::{PrivateIdentityInterface, PublicIdentity, SharedSecret},
+    crate::{
+        PrivateIdentityInterface, PublicIdentity, SharedSecret, Nonce,
+    },
     anyhow::{Result, anyhow},
     rand::Rng,
-    crate::{Nonce},
 };
 pub type Hertz = u32;
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -41,10 +42,14 @@ impl LinkId {
         }
     }
     pub fn shared_secret(&self, nonce: Nonce, lnk_rx_pid: PublicIdentity) -> Result<SharedSecret> {
-        let lnk_rx_pk = lnk_rx_pid.derive(&nonce);
-        let lnk_tx_sk = self.sid()?.derive(&nonce);
-        let shared_secret = lnk_tx_sk.exchange(&lnk_rx_pk);
-        Ok(shared_secret)
+        match self {
+            LinkId::Identity { sid, .. } => {
+                Ok(sid.shared_secret(nonce, lnk_rx_pid))
+            },
+            LinkId::Choke => {
+                Err(anyhow!("Requesting a ReplyTo when in state Choke. Not going to happen buddy"))
+            }
+        }
     }
     pub fn choke() -> Self {
         LinkId::Choke

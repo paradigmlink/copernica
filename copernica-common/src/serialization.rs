@@ -4,9 +4,9 @@ use {
         common::*,
         HBFI, ReplyTo, LinkId,
         NarrowWaistPacket, ResponseData, LinkPacket, BFI,
+        PublicIdentity, Signature
     },
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
-    copernica_identity::{ PublicIdentity, Signature},
     log::{trace, error},
     anyhow::{anyhow, Result},
 };

@@ -8,7 +8,6 @@ edition = "2018"
 
 [dependencies]
 copernica-common = { path = "../copernica-common" }
-copernica-identity= { path = "../copernica-identity" }
 async-std = "1.4.0"
 crossbeam-channel = "0.3"
 anyhow = "1.0"
