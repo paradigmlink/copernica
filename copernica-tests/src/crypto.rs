@@ -3,16 +3,15 @@ use {
     anyhow::{Result},
     copernica_common::{HBFI, ReplyTo, NarrowWaistPacket, LinkPacket, LinkId},
     copernica_links::{encode, decode },
-    copernica_identity::{PrivateIdentity, Seed},
+    copernica_identity::{PrivateIdentityInterface},
     std::net::{IpAddr, Ipv6Addr, SocketAddr},
 };
 
 pub async fn encrypted_response_encrypted_link() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
-    let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let request_sid = PrivateIdentityInterface::new_key();
     let request_pid = request_sid.public_id();
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
@@ -21,9 +20,9 @@ pub async fn encrypted_response_encrypted_link() -> Result<()> {
     let total = 100;
     let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
 
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let lnk_tx_pid = lnk_tx_sid.public_id();
-    let lnk_rx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_rx_sid = PrivateIdentityInterface::new_key();
     let lnk_rx_pid = lnk_rx_sid.public_id();
 
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
@@ -48,8 +47,7 @@ pub async fn encrypted_response_encrypted_link() -> Result<()> {
 }
 
 pub async fn cleartext_response_encrypted_link() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
     let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;
@@ -59,9 +57,9 @@ pub async fn cleartext_response_encrypted_link() -> Result<()> {
     let total = 100;
     let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
 
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let lnk_tx_pid = lnk_tx_sid.public_id();
-    let lnk_rx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_rx_sid = PrivateIdentityInterface::new_key();
     let lnk_rx_pid = lnk_rx_sid.public_id();
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
@@ -85,19 +83,18 @@ pub async fn cleartext_response_encrypted_link() -> Result<()> {
 }
 
 pub async fn encrypted_request_encrypted_link() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
-    let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let request_sid = PrivateIdentityInterface::new_key();
     let request_pid = request_sid.public_id();
 
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
 
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let lnk_tx_pid = lnk_tx_sid.public_id();
-    let lnk_rx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_rx_sid = PrivateIdentityInterface::new_key();
     let lnk_rx_pid = lnk_rx_sid.public_id();
 
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
@@ -118,17 +115,16 @@ pub async fn encrypted_request_encrypted_link() -> Result<()> {
 }
 
 pub async fn cleartext_request_encrypted_link() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
 
     let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
 
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let lnk_tx_pid = lnk_tx_sid.public_id();
-    let lnk_rx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_rx_sid = PrivateIdentityInterface::new_key();
     let lnk_rx_pid = lnk_rx_sid.public_id();
 
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
@@ -147,11 +143,10 @@ pub async fn cleartext_request_encrypted_link() -> Result<()> {
 }
 
 pub async fn encrypted_response_cleartext_link() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
-    let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let request_sid = PrivateIdentityInterface::new_key();
     let request_pid = request_sid.public_id();
 
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
@@ -161,8 +156,8 @@ pub async fn encrypted_response_cleartext_link() -> Result<()> {
     let total = 100;
     let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
 
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let lnk_rx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
+    let lnk_rx_sid = PrivateIdentityInterface::new_key();
 
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
@@ -186,8 +181,7 @@ pub async fn encrypted_response_cleartext_link() -> Result<()> {
 }
 
 pub async fn cleartext_response_cleartext_link() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
     let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;
@@ -197,8 +191,8 @@ pub async fn cleartext_response_cleartext_link() -> Result<()> {
     let total = 100;
     let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
 
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let lnk_rx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
+    let lnk_rx_sid = PrivateIdentityInterface::new_key();
     //let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
@@ -221,18 +215,17 @@ pub async fn cleartext_response_cleartext_link() -> Result<()> {
 }
 
 pub async fn encrypted_request_cleartext_link() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
-    let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let request_sid = PrivateIdentityInterface::new_key();
     let request_pid = request_sid.public_id();
 
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
 
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let lnk_rx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
+    let lnk_rx_sid = PrivateIdentityInterface::new_key();
 
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
@@ -252,16 +245,15 @@ pub async fn encrypted_request_cleartext_link() -> Result<()> {
 }
 
 pub async fn cleartext_request_cleartext_link() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
 
     let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
 
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let lnk_rx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
+    let lnk_rx_sid = PrivateIdentityInterface::new_key();
 
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
@@ -279,10 +271,9 @@ pub async fn cleartext_request_cleartext_link() -> Result<()> {
 }
 
 pub async fn request_transmute_and_decrypt() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
-    let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let request_sid = PrivateIdentityInterface::new_key();
     let request_pid = request_sid.public_id();
 
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
@@ -298,13 +289,12 @@ pub async fn request_transmute_and_decrypt() -> Result<()> {
 }
 /*
 pub async fn cleartext_response_encrypt_then_decrypt() -> Result<()> {
-    let mut rng = rand::thread_rng();
-    let lnk_tx_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
-    let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let lnk_tx_sid = PrivateIdentityInterface::new_key();
+    let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
-    let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let request_sid = PrivateIdentityInterface::new_key();
     let request_pid = request_sid.public_id();
-    let false_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+    let false_sid = PrivateIdentityInterface::new_key();
     let false_pid = false_sid.public_id();
 
     let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;

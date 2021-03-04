@@ -4,7 +4,7 @@ use {
     },
     std::fmt,
     serde::{Deserialize, Serialize},
-    copernica_identity::{PublicIdentity, PrivateIdentity},
+    copernica_identity::{PublicIdentity, PrivateIdentityInterface},
     anyhow::{anyhow, Result},
     rand::Rng,
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
@@ -59,7 +59,7 @@ impl ResponseData {
         let data = Data::new(data.into_iter().flatten().collect::<Vec<u8>>())?;
         Ok(ResponseData::ClearText { data })
     }
-    pub fn cypher_text(response_sid: PrivateIdentity, request_pid: PublicIdentity, data: Vec<u8>, nonce: Nonce) -> Result<Self> {
+    pub fn cypher_text(response_sid: PrivateIdentityInterface, request_pid: PublicIdentity, data: Vec<u8>, nonce: Nonce) -> Result<Self> {
         if data.len() > constants::DATA_SIZE {
             return Err(anyhow!("Ensure data.len() passed into ResponseData::cypher_text() is not greater than {}", constants::DATA_SIZE))
         }
@@ -98,7 +98,7 @@ impl ResponseData {
         };
         data
     }
-    pub fn decrypt_data(&self, request_sid: PrivateIdentity, response_pid: PublicIdentity, nonce: Nonce) -> Result<Vec<u8>> {
+    pub fn decrypt_data(&self, request_sid: PrivateIdentityInterface, response_pid: PublicIdentity, nonce: Nonce) -> Result<Vec<u8>> {
         match self {
             ResponseData::CypherText { data, tag } => {
                 let request_sk = request_sid.derive(&nonce);

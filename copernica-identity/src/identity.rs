@@ -17,8 +17,8 @@ use {
     },
     thiserror::Error,
 };
-const KEYNESIS_PATH_SIGNING_V1: &[u8] = b"/keynesis/v1/signing";
-const KEYNESIS_PATH_EXCHANGE_V1_ROOT: &[u8] = b"/keynesis/v1/exchange";
+const SIGNING_PATH_V1: &[u8] = b"/copernica/v1/signing";
+const EXCHANGE_PATH_ROOT_V1: &[u8] = b"/copernica/v1/exchange";
 
 /// private identity, to keep close to you, privately and securely
 ///
@@ -26,7 +26,7 @@ const KEYNESIS_PATH_EXCHANGE_V1_ROOT: &[u8] = b"/keynesis/v1/exchange";
 /// the needs and protocols.
 ///
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct PrivateIdentity(ed25519_hd::SecretKey);
+pub(crate) struct PrivateIdentity(ed25519_hd::SecretKey);
 
 /// Public identity
 ///
@@ -86,14 +86,14 @@ impl PrivateIdentity {
     }
 
     pub fn signing_key(&self) -> PrivateSigningKey {
-        PrivateSigningKey(self.0.derive(KEYNESIS_PATH_SIGNING_V1).into_key())
+        PrivateSigningKey(self.0.derive(SIGNING_PATH_V1).into_key())
     }
 
     pub fn derive<P>(&self, purpose: P) -> SecretKey
     where
         P: AsRef<[u8]>,
     {
-        let mut path = KEYNESIS_PATH_EXCHANGE_V1_ROOT.to_vec();
+        let mut path = EXCHANGE_PATH_ROOT_V1.to_vec();
         path.extend_from_slice(purpose.as_ref());
         SecretKey(self.0.derive(path).into_key())
     }
@@ -103,8 +103,8 @@ impl PublicIdentity {
     pub const SIZE: usize = ed25519_hd::PublicKey::SIZE;
 
     pub fn verify_key(&self) -> anyhow::Result<PublicVerifyKey> {
-        //PublicVerifyKey(self.0.derive(KEYNESIS_PATH_SIGNING_V1).unwrap().into_key())
-        if let Some(derived) = self.0.derive(KEYNESIS_PATH_SIGNING_V1) {
+        //PublicVerifyKey(self.0.derive(SIGNING_PATH_V1).unwrap().into_key())
+        if let Some(derived) = self.0.derive(SIGNING_PATH_V1) {
             return Ok(PublicVerifyKey(derived.into_key()))
         } else {
             return Err(anyhow!("PublicKey Derive returned None"))
@@ -115,7 +115,7 @@ impl PublicIdentity {
     where
         P: AsRef<[u8]>,
     {
-        let mut path = KEYNESIS_PATH_EXCHANGE_V1_ROOT.to_vec();
+        let mut path = EXCHANGE_PATH_ROOT_V1.to_vec();
         path.extend_from_slice(purpose.as_ref());
         PublicKey(self.0.derive(path).unwrap().into_key())
     }

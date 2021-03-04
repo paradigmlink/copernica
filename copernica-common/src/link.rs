@@ -1,7 +1,7 @@
 use {
     serde::{Deserialize, Serialize},
     std::{fmt, net::SocketAddr},
-    copernica_identity::{PrivateIdentity, PublicIdentity, SharedSecret},
+    copernica_identity::{PrivateIdentityInterface, PublicIdentity, SharedSecret},
     anyhow::{Result, anyhow},
     rand::Rng,
     crate::{Nonce},
@@ -17,17 +17,17 @@ pub enum ReplyTo {
 pub enum LinkId {
     Identity {
         lookup_id: u32,
-        sid: PrivateIdentity,
+        sid: PrivateIdentityInterface,
         rx_pid: Option<PublicIdentity>,
         reply_to: ReplyTo,
     },
     Choke,
 }
 impl LinkId {
-    pub fn new(lookup_id: u32, sid: PrivateIdentity, rx_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
+    pub fn new(lookup_id: u32, sid: PrivateIdentityInterface, rx_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
         LinkId::Identity { lookup_id, sid, rx_pid, reply_to }
     }
-    pub fn listen(sid: PrivateIdentity, rx_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
+    pub fn listen(sid: PrivateIdentityInterface, rx_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
         let i: u32 = rng.gen();
         LinkId::Identity { lookup_id: i,  sid, rx_pid, reply_to }
@@ -69,13 +69,13 @@ impl LinkId {
             }
         }
     }
-    pub fn sid(&self) -> Result<PrivateIdentity> {
+    pub fn sid(&self) -> Result<PrivateIdentityInterface> {
         match self {
             LinkId::Identity { sid, ..} => {
                 Ok(sid.clone())
             },
             LinkId::Choke => {
-                Err(anyhow!("Requesting a PrivateIdentity when in state Choke. Not going to happen buddy"))
+                Err(anyhow!("Requesting a PrivateIdentityInterface when in state Choke. Not going to happen buddy"))
             }
         }
     }
@@ -85,7 +85,7 @@ impl LinkId {
                 Ok(sid.public_id())
             },
             LinkId::Choke => {
-                Err(anyhow!("Requesting a PrivateIdentity when in state Choke. Not going to happen buddy"))
+                Err(anyhow!("Requesting a PrivateIdentityInterface when in state Choke. Not going to happen buddy"))
             }
         }
     }

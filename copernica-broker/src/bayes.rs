@@ -229,7 +229,7 @@ impl Bayes {
 mod test_bfis {
     use super::*;
     use copernica_common::{BFIS, LinkId, ReplyTo, constants};
-    use copernica_identity::{PrivateIdentity, Seed};
+    use copernica_identity::{PrivateIdentityInterface};
     fn generate_bfis() -> BFIS {
         let h1: BFIS = [
             [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize],
@@ -243,10 +243,9 @@ mod test_bfis {
     }
     #[test]
     fn bfi_add() {
-        let mut rng = rand::thread_rng();
         let mut model = BFIs::new();
         let h1 = generate_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let li = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         model.train(&h1, &li);
         assert_eq!(
@@ -259,10 +258,9 @@ mod test_bfis {
     }
     #[test]
     fn get_non_existing() {
-        let mut rng = rand::thread_rng();
         let mut model = BFIs::new();
         let h1 = generate_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let li = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         assert_eq!(
             model
@@ -276,29 +274,26 @@ mod test_bfis {
 mod test_linkids {
     use super::*;
     use copernica_common::{LinkId, ReplyTo};
-    use copernica_identity::{PrivateIdentity, Seed};
+    use copernica_identity::{PrivateIdentityInterface};
     #[test]
     fn linkid_add() {
-        let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         linkids.train(&h1);
         assert_eq!(*linkids.get_count(&h1).unwrap(), 1);
     }
     #[test]
     fn linkid_get_nonexistent() {
-        let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         assert_eq!(linkids.get_count(&h1), None);
     }
     #[test]
     fn get_linkids() {
-        let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         linkids.train(&h1);
         assert_eq!(linkids.get_linkids().len(), 1);
@@ -306,9 +301,8 @@ mod test_linkids {
     }
     #[test]
     fn get_counts() {
-        let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         linkids.train(&h1);
         linkids.train(&h1);
@@ -317,9 +311,8 @@ mod test_linkids {
     }
     #[test]
     fn get_nonexistent_counts() {
-        let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         assert_eq!(linkids.get_linkids().len(), 0);
         assert_eq!(linkids.get_count(&h1), None);
@@ -331,13 +324,12 @@ mod test_linkids {
     }
     #[test]
     fn get_total() {
-        let mut rng = rand::thread_rng();
         let mut linkids = Links::new();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let h1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let h2 = LinkId::listen(private_identity, None, ReplyTo::Rf(1));
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let h3 = LinkId::listen(private_identity, None, ReplyTo::Rf(2));
         linkids.train(&h1);
         linkids.train(&h1);
@@ -350,7 +342,7 @@ mod test_linkids {
 mod test_bayes {
     use super::*;
     use std::f64::consts::LN_2;
-    use copernica_identity::{PrivateIdentity, Seed};
+    use copernica_identity::{PrivateIdentityInterface};
     use copernica_common::{LinkId, ReplyTo, constants};
     fn generate_max_bfis() -> BFIS {
         let h1: BFIS = [
@@ -387,10 +379,9 @@ mod test_bayes {
     }
     #[test]
     fn test_prior() {
-        let mut rng = rand::thread_rng();
         let mut nb = Bayes::new();
         let h1: BFIS = generate_min_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         nb.model.train(&h1, &l1);
         let prior = nb.prior(&l1);
@@ -398,10 +389,9 @@ mod test_bayes {
     }
     #[test]
     fn test_log_prior() {
-        let mut rng = rand::thread_rng();
         let mut nb = Bayes::new();
         let h1: BFIS = generate_max_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         nb.model.train(&h1, &l1);
         let prior = nb.log_prior(&l1);
@@ -409,12 +399,11 @@ mod test_bayes {
     }
     #[test]
     fn test_prior_nonexistent() {
-        let mut rng = rand::thread_rng();
         let mut nb = Bayes::new();
         let h1: BFIS = generate_min_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l2 = LinkId::listen(private_identity, None, ReplyTo::Rf(1));
         nb.model.train(&h1, &l1);
         let prior = nb.prior(&l2);
@@ -422,18 +411,17 @@ mod test_bayes {
     }
     #[test]
     fn test_classification() {
-        let mut rng = rand::thread_rng();
         let mut nb = Bayes::new();
         let h1: BFIS = generate_min_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         nb.model.train(&h1, &l1);
         let h2: BFIS = generate_mid_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l2 = LinkId::listen(private_identity, None, ReplyTo::Rf(1));
         nb.model.train(&h2, &l2);
         /*let h3: BFIS = generate_max_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l3 = LinkId::listen(private_identity, None, ReplyTo::Rf(2));
         nb.model.train(&h3, &l3);*/
         let classes = nb.classify(&h1);
@@ -442,18 +430,17 @@ mod test_bayes {
     }
     #[test]
     fn test_log_classification() {
-        let mut rng = rand::thread_rng();
         let mut nb = Bayes::new();
         let h1: BFIS = generate_min_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l1 = LinkId::listen(private_identity, None, ReplyTo::Rf(0));
         nb.model.train(&h1, &l1);
         let h2: BFIS = generate_mid_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l2 = LinkId::listen(private_identity, None, ReplyTo::Rf(1));
         nb.model.train(&h2, &l2);
         /*let h3: BFIS = generate_max_bfis();
-        let private_identity = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let private_identity = PrivateIdentityInterface::new_key();
         let l3 = LinkId::listen(private_identity, None, ReplyTo::Rf(2));
         nb.model.train(&h3, &l3);*/
         let classes = nb.log_classify(&h1);

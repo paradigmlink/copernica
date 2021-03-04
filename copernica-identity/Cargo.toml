@@ -17,6 +17,7 @@ exclude = [
 cryptoxide = "0.3.2"
 thiserror = "1.0.20"
 hex = "0.4.2"
+rand = "0.8.3"
 rand_core = "0.6.1"
 rand_chacha = "0.3.0"
 bech32 = "0.7.2"

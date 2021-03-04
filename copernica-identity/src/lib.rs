@@ -7,7 +7,6 @@ pub use keynesis::{
     Seed,
 };
 pub use crate::{
-    identity::{
-        PrivateIdentity, PublicIdentity
-    },
+    identity::{PublicIdentity},
+    interface::{PrivateIdentityInterface},
 };

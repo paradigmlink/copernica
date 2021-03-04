@@ -5,7 +5,7 @@ use {
         ResponseData, Nonce,
     },
     std::fmt,
-    copernica_identity::{PrivateIdentity, PublicIdentity, Signature},
+    copernica_identity::{PrivateIdentityInterface, PublicIdentity, Signature},
     anyhow::{anyhow, Result},
     log::{debug, error},
 };
@@ -30,7 +30,7 @@ impl NarrowWaistPacket {
         let nonce: Nonce = generate_nonce(&mut rng);
         Ok(NarrowWaistPacket::Request { hbfi, nonce })
     }
-    pub fn transmute(&self, response_sid: PrivateIdentity, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
+    pub fn transmute(&self, response_sid: PrivateIdentityInterface, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
         match self {
             NarrowWaistPacket::Request { hbfi, .. } => {
                 if hbfi.response_pid != response_sid.public_id() {
@@ -67,7 +67,7 @@ impl NarrowWaistPacket {
             },
         }
     }
-    pub fn response(response_sid: PrivateIdentity, hbfi: HBFI, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
+    pub fn response(response_sid: PrivateIdentityInterface, hbfi: HBFI, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
         // consider returning Result<Vec<Self>>
         if hbfi.response_pid != response_sid.public_id() {
             let msg = "The Request's Response Public Identity doesn't match the Public Identity used to sign or encypt the Response";
@@ -93,7 +93,7 @@ impl NarrowWaistPacket {
             }
         }
     }
-    pub fn encrypt(&self, response_sid: PrivateIdentity, hbfi: HBFI) -> Result<Self> {
+    pub fn encrypt(&self, response_sid: PrivateIdentityInterface, hbfi: HBFI) -> Result<Self> {
         match self {
             NarrowWaistPacket::Response { data, offset, total, .. } => {
                 if let Some(request_pid) = hbfi.request_pid.clone() {
@@ -144,7 +144,7 @@ impl NarrowWaistPacket {
             },
         }
     }
-    pub fn encrypt_for(&self, request_pid: PublicIdentity, response_sid: PrivateIdentity) -> Result<Self> {
+    pub fn encrypt_for(&self, request_pid: PublicIdentity, response_sid: PrivateIdentityInterface) -> Result<Self> {
         match self {
             NarrowWaistPacket::Request {..} => {
                 return Err(anyhow!("The Request's Response Public Identity doesn't match the Public Identity used to sign or encypt the Response"));
@@ -187,7 +187,7 @@ impl NarrowWaistPacket {
             },
         }
     }
-    pub fn data(&self, request_sid: Option<PrivateIdentity>) -> Result<Vec<u8>> {
+    pub fn data(&self, request_sid: Option<PrivateIdentityInterface>) -> Result<Vec<u8>> {
         match self {
             NarrowWaistPacket::Request {..} => {
                 let err_msg = "No data in a NarrowWaistPacket::Request";
@@ -225,7 +225,7 @@ impl NarrowWaistPacket {
                                 }
                             },
                             None => {
-                                let err_msg = "Decrypting an encrypted data packet requires a PrivateIdentity to do so";
+                                let err_msg = "Decrypting an encrypted data packet requires a PrivateIdentityInterface to do so";
                                 error!("{}", err_msg);
                                 return Err(anyhow!(err_msg))
                             },
@@ -257,13 +257,12 @@ mod tests {
     use crate::{
         narrow_waist_packet::{NarrowWaistPacket},
     };
-    use copernica_identity::{PrivateIdentity, Seed};
+    use copernica_identity::{PrivateIdentityInterface};
     #[test]
     fn request_transmute_and_decrypt() {
-        let mut rng = rand::thread_rng();
-        let response_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let response_sid = PrivateIdentityInterface::new_key();
         let response_pid = response_sid.public_id();
-        let request_sid = PrivateIdentity::from_seed(Seed::generate(&mut rng));
+        let request_sid = PrivateIdentityInterface::new_key();
         let request_pid = request_sid.public_id();
         let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg").unwrap();
         let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone()).unwrap();

@@ -1,6 +1,6 @@
 use {
     copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, serialization::*},
-    copernica_identity::{PrivateIdentity},
+    copernica_identity::{PrivateIdentityInterface},
     //std::{thread},
     log::{debug},
     crossbeam_channel::{Sender, Receiver, unbounded},
@@ -37,11 +37,11 @@ use {
 pub struct TxRx {
     pub db: Db,
     pub link_id: LinkId,
-    pub sid: PrivateIdentity,
+    pub sid: PrivateIdentityInterface,
     pub p2l_tx: Sender<InterLinkPacket>,
     pub l2p_rx: Receiver<InterLinkPacket>,
 }
-async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentity) -> Result<Vec<u8>> {
+async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentityInterface) -> Result<Vec<u8>> {
     let chunk = vec![];
     while let Some(event) = (&mut subscriber).await {
     //for event in subscriber.take(1) {
@@ -70,7 +70,7 @@ async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentity) ->
     Ok(chunk)
 }
 impl TxRx {
-    pub fn new(db: Db, link_id: LinkId, sid: PrivateIdentity, p2l_tx: Sender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> Self {
+    pub fn new(db: Db, link_id: LinkId, sid: PrivateIdentityInterface, p2l_tx: Sender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> Self {
         Self {db, link_id, sid, p2l_tx, l2p_rx}
     }
     pub fn request(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
@@ -181,7 +181,7 @@ pub trait Protocol<'a> {
         &mut self,
         db: sled::Db,
         link_id: LinkId,
-        sid: PrivateIdentity
+        sid: PrivateIdentityInterface
     ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
         let (l2p_tx, l2p_rx) = unbounded::<InterLinkPacket>();
         let (p2l_tx, p2l_rx) = unbounded::<InterLinkPacket>();
