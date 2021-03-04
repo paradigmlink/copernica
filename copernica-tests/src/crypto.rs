@@ -6,7 +6,7 @@ use {
     std::net::{IpAddr, Ipv6Addr, SocketAddr},
 };
 
-pub async fn encrypted_response_encrypted_link() -> Result<()> {
+pub fn encrypted_response_encrypted_link() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
@@ -45,7 +45,7 @@ pub async fn encrypted_response_encrypted_link() -> Result<()> {
     Ok(())
 }
 
-pub async fn cleartext_response_encrypted_link() -> Result<()> {
+pub fn cleartext_response_encrypted_link() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
@@ -81,7 +81,7 @@ pub async fn cleartext_response_encrypted_link() -> Result<()> {
     Ok(())
 }
 
-pub async fn encrypted_request_encrypted_link() -> Result<()> {
+pub fn encrypted_request_encrypted_link() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
@@ -113,7 +113,7 @@ pub async fn encrypted_request_encrypted_link() -> Result<()> {
     Ok(())
 }
 
-pub async fn cleartext_request_encrypted_link() -> Result<()> {
+pub fn cleartext_request_encrypted_link() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
@@ -141,7 +141,7 @@ pub async fn cleartext_request_encrypted_link() -> Result<()> {
     Ok(())
 }
 
-pub async fn encrypted_response_cleartext_link() -> Result<()> {
+pub fn encrypted_response_cleartext_link() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
@@ -179,7 +179,7 @@ pub async fn encrypted_response_cleartext_link() -> Result<()> {
     Ok(())
 }
 
-pub async fn cleartext_response_cleartext_link() -> Result<()> {
+pub fn cleartext_response_cleartext_link() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
@@ -213,7 +213,7 @@ pub async fn cleartext_response_cleartext_link() -> Result<()> {
     Ok(())
 }
 
-pub async fn encrypted_request_cleartext_link() -> Result<()> {
+pub fn encrypted_request_cleartext_link() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
@@ -243,7 +243,7 @@ pub async fn encrypted_request_cleartext_link() -> Result<()> {
     Ok(())
 }
 
-pub async fn cleartext_request_cleartext_link() -> Result<()> {
+pub fn cleartext_request_cleartext_link() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
 
@@ -269,7 +269,7 @@ pub async fn cleartext_request_cleartext_link() -> Result<()> {
     Ok(())
 }
 
-pub async fn request_transmute_and_decrypt() -> Result<()> {
+pub fn request_transmute_and_decrypt() -> Result<()> {
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
     let request_sid = PrivateIdentityInterface::new_key();
@@ -287,7 +287,7 @@ pub async fn request_transmute_and_decrypt() -> Result<()> {
     Ok(())
 }
 /*
-pub async fn cleartext_response_encrypt_then_decrypt() -> Result<()> {
+pub fn cleartext_response_encrypt_then_decrypt() -> Result<()> {
     let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let response_sid = PrivateIdentityInterface::new_key();
     let response_pid = response_sid.public_id();
@@ -315,3 +315,49 @@ pub async fn cleartext_response_encrypt_then_decrypt() -> Result<()> {
     Ok(())
 }
 */
+
+#[cfg(test)]
+mod crypto {
+    use super::*;
+    #[test]
+    fn test_request_transmute_and_decrypt() {
+        request_transmute_and_decrypt().unwrap();
+    }
+    #[test]
+    fn test_encrypted_response_encrypted_link() {
+        encrypted_response_encrypted_link().unwrap();
+    }
+
+    #[test]
+    fn test_cleartext_response_encrypted_link() {
+        cleartext_response_encrypted_link().unwrap();
+    }
+    #[test]
+    fn test_encrypted_request_encrypted_link() {
+        encrypted_request_encrypted_link().unwrap();
+    }
+
+    #[test]
+    fn test_cleartext_request_encrypted_link() {
+        cleartext_request_encrypted_link().unwrap();
+    }
+
+    #[test]
+    fn test_encrypted_response_cleartext_link() {
+        encrypted_response_cleartext_link().unwrap();
+    }
+    #[test]
+    fn test_cleartext_response_cleartext_link() {
+        cleartext_response_cleartext_link().unwrap();
+    }
+
+    #[test]
+    fn test_encrypted_request_cleartext_link() {
+        encrypted_request_cleartext_link().unwrap();
+    }
+
+    #[test]
+    fn test_cleartext_request_cleartext_link() {
+        cleartext_request_cleartext_link().unwrap();
+    }
+}
