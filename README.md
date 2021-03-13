@@ -8,11 +8,30 @@ Install `rustup`.
 
 ## Building
 
-`$ rustup run nightly cargo build --release`
+Run nix-shell to make dependencies available in the environment.
+`$ nix-shell`
+
+### `copernica`
+
+`$ rustup run nightly cargo build --release --bin copernica`
+
+### `ccli`
+
+- Plug in your STLinkv2 connected to your Copernica Sentinel Hardware Dongle
+
+`$ rustup run nightly cargo run --bin ccli -- --chip STM32F103TB --elf copernica-sentinel/target/thumbv7m-none-eabi/debug/copernica-sentinel`
+
+### `copernica-sentinel`
+
+- Plug in your STLinkv2 connected to your Copernica Sentinel Hardware Dongle
+
+`$ rustup run nightly cargo install probe-run`
+`$ cd copernica-sentinel`
+`$ rustup run nightly cargo run`
 
 ## Running regressions
 
-`$ rustup run nightly cargo run --bin copernica-tests --release`
+`$ rustup run nightly cargo run --bin copernica-tests`
 
 ## Running the tests
 

@@ -24,9 +24,10 @@ let
     fi
     exit 0
   '';
+  cargo-bin = "${builtins.getEnv "HOME"}/.cargo/bin";
 in
 stdenv.mkDerivation {
-  name = "copernican";
+  name = "copernica";
   src = null;
-  buildInputs = [ rustup gdb cgdb rr fuse pkgconfig pre-commit];
+  buildInputs = [ rustup gdb pkgconfig pre-commit libusb gcc-arm-embedded cargo-bin];
 }

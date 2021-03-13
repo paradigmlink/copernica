@@ -327,7 +327,6 @@ mod crypto {
     fn test_encrypted_response_encrypted_link() {
         encrypted_response_encrypted_link().unwrap();
     }
-
     #[test]
     fn test_cleartext_response_encrypted_link() {
         cleartext_response_encrypted_link().unwrap();
@@ -336,12 +335,10 @@ mod crypto {
     fn test_encrypted_request_encrypted_link() {
         encrypted_request_encrypted_link().unwrap();
     }
-
     #[test]
     fn test_cleartext_request_encrypted_link() {
         cleartext_request_encrypted_link().unwrap();
     }
-
     #[test]
     fn test_encrypted_response_cleartext_link() {
         encrypted_response_cleartext_link().unwrap();
@@ -350,12 +347,10 @@ mod crypto {
     fn test_cleartext_response_cleartext_link() {
         cleartext_response_cleartext_link().unwrap();
     }
-
     #[test]
     fn test_encrypted_request_cleartext_link() {
         encrypted_request_cleartext_link().unwrap();
     }
-
     #[test]
     fn test_cleartext_request_cleartext_link() {
         cleartext_request_cleartext_link().unwrap();

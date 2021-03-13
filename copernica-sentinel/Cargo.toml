@@ -1,0 +1,16 @@
+[package]
+name = "copernica-sentinel"
+version = "0.1.0"
+authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
+edition = "2018"
+
+[dependencies]
+cortex-m = "0.7.2"
+cortex-m-rt = "0.6.13"
+rtt-target = { version = "0.3.0", features = ["cortex-m"] }
+
+[profile.dev]
+debug = 1
+
+[profile.release]
+debug = 1

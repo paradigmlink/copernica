@@ -9,3 +9,6 @@ members = [
     "copernica-clients",
     "copernica-protocols",
 ]
+exclude = [
+    "copernica-sentinel",
+]
