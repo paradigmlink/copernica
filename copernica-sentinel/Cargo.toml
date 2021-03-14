@@ -8,6 +8,13 @@ edition = "2018"
 cortex-m = "0.7.2"
 cortex-m-rt = "0.6.13"
 rtt-target = { version = "0.3.0", features = ["cortex-m"] }
+embedded-hal = "0.2.4"
+usbd-serial = "0.1.1"
+usb-device = "0.2.8"
+nb = "1.0.0"
+[dependencies.stm32f1xx-hal]
+version = "0.7.0"
+features = ["rt", "stm32f103", "stm32-usbd"]
 
 [profile.dev]
 debug = 1
