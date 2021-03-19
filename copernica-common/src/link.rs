@@ -5,6 +5,7 @@ use {
         PrivateIdentityInterface, PublicIdentity, SharedSecret, Nonce,
     },
     anyhow::{Result, anyhow},
+    macaddr::{MacAddr6, MacAddr8},
     rand::Rng,
 };
 pub type Hertz = u32;
@@ -12,6 +13,8 @@ pub type Hertz = u32;
 pub enum ReplyTo {
     Mpsc,
     UdpIp(SocketAddr),
+    MacAddr6(MacAddr6),
+    MacAddr8(MacAddr8),
     Rf(Hertz),
 }
 #[derive(Clone, Eq, Hash, PartialEq)]

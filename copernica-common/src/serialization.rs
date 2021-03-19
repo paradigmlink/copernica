@@ -6,6 +6,7 @@ use {
         NarrowWaistPacket, ResponseData, LinkPacket, BFI,
         PublicIdentity, Signature
     },
+    macaddr::{MacAddr6, MacAddr8},
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
     log::{trace, error},
     anyhow::{anyhow, Result},
@@ -289,6 +290,16 @@ fn serialize_reply_to(rt: &ReplyTo) -> Result<(u8, Vec<u8>)> {
             trace!("ser rep_to udpip: \t\t{:?}", addr_s);
             buf.extend_from_slice(addr_s.as_ref());
         }
+        ReplyTo::MacAddr6(addr) => {
+            size = addr.as_bytes().len() as u8;
+            trace!("ser rep_to macaddr6: \t\t{:?}", addr);
+            buf.extend_from_slice(addr.as_ref());
+        }
+        ReplyTo::MacAddr8(addr) => {
+            size = addr.as_bytes().len() as u8;
+            trace!("ser rep_to macaddr8: \t\t{:?}", addr);
+            buf.extend_from_slice(addr.as_ref());
+        }
         ReplyTo::Rf(hz) => {
             let hz = bincode::serialize(&hz)?;
             size = hz.len() as u8;
@@ -300,7 +311,7 @@ fn serialize_reply_to(rt: &ReplyTo) -> Result<(u8, Vec<u8>)> {
 }
 
 fn deserialize_reply_to(data: &Vec<u8>) -> Result<ReplyTo> {
-    let rt = match data.len()as usize {
+    let rt = match data.len() as usize {
         TO_REPLY_TO_MPSC => {
             ReplyTo::Mpsc
         },
@@ -313,6 +324,18 @@ fn deserialize_reply_to(data: &Vec<u8>) -> Result<ReplyTo> {
             let address = &data[..];
             let address = bincode::deserialize(&address)?;
             ReplyTo::UdpIp(address)
+        },
+        TO_REPLY_TO_MACADDR6 => {
+            let mut address = [0u8; 6];
+            address.copy_from_slice(&data[..]);
+            let address = MacAddr6::from(address);
+            ReplyTo::MacAddr6(address)
+        },
+        TO_REPLY_TO_MACADDR8 => {
+            let mut address = [0u8; 8];
+            address.copy_from_slice(&data[..]);
+            let address = MacAddr8::from(address);
+            ReplyTo::MacAddr8(address)
         },
         TO_REPLY_TO_RF => {
             let address = &data[..];
