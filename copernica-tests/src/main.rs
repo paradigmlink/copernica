@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     //sharing::smoke_test();
     //ftp::encrypted_response_encrypted_link();
     //ftp::cleartext_response_cleartext_link();
-    crypto::encrypted_response_encrypted_link();
+    //crypto::encrypted_response_encrypted_link();
     //crypto::cleartext_response_encrypted_link();
     //crypto::encrypted_request_encrypted_link();
     //crypto::cleartext_request_encrypted_link();
@@ -32,7 +32,7 @@ fn main() -> Result<()> {
     //crypto::cleartext_request_cleartext_link();
     //crypto::request_transmute_and_decrypt();
     //crypto::cleartext_response_encrypt_then_decrypt();
-    //protocols::transports();
+    protocols::smoke_test();
     //copernicafs::single_file_less_than_fragment_size();
     match r {
         Ok(_) => println!("successful"),

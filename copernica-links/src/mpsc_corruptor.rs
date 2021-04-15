@@ -9,7 +9,6 @@ use {
 };
 
 pub struct MpscCorruptor {
-    name: String,
     link_id: LinkId,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
     t2c_tx: Sender<InterLinkPacket>,
@@ -34,8 +33,7 @@ impl MpscCorruptor {
 }
 
 impl<'a> Link<'a> for MpscCorruptor {
-    fn new(name: String
-        , link_id: LinkId
+    fn new(link_id: LinkId
         , (t2c_tx, c2t_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<MpscCorruptor> {
         match link_id.reply_to()? {
@@ -43,7 +41,6 @@ impl<'a> Link<'a> for MpscCorruptor {
                 let (t2t0_tx, t2t0_rx) = unbounded::<Vec<u8>>();
                 return Ok(
                     MpscCorruptor {
-                        name,
                         link_id,
                         t2c_tx,
                         c2t_rx,
@@ -58,7 +55,6 @@ impl<'a> Link<'a> for MpscCorruptor {
 
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
-        let name = self.name.clone();
         let this_link = self.link_id.clone();
         trace!("Started {:?}:", this_link);
         let t2t0_rx = self.t2t0_rx.clone();
@@ -72,7 +68,7 @@ impl<'a> Link<'a> for MpscCorruptor {
                                 let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp);
-                                trace!("\t\t\t{}:{}", name, this_link.lookup_id()?);
+                                trace!("\t\t\t{}", this_link.lookup_id()?);
                                 let _r = t2c_tx.send(ilp)?;
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
@@ -83,7 +79,6 @@ impl<'a> Link<'a> for MpscCorruptor {
             }
             Ok::<(), anyhow::Error>(())
         });
-        let name = self.name.clone();
         let this_link = self.link_id.clone();
         let c2t_rx = self.c2t_rx.clone();
         if let Some(t2t1_tx) = self.t2t1_tx.clone() {
@@ -99,7 +94,7 @@ impl<'a> Link<'a> for MpscCorruptor {
                             }
                             for s in t2t1_tx.clone() {
                                 debug!("\t\t\t|  |  link-to-broker");
-                                trace!("{}:{}", name, this_link.lookup_id()?);
+                                trace!("{}", this_link.lookup_id()?);
                                 s.send(corrupted.clone())?;
                             }
                         },

@@ -24,10 +24,10 @@ let
     fi
     exit 0
   '';
-  cargo-bin = "${builtins.getEnv "HOME"}/.cargo/bin";
+  #cargo-bin = "${builtins.getEnv "HOME"}/.cargo/bin";
 in
 stdenv.mkDerivation {
   name = "copernica";
   src = null;
-  buildInputs = [ rustup gdb pkgconfig pre-commit libusb gcc-arm-embedded cargo-bin];
+  buildInputs = [ rustup gdb pkgconfig pre-commit libusb gcc-arm-embedded ripgrep libiconv gitui];
 }

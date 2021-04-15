@@ -34,5 +34,5 @@ pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
 }
 pub trait Link<'a> {
     fn run(&self) -> Result<()>;
-    fn new(name: String, link: LinkId, router_in_and_out: ( Sender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
+    fn new(link: LinkId, router_in_and_out: ( Sender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
 }
