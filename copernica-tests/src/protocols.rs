@@ -24,8 +24,8 @@ pub fn smoke_test() -> Result<()> {
     // service0 to broker0
     let lsid0 = PrivateIdentityInterface::new_key();
     let lsid1 = PrivateIdentityInterface::new_key();
-    let lid0 = LinkId::listen(lsid0.clone(), Some(lsid1.public_id()), ReplyTo::Mpsc);
-    let lid1 = LinkId::listen(lsid1.clone(), Some(lsid0.public_id()), ReplyTo::Mpsc);
+    let lid0 = LinkId::listen(lsid0.clone(), None, ReplyTo::Mpsc);
+    let lid1 = LinkId::listen(lsid1.clone(), None, ReplyTo::Mpsc);
     let mut link0: MpscChannel = Link::new(lid0.clone(), cb0.peer_with_link(lid0.clone())?)?;
     let mut link1: MpscChannel = Link::new(lid1.clone(), fs0.peer_with_link(rs0, lid0, lsid0.clone())?)?;
     link0.female(link1.male());
@@ -60,13 +60,13 @@ pub fn smoke_test() -> Result<()> {
     fs0.run()?;
     fs1.run()?;
 
-    debug!("requesting manifest 0");
-    let manifest0: String = fs1.echo(lsid0.public_id())?;
-    debug!("manifest 0: {:?}", manifest0);
+    debug!("cleartext echo : \"ping\"");
+    let manifest0: String = fs1.echo_cleartext(lsid0.public_id())?;
+    debug!("cleartext echo : {:?}", manifest0);
 
-    debug!("requesting manifest 1");
-    let manifest1: String = fs0.echo(lsid1.public_id())?;
-    debug!("manifest 1: {:?}", manifest1);
+    debug!("cyphertext echo: \"ping\"");
+    let manifest1: String = fs0.echo_cyphertext(lsid1.public_id())?;
+    debug!("cyphertext echo: {:?}", manifest1);
     Ok(())
 }
 /*
