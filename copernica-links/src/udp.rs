@@ -47,7 +47,8 @@ impl Link<'_> for UdpIp {
                                     let mut buf = vec![0u8; 1500];
                                     match socket.recv_from(&mut buf).await {
                                         Ok((n, _peer)) => {
-                                            trace!("\t\t|  |  {}", this_link.lookup_id()?);
+                                            debug!("\t\t\t|  |  link-to-broker-or-protocol");
+                                            trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
                                             let (_lnk_tx_pid, lp) = decode(buf[..n].to_vec(), this_link.clone())?;
                                             let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, lp);
@@ -77,7 +78,7 @@ impl Link<'_> for UdpIp {
                                     match ilp.reply_to()? {
                                         ReplyTo::UdpIp(remote_addr) => {
                                             let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
-                                            debug!("\t\t\t|  |  link-to-broker");
+                                            debug!("\t\t\t|  |  broker-or-protocol-to-link");
                                             trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
                                             let enc = encode(lp, this_link.clone())?;
                                             socket.send_to(&enc, remote_addr).await?;

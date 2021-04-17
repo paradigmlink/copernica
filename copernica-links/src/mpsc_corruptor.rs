@@ -52,7 +52,6 @@ impl<'a> Link<'a> for MpscCorruptor {
             _ => return Err(anyhow!("MpscCorruptor Link expects a LinkId of type LinkId::Mpsc")),
         }
     }
-
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
         let this_link = self.link_id.clone();
@@ -68,7 +67,8 @@ impl<'a> Link<'a> for MpscCorruptor {
                                 let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp);
-                                trace!("\t\t\t{}", this_link.lookup_id()?);
+                                debug!("\t|  |  link-to-broker-or-protocol");
+                                trace!("\t|  |  {}", this_link.lookup_id()?);
                                 let _r = t2c_tx.send(ilp)?;
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
@@ -89,12 +89,12 @@ impl<'a> Link<'a> for MpscCorruptor {
                             let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
                             let enc = encode(lp, this_link.clone())?;
                             let mut corrupted = enc;
-                            for i in 4..10 {
+                            for i in 4..7 {
                                 corrupted[i] = 0x0;
                             }
                             for s in t2t1_tx.clone() {
-                                debug!("\t\t\t|  |  link-to-broker");
-                                trace!("{}", this_link.lookup_id()?);
+                                debug!("\t|  |  broker-or-protocol-to-link");
+                                trace!("\t|  |  {}", this_link.lookup_id()?);
                                 s.send(corrupted.clone())?;
                             }
                         },
