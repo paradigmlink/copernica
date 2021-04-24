@@ -18,44 +18,46 @@ pub fn smoke_test() -> Result<()> {
 
     let mut broker0 = Broker::new(broker_store0);
     let mut broker1 = Broker::new(broker_store1);
-    let mut echo0: Echo = Protocol::new();
-    let mut echo1: Echo = Protocol::new();
+    let mut echo_protocol0: Echo = Protocol::new();
+    let mut echo_protocol1: Echo = Protocol::new();
+    let echo_protocol_sid0 = PrivateIdentityInterface::new_key();
+    let echo_protocol_sid1 = PrivateIdentityInterface::new_key();
 
-    // service0 to broker0
-    let sid0 = PrivateIdentityInterface::new_key();
-    let sid1 = PrivateIdentityInterface::new_key();
-    let lid0 = LinkId::listen(sid0.clone(), None, ReplyTo::Mpsc);
-    let lid1 = LinkId::listen(sid1.clone(), None, ReplyTo::Mpsc);
+    // echo_protocol0 to broker0
+    let link_sid0 = PrivateIdentityInterface::new_key();
+    let link_sid1 = PrivateIdentityInterface::new_key();
+    let lid0 = LinkId::listen(link_sid0.clone(), None, ReplyTo::Mpsc);
+    let lid1 = LinkId::listen(link_sid1.clone(), None, ReplyTo::Mpsc);
     let mut link0: MpscChannel = Link::new(lid0.clone(), broker0.peer_with_link(lid0.clone())?)?;
-    let mut link1: MpscChannel = Link::new(lid1.clone(), echo0.peer_with_link(echo_store0, lid0, sid0.clone())?)?;
+    let mut link1: MpscChannel = Link::new(lid1.clone(), echo_protocol0.peer_with_link(echo_store0, lid0, echo_protocol_sid0.clone())?)?;
     link0.female(link1.male());
     link1.female(link0.male());
 
     // broker0 to broker1
-    let sid2 = PrivateIdentityInterface::new_key();
-    let sid3 = PrivateIdentityInterface::new_key();
-    let lid2 = LinkId::listen(sid2.clone(), Some(sid3.public_id()), ReplyTo::Mpsc);
-    let lid3 = LinkId::listen(sid3.clone(), Some(sid2.public_id()), ReplyTo::Mpsc);
+    let link_sid2 = PrivateIdentityInterface::new_key();
+    let link_sid3 = PrivateIdentityInterface::new_key();
+    let lid2 = LinkId::listen(link_sid2.clone(), Some(link_sid3.public_id()), ReplyTo::Mpsc);
+    let lid3 = LinkId::listen(link_sid3.clone(), Some(link_sid2.public_id()), ReplyTo::Mpsc);
     let mut link2: MpscCorruptor = Link::new(lid2.clone(), broker0.peer_with_link(lid2.clone())?)?;
     let mut link3: MpscCorruptor = Link::new(lid3.clone(), broker1.peer_with_link(lid3.clone())?)?;
     link2.female(link3.male());
     link3.female(link2.male());
 
-    // broker1 to service1
-    let sid4 = PrivateIdentityInterface::new_key();
-    let sid5 = PrivateIdentityInterface::new_key();
+    // broker1 to echo_protocol1
+    let link_sid4 = PrivateIdentityInterface::new_key();
+    let link_sid5 = PrivateIdentityInterface::new_key();
     let address4 = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
     let address5 = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
-    let lid4 = LinkId::listen(sid4.clone(), Some(sid5.public_id()), address4.clone());
-    let lid5 = LinkId::listen(sid5.clone(), Some(sid4.public_id()), address5.clone());
+    let lid4 = LinkId::listen(link_sid4.clone(), Some(link_sid5.public_id()), address4.clone());
+    let lid5 = LinkId::listen(link_sid5.clone(), Some(link_sid4.public_id()), address5.clone());
     let link4: UdpIp = Link::new(lid4.clone(), broker1.peer_with_link(lid4.remote(address5)?)?)?;
-    let link5: UdpIp = Link::new(lid5.clone(), echo1.peer_with_link(echo_store1, lid5.remote(address4)?, sid1.clone())?)?;
+    let link5: UdpIp = Link::new(lid5.clone(), echo_protocol1.peer_with_link(echo_store1, lid5.remote(address4)?, echo_protocol_sid1.clone())?)?;
 
     //let links: Vec<Box<dyn Link>> = vec![Box::new(link0), Box::new(link1), Box::new(link2), Box::new(link3), Box::new(link4), Box::new(link5)];
     //for link in links {
     //    link.run()?;
     //}
-    echo0.run()?;    // echo0 service is connected to link0
+    echo_protocol0.run()?;    // echo0 service is connected to link0
     link0.run()?;    // link0 link is connected to link1
     link1.run()?;    // etc
     broker0.run()?;
@@ -64,14 +66,14 @@ pub fn smoke_test() -> Result<()> {
     broker1.run()?;
     link4.run()?;
     link5.run()?;
-    echo1.run()?;
+    echo_protocol1.run()?;
 
     debug!("cleartext  : \"ping\"");
-    let pong: String = echo1.cleartext_ping(sid0.public_id())?;
+    let pong: String = echo_protocol1.cleartext_ping(echo_protocol_sid0.public_id())?;
     debug!("cleartext  : {:?}", pong);
 
     debug!("cyphertext : \"ping\"");
-    let pong: String = echo0.cyphertext_ping(sid1.public_id())?;
+    let pong: String = echo_protocol0.cyphertext_ping(echo_protocol_sid1.public_id())?;
     debug!("cyphertext : {:?}", pong);
     Ok(())
 }
