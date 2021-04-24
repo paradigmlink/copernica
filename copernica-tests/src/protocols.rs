@@ -26,8 +26,8 @@ pub fn smoke_test() -> Result<()> {
     // echo_protocol0 to broker0
     let link_sid0 = PrivateIdentityInterface::new_key();
     let link_sid1 = PrivateIdentityInterface::new_key();
-    let link_id0 = LinkId::listen(link_sid0.clone(), None, ReplyTo::Mpsc);
-    let link_id1 = LinkId::listen(link_sid1.clone(), None, ReplyTo::Mpsc);
+    let link_id0 = LinkId::link_with_type(link_sid0.clone(), None, ReplyTo::Mpsc);
+    let link_id1 = LinkId::link_with_type(link_sid1.clone(), None, ReplyTo::Mpsc);
     let mut link0: MpscChannel = Link::new(link_id0.clone(), broker0.peer_with_link(link_id0.clone())?)?;
     let mut link1: MpscChannel = Link::new(link_id1.clone(), echo_protocol0.peer_with_link(link_id0.clone())?)?;
     link0.female(link1.male());
@@ -36,8 +36,8 @@ pub fn smoke_test() -> Result<()> {
     // broker0 to broker1
     let link_sid2 = PrivateIdentityInterface::new_key();
     let link_sid3 = PrivateIdentityInterface::new_key();
-    let link_id2 = LinkId::listen(link_sid2.clone(), Some(link_sid3.public_id()), ReplyTo::Mpsc);
-    let link_id3 = LinkId::listen(link_sid3.clone(), Some(link_sid2.public_id()), ReplyTo::Mpsc);
+    let link_id2 = LinkId::link_with_type(link_sid2.clone(), Some(link_sid3.public_id()), ReplyTo::Mpsc);
+    let link_id3 = LinkId::link_with_type(link_sid3.clone(), Some(link_sid2.public_id()), ReplyTo::Mpsc);
     let mut link2: MpscCorruptor = Link::new(link_id2.clone(), broker0.peer_with_link(link_id2.clone())?)?;
     let mut link3: MpscCorruptor = Link::new(link_id3.clone(), broker1.peer_with_link(link_id3.clone())?)?;
     link2.female(link3.male());
@@ -48,8 +48,8 @@ pub fn smoke_test() -> Result<()> {
     let link_sid5 = PrivateIdentityInterface::new_key();
     let address4 = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
     let address5 = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
-    let link_id4 = LinkId::listen(link_sid4.clone(), Some(link_sid5.public_id()), address4.clone());
-    let link_id5 = LinkId::listen(link_sid5.clone(), Some(link_sid4.public_id()), address5.clone());
+    let link_id4 = LinkId::link_with_type(link_sid4.clone(), Some(link_sid5.public_id()), address4.clone());
+    let link_id5 = LinkId::link_with_type(link_sid5.clone(), Some(link_sid4.public_id()), address5.clone());
     let link4: UdpIp = Link::new(link_id4.clone(), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
     let link5: UdpIp = Link::new(link_id5.clone(), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
 

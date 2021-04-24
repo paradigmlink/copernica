@@ -27,8 +27,8 @@ pub fn encrypted_response_encrypted_link() -> Result<()> {
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
     //let reply_to: ReplyTo = ReplyTo::Mpsc;
-    let link_id_1 = LinkId::listen(lnk_tx_sid, Some(lnk_rx_pid), reply_to.clone());
-    let link_id_2 = LinkId::listen(lnk_rx_sid, Some(lnk_tx_pid), reply_to.clone());
+    let link_id_1 = LinkId::link_with_type(lnk_tx_sid, Some(lnk_rx_pid), reply_to.clone());
+    let link_id_2 = LinkId::link_with_type(lnk_rx_sid, Some(lnk_tx_pid), reply_to.clone());
     let lp: LinkPacket = LinkPacket::new(reply_to, nw);
     let lps = encode(lp.clone(), link_id_1)?;
     let (_lnk_tx_pid, lpo) = decode(lps.clone(), link_id_2)?;
@@ -64,8 +64,8 @@ pub fn cleartext_response_encrypted_link() -> Result<()> {
     //let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
     //let reply_to: ReplyTo = ReplyTo::Mpsc;
-    let link_id_1 = LinkId::listen(lnk_tx_sid, Some(lnk_rx_pid), reply_to.clone());
-    let link_id_2 = LinkId::listen(lnk_rx_sid, Some(lnk_tx_pid), reply_to.clone());
+    let link_id_1 = LinkId::link_with_type(lnk_tx_sid, Some(lnk_rx_pid), reply_to.clone());
+    let link_id_2 = LinkId::link_with_type(lnk_rx_sid, Some(lnk_tx_pid), reply_to.clone());
     let lp: LinkPacket = LinkPacket::new(reply_to, nw);
     let lps = encode(lp.clone(), link_id_1)?;
     let (_lnk_tx_pid, lpo) = decode(lps.clone(), link_id_2)?;
@@ -99,8 +99,8 @@ pub fn encrypted_request_encrypted_link() -> Result<()> {
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
     //let reply_to: ReplyTo = ReplyTo::Mpsc;
-    let link_id_1 = LinkId::listen(lnk_tx_sid, Some(lnk_rx_pid), reply_to.clone());
-    let link_id_2 = LinkId::listen(lnk_rx_sid, Some(lnk_tx_pid), reply_to.clone());
+    let link_id_1 = LinkId::link_with_type(lnk_tx_sid, Some(lnk_rx_pid), reply_to.clone());
+    let link_id_2 = LinkId::link_with_type(lnk_rx_sid, Some(lnk_tx_pid), reply_to.clone());
     let lp: LinkPacket = LinkPacket::new(reply_to, nw);
     let lps = encode(lp.clone(), link_id_1)?;
     let (_lnk_tx_pid, lpo) = decode(lps.clone(), link_id_2)?;
@@ -129,8 +129,8 @@ pub fn cleartext_request_encrypted_link() -> Result<()> {
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
     //let reply_to: ReplyTo = ReplyTo::Mpsc;
-    let link_id_1 = LinkId::listen(lnk_tx_sid, Some(lnk_rx_pid), reply_to.clone());
-    let link_id_2 = LinkId::listen(lnk_rx_sid, Some(lnk_tx_pid), reply_to.clone());
+    let link_id_1 = LinkId::link_with_type(lnk_tx_sid, Some(lnk_rx_pid), reply_to.clone());
+    let link_id_2 = LinkId::link_with_type(lnk_rx_sid, Some(lnk_tx_pid), reply_to.clone());
     let lp: LinkPacket = LinkPacket::new(reply_to, nw);
     let lps = encode(lp.clone(), link_id_1)?;
     let (_lnk_tx_pid, lpo) = decode(lps.clone(), link_id_2)?;
@@ -161,8 +161,8 @@ pub fn encrypted_response_cleartext_link() -> Result<()> {
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
     //let reply_to: ReplyTo = ReplyTo::Mpsc;
-    let link_id_1 = LinkId::listen(lnk_tx_sid, None, reply_to.clone());
-    let link_id_2 = LinkId::listen(lnk_rx_sid, None, reply_to.clone());
+    let link_id_1 = LinkId::link_with_type(lnk_tx_sid, None, reply_to.clone());
+    let link_id_2 = LinkId::link_with_type(lnk_rx_sid, None, reply_to.clone());
     let lp: LinkPacket = LinkPacket::new(reply_to, nw);
     let lps = encode(lp.clone(), link_id_1)?;
     let (_lnk_tx_pid, lpo) = decode(lps.clone(), link_id_2)?;
@@ -196,8 +196,8 @@ pub fn cleartext_response_cleartext_link() -> Result<()> {
     let reply_to: ReplyTo = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
     //let reply_to: ReplyTo = ReplyTo::Mpsc;
-    let link_id_1 = LinkId::listen(lnk_tx_sid, None, reply_to.clone());
-    let link_id_2 = LinkId::listen(lnk_rx_sid, None, reply_to.clone());
+    let link_id_1 = LinkId::link_with_type(lnk_tx_sid, None, reply_to.clone());
+    let link_id_2 = LinkId::link_with_type(lnk_rx_sid, None, reply_to.clone());
     let lp: LinkPacket = LinkPacket::new(reply_to, nw);
     let lps = encode(lp.clone(), link_id_1)?;
     let (_lnk_tx_pid, lpo) = decode(lps.clone(), link_id_2)?;
@@ -229,8 +229,8 @@ pub fn encrypted_request_cleartext_link() -> Result<()> {
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
     //let reply_to: ReplyTo = ReplyTo::Mpsc;
-    let link_id_1 = LinkId::listen(lnk_tx_sid, None, reply_to.clone());
-    let link_id_2 = LinkId::listen(lnk_rx_sid, None, reply_to.clone());
+    let link_id_1 = LinkId::link_with_type(lnk_tx_sid, None, reply_to.clone());
+    let link_id_2 = LinkId::link_with_type(lnk_rx_sid, None, reply_to.clone());
     let lp: LinkPacket = LinkPacket::new(reply_to, nw);
     let lps = encode(lp.clone(), link_id_1)?;
     let (_lnk_tx_pid, lpo) = decode(lps.clone(), link_id_2)?;
@@ -257,8 +257,8 @@ pub fn cleartext_request_cleartext_link() -> Result<()> {
     let reply_to: ReplyTo = ReplyTo::UdpIp(SocketAddr::new(IpAddr::V6(Ipv6Addr::new(65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)), 65535));
     //let reply_to: ReplyTo = ReplyTo::Rf(32432);
     //let reply_to: ReplyTo = ReplyTo::Mpsc;
-    let link_id_1 = LinkId::listen(lnk_tx_sid, None, reply_to.clone());
-    let link_id_2 = LinkId::listen(lnk_rx_sid, None, reply_to.clone());
+    let link_id_1 = LinkId::link_with_type(lnk_tx_sid, None, reply_to.clone());
+    let link_id_2 = LinkId::link_with_type(lnk_rx_sid, None, reply_to.clone());
     let lp: LinkPacket = LinkPacket::new(reply_to, nw);
     let lps = encode(lp.clone(), link_id_1)?;
     let (_lnk_tx_pid, lpo) = decode(lps.clone(), link_id_2)?;

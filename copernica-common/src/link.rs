@@ -31,7 +31,7 @@ impl LinkId {
     pub fn new(lookup_id: u32, link_sid: PrivateIdentityInterface, remote_link_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
         LinkId::Identity { lookup_id, link_sid, remote_link_pid, reply_to }
     }
-    pub fn listen(link_sid: PrivateIdentityInterface, remote_link_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
+    pub fn link_with_type(link_sid: PrivateIdentityInterface, remote_link_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
         let i: u32 = rng.gen();
         LinkId::Identity { lookup_id: i,  link_sid, remote_link_pid, reply_to }
