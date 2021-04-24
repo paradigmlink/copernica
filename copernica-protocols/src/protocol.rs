@@ -174,23 +174,20 @@ impl TxRx {
 }
 
 pub trait Protocol<'a> {
+    fn get_db(&mut self) -> sled::Db;
+    fn get_protocol_sid(&mut self) -> PrivateIdentityInterface;
     fn set_txrx(&mut self, txrx: TxRx);
     fn get_txrx(&mut self) -> Option<TxRx>;
-    fn peer_with_link(
-        &mut self,
-        db: sled::Db,
-        link_id: LinkId,
-        protocol_sid: PrivateIdentityInterface // secret key of attached protocol
-    ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
+    fn peer_with_link(&mut self, link_id: LinkId) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
         let (l2p_tx, l2p_rx) = unbounded::<InterLinkPacket>();
         let (p2l_tx, p2l_rx) = unbounded::<InterLinkPacket>();
-        let txrx = TxRx::new(db, link_id, protocol_sid, p2l_tx, l2p_rx);
+        let txrx = TxRx::new(self.get_db(), link_id, self.get_protocol_sid(), p2l_tx, l2p_rx);
         self.set_txrx(txrx);
         Ok((l2p_tx, p2l_rx))
     }
     #[allow(unreachable_code)]
     fn run(&mut self) -> Result<()>;
-    fn new() -> Self where Self: Sized; //kept at end cause amp syntax highlighting falls over on the last :
+    fn new(db: sled::Db, protocol_sid: PrivateIdentityInterface) -> Self where Self: Sized;
 }
 
 

@@ -3,7 +3,7 @@ use {
     bincode,
     copernica_common::{
         bloom_filter_index as bfi, serialization::*,
-        NarrowWaistPacket, HBFI, PublicIdentity
+        NarrowWaistPacket, HBFI, PublicIdentity, PrivateIdentityInterface
     },
     crate::{Protocol, TxRx},
     log::debug,
@@ -11,6 +11,8 @@ use {
 };
 #[derive(Clone)]
 pub struct Echo {
+    db: sled::Db,
+    protocol_sid: PrivateIdentityInterface,
     txrx: Option<TxRx>,
 }
 impl<'a> Echo {
@@ -36,8 +38,10 @@ impl<'a> Echo {
     }
 }
 impl<'a> Protocol<'a> for Echo {
-    fn new() -> Echo {
+    fn new(db: sled::Db, protocol_sid: PrivateIdentityInterface) -> Echo {
         Echo {
+            db,
+            protocol_sid,
             txrx: None,
         }
     }
@@ -87,5 +91,11 @@ impl<'a> Protocol<'a> for Echo {
     }
     fn get_txrx(&mut self) -> Option<TxRx> {
         self.txrx.clone()
+    }
+    fn get_db(&mut self) -> sled::Db {
+        self.db.clone()
+    }
+    fn get_protocol_sid(&mut self) -> PrivateIdentityInterface {
+        self.protocol_sid.clone()
     }
 }
