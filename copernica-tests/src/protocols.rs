@@ -11,62 +11,68 @@ use {
     log::{debug},
 };
 pub fn smoke_test() -> Result<()> {
-    let rs0 = sled::open(generate_random_dir_name())?;
-    let rs1 = sled::open(generate_random_dir_name())?;
-    let cbrs0 = sled::open(generate_random_dir_name())?;
-    let cbrs1 = sled::open(generate_random_dir_name())?;
+    let echo_store0 = sled::open(generate_random_dir_name())?;
+    let echo_store1 = sled::open(generate_random_dir_name())?;
+    let broker_store0 = sled::open(generate_random_dir_name())?;
+    let broker_store1 = sled::open(generate_random_dir_name())?;
 
-    let mut cb0 = Broker::new(cbrs0);
-    let mut cb1 = Broker::new(cbrs1);
-    let mut fs0: Echo = Protocol::new();
-    let mut fs1: Echo = Protocol::new();
+    let mut broker0 = Broker::new(broker_store0);
+    let mut broker1 = Broker::new(broker_store1);
+    let mut echo0: Echo = Protocol::new();
+    let mut echo1: Echo = Protocol::new();
 
     // service0 to broker0
-    let lsid0 = PrivateIdentityInterface::new_key();
-    let lsid1 = PrivateIdentityInterface::new_key();
-    let lid0 = LinkId::listen(lsid0.clone(), None, ReplyTo::Mpsc);
-    let lid1 = LinkId::listen(lsid1.clone(), None, ReplyTo::Mpsc);
-    let mut link0: MpscChannel = Link::new(lid0.clone(), cb0.peer_with_link(lid0.clone())?)?;
-    let mut link1: MpscChannel = Link::new(lid1.clone(), fs0.peer_with_link(rs0, lid0, lsid0.clone())?)?;
+    let sid0 = PrivateIdentityInterface::new_key();
+    let sid1 = PrivateIdentityInterface::new_key();
+    let lid0 = LinkId::listen(sid0.clone(), None, ReplyTo::Mpsc);
+    let lid1 = LinkId::listen(sid1.clone(), None, ReplyTo::Mpsc);
+    let mut link0: MpscChannel = Link::new(lid0.clone(), broker0.peer_with_link(lid0.clone())?)?;
+    let mut link1: MpscChannel = Link::new(lid1.clone(), echo0.peer_with_link(echo_store0, lid0, sid0.clone())?)?;
     link0.female(link1.male());
     link1.female(link0.male());
 
     // broker0 to broker1
-    let lsid4 = PrivateIdentityInterface::new_key();
-    let lsid5 = PrivateIdentityInterface::new_key();
-    let lid4 = LinkId::listen(lsid4.clone(), Some(lsid5.public_id()), ReplyTo::Mpsc);
-    let lid5 = LinkId::listen(lsid5.clone(), Some(lsid4.public_id()), ReplyTo::Mpsc);
-    let mut link4: MpscCorruptor = Link::new(lid4.clone(), cb0.peer_with_link(lid4.clone())?)?;
-    let mut link5: MpscCorruptor = Link::new(lid5.clone(), cb1.peer_with_link(lid5.clone())?)?;
-    link4.female(link5.male());
-    link5.female(link4.male());
+    let sid2 = PrivateIdentityInterface::new_key();
+    let sid3 = PrivateIdentityInterface::new_key();
+    let lid2 = LinkId::listen(sid2.clone(), Some(sid3.public_id()), ReplyTo::Mpsc);
+    let lid3 = LinkId::listen(sid3.clone(), Some(sid2.public_id()), ReplyTo::Mpsc);
+    let mut link2: MpscCorruptor = Link::new(lid2.clone(), broker0.peer_with_link(lid2.clone())?)?;
+    let mut link3: MpscCorruptor = Link::new(lid3.clone(), broker1.peer_with_link(lid3.clone())?)?;
+    link2.female(link3.male());
+    link3.female(link2.male());
 
     // broker1 to service1
-    let lsid2 = PrivateIdentityInterface::new_key();
-    let lsid3 = PrivateIdentityInterface::new_key();
-    let lid2to3_address = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
-    let lid3to2_address = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
-    let lid2to3 = LinkId::listen(lsid2.clone(), Some(lsid3.public_id()), lid2to3_address.clone());
-    let lid3to2 = LinkId::listen(lsid3.clone(), Some(lsid2.public_id()), lid3to2_address.clone());
-    let link2: UdpIp = Link::new(lid2to3.clone(), cb1.peer_with_link(lid2to3.remote(lid3to2_address)?)?)?;
-    let link3: UdpIp = Link::new(lid3to2.clone(), fs1.peer_with_link(rs1, lid3to2.remote(lid2to3_address)?, lsid1.clone())?)?;
+    let sid4 = PrivateIdentityInterface::new_key();
+    let sid5 = PrivateIdentityInterface::new_key();
+    let address4 = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
+    let address5 = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
+    let lid4 = LinkId::listen(sid4.clone(), Some(sid5.public_id()), address4.clone());
+    let lid5 = LinkId::listen(sid5.clone(), Some(sid4.public_id()), address5.clone());
+    let link4: UdpIp = Link::new(lid4.clone(), broker1.peer_with_link(lid4.remote(address5)?)?)?;
+    let link5: UdpIp = Link::new(lid5.clone(), echo1.peer_with_link(echo_store1, lid5.remote(address4)?, sid1.clone())?)?;
 
-    let links: Vec<Box<dyn Link>> = vec![Box::new(link0), Box::new(link1), Box::new(link2), Box::new(link3), Box::new(link4), Box::new(link5)];
-    for link in links {
-        link.run()?;
-    }
-    cb0.run()?;
-    cb1.run()?;
-    fs0.run()?;
-    fs1.run()?;
+    //let links: Vec<Box<dyn Link>> = vec![Box::new(link0), Box::new(link1), Box::new(link2), Box::new(link3), Box::new(link4), Box::new(link5)];
+    //for link in links {
+    //    link.run()?;
+    //}
+    echo0.run()?;    // echo0 service is connected to link0
+    link0.run()?;    // link0 link is connected to link1
+    link1.run()?;    // etc
+    broker0.run()?;
+    link2.run()?;
+    link3.run()?;
+    broker1.run()?;
+    link4.run()?;
+    link5.run()?;
+    echo1.run()?;
 
-    debug!("cleartext echo : \"ping\"");
-    let manifest0: String = fs1.echo_cleartext(lsid0.public_id())?;
-    debug!("cleartext echo : {:?}", manifest0);
+    debug!("cleartext  : \"ping\"");
+    let pong: String = echo1.cleartext_ping(sid0.public_id())?;
+    debug!("cleartext  : {:?}", pong);
 
-    debug!("cyphertext echo: \"ping\"");
-    let manifest1: String = fs0.echo_cyphertext(lsid1.public_id())?;
-    debug!("cyphertext echo: {:?}", manifest1);
+    debug!("cyphertext : \"ping\"");
+    let pong: String = echo0.cyphertext_ping(sid1.public_id())?;
+    debug!("cyphertext : {:?}", pong);
     Ok(())
 }
 /*

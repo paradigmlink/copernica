@@ -66,7 +66,7 @@ impl<'a> Link<'a> for MpscChannel {
                         match l2l0_rx.recv(){
                             Ok(msg) => {
                                 let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
-                                let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
+                                let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp.clone());
                                 debug!("\t\t|  |  link-to-broker-or-protocol");
                                 trace!("\t|  |  {}", this_link.lookup_id()?);

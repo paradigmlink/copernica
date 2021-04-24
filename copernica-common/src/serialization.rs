@@ -349,8 +349,8 @@ fn deserialize_reply_to(data: &Vec<u8>) -> Result<ReplyTo> {
 
 pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
     let mut buf: Vec<u8> = vec![];
-    let lnk_tx_pid = link_id.tx_pid()?;
-    match link_id.rx_pid()? {
+    let lnk_tx_pid = link_id.link_pid()?;
+    match link_id.remote_link_pid()? {
         None => {
             let reply_to = lp.reply_to();
             let nw = lp.narrow_waist();
@@ -544,7 +544,7 @@ pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<(PublicIdenti
     Ok((lnk_tx_pid, LinkPacket::new(reply_to, nw)))
 }
 pub fn deserialize_link_packet(data: &Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
-    match link_id.rx_pid()? {
+    match link_id.remote_link_pid()? {
         Some(_) => {
             deserialize_cyphertext_link_packet(data, link_id)
         },

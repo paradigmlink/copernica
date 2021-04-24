@@ -14,7 +14,7 @@ pub struct Echo {
     txrx: Option<TxRx>,
 }
 impl<'a> Echo {
-    pub fn echo_cleartext(&mut self, response_pid: PublicIdentity) -> Result<String> {
+    pub fn cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", "echo")?;
             let echo = txrx.request2(hbfi.clone(), 0, 0)?;
@@ -24,9 +24,9 @@ impl<'a> Echo {
             Err(anyhow!("You must peer with a link first"))
         }
     }
-    pub fn echo_cyphertext(&mut self, response_pid: PublicIdentity) -> Result<String> {
+    pub fn cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(txrx) = self.txrx.clone() {
-            let hbfi = HBFI::new(Some(txrx.sid.public_id()), response_pid, "echo", "echo", "echo", "echo")?;
+            let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", "echo")?;
             let echo = txrx.request2(hbfi.clone(), 0, 0)?;
             let echo: String = bincode::deserialize(&echo)?;
             Ok(echo)
@@ -45,7 +45,7 @@ impl<'a> Protocol<'a> for Echo {
         let txrx = self.get_txrx();
         thread::spawn(move || {
             if let Some(txrx) = txrx {
-                let res_check = bfi(&format!("{}", txrx.sid.clone().public_id()))?;
+                let res_check = bfi(&format!("{}", txrx.protocol_sid.clone().public_id()))?;
                 let app_check = bfi("echo")?;
                 let m0d_check = bfi("echo")?;
                 let fun_check = bfi("echo")?;

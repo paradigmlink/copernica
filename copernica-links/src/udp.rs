@@ -50,7 +50,7 @@ impl Link<'_> for UdpIp {
                                             debug!("\t\t\t|  |  link-to-broker-or-protocol");
                                             trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
                                             let (_lnk_tx_pid, lp) = decode(buf[..n].to_vec(), this_link.clone())?;
-                                            let link_id = LinkId::new(this_link.lookup_id()?, this_link.sid()?, this_link.rx_pid()?, lp.reply_to());
+                                            let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
                                             let ilp = InterLinkPacket::new(link_id, lp);
                                             let _r = l2bs_tx.send(ilp)?;
                                         },

@@ -29,5 +29,5 @@ in
 stdenv.mkDerivation {
   name = "copernica";
   src = null;
-  buildInputs = [ rustup gdb pkgconfig pre-commit libusb gcc-arm-embedded ripgrep libiconv gitui];
+  buildInputs = [ rustup gdb pkgconfig pre-commit libusb ripgrep libiconv gitui];
 }

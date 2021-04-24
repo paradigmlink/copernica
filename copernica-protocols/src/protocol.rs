@@ -36,7 +36,7 @@ use {
 pub struct TxRx {
     pub db: Db,
     pub link_id: LinkId,
-    pub sid: PrivateIdentityInterface,
+    pub protocol_sid: PrivateIdentityInterface,
     pub p2l_tx: Sender<InterLinkPacket>,
     pub l2p_rx: Receiver<InterLinkPacket>,
 }
@@ -69,8 +69,8 @@ async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentityInte
     Ok(chunk)
 }
 impl TxRx {
-    pub fn new(db: Db, link_id: LinkId, sid: PrivateIdentityInterface, p2l_tx: Sender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> Self {
-        Self {db, link_id, sid, p2l_tx, l2p_rx}
+    pub fn new(db: Db, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: Sender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> Self {
+        Self {db, link_id, protocol_sid, p2l_tx, l2p_rx}
     }
     pub fn request(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
         let mut counter = start;
@@ -85,7 +85,7 @@ impl TxRx {
                 let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
                 let subscriber = self.db.watch_prefix(hbfi_s);
                 debug!("\t\t|  protocol-to-link");
-                futures_reconstruct.push(process_subscriber(subscriber, self.sid.clone()));
+                futures_reconstruct.push(process_subscriber(subscriber, self.protocol_sid.clone()));
                 self.p2l_tx.send(ilp)?;
             }
             counter += 1;
@@ -108,7 +108,7 @@ impl TxRx {
                     let nw = deserialize_narrow_waist_packet(&resp.to_vec())?;
                     let chunk = match hbfi.request_pid {
                         Some(_) => {
-                            nw.data(Some(self.sid.clone()))?
+                            nw.data(Some(self.protocol_sid.clone()))?
                         },
                         None => {
                             nw.data(None)?
@@ -136,7 +136,7 @@ impl TxRx {
                                         if hbfi.to_bfis() == hbfi_inbound.to_bfis() {
                                             let chunk = match hbfi_inbound.request_pid {
                                                 Some(_) => {
-                                                    nw.data(Some(self.sid.clone()))?
+                                                    nw.data(Some(self.protocol_sid.clone()))?
                                                 },
                                                 None => {
                                                     nw.data(None)?
@@ -164,7 +164,7 @@ impl TxRx {
         data: Vec<u8>,
     ) -> Result<()> {
         debug!("\t\t|  RESPONSE PACKET FOUND");
-        let nw = NarrowWaistPacket::response(self.sid.clone(), hbfi.clone(), data, 0, 0)?;
+        let nw = NarrowWaistPacket::response(self.protocol_sid.clone(), hbfi.clone(), data, 0, 0)?;
         let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
         let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
         debug!("\t\t|  protocol-to-link");
@@ -180,11 +180,11 @@ pub trait Protocol<'a> {
         &mut self,
         db: sled::Db,
         link_id: LinkId,
-        sid: PrivateIdentityInterface
+        protocol_sid: PrivateIdentityInterface // secret key of attached protocol
     ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
         let (l2p_tx, l2p_rx) = unbounded::<InterLinkPacket>();
         let (p2l_tx, p2l_rx) = unbounded::<InterLinkPacket>();
-        let txrx = TxRx::new(db, link_id, sid, p2l_tx, l2p_rx);
+        let txrx = TxRx::new(db, link_id, protocol_sid, p2l_tx, l2p_rx);
         self.set_txrx(txrx);
         Ok((l2p_tx, p2l_rx))
     }

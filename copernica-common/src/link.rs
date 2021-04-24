@@ -21,20 +21,20 @@ pub enum ReplyTo {
 pub enum LinkId {
     Identity {
         lookup_id: u32,
-        sid: PrivateIdentityInterface,
-        rx_pid: Option<PublicIdentity>,
+        link_sid: PrivateIdentityInterface,
+        remote_link_pid: Option<PublicIdentity>,
         reply_to: ReplyTo,
     },
     Choke,
 }
 impl LinkId {
-    pub fn new(lookup_id: u32, sid: PrivateIdentityInterface, rx_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
-        LinkId::Identity { lookup_id, sid, rx_pid, reply_to }
+    pub fn new(lookup_id: u32, link_sid: PrivateIdentityInterface, remote_link_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
+        LinkId::Identity { lookup_id, link_sid, remote_link_pid, reply_to }
     }
-    pub fn listen(sid: PrivateIdentityInterface, rx_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
+    pub fn listen(link_sid: PrivateIdentityInterface, remote_link_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
         let i: u32 = rng.gen();
-        LinkId::Identity { lookup_id: i,  sid, rx_pid, reply_to }
+        LinkId::Identity { lookup_id: i,  link_sid, remote_link_pid, reply_to }
     }
     pub fn lookup_id(&self) -> Result<u32> {
         match self {
@@ -44,10 +44,10 @@ impl LinkId {
             }
         }
     }
-    pub fn shared_secret(&self, nonce: Nonce, lnk_rx_pid: PublicIdentity) -> Result<SharedSecret> {
+    pub fn shared_secret(&self, nonce: Nonce, remote_link_pid: PublicIdentity) -> Result<SharedSecret> {
         match self {
-            LinkId::Identity { sid, .. } => {
-                Ok(sid.shared_secret(nonce, lnk_rx_pid))
+            LinkId::Identity { link_sid, .. } => {
+                Ok(link_sid.shared_secret(nonce, remote_link_pid))
             },
             LinkId::Choke => {
                 Err(anyhow!("Requesting a ReplyTo when in state Choke. Not going to happen buddy"))
@@ -59,8 +59,8 @@ impl LinkId {
     }
     pub fn remote(&self, reply_to: ReplyTo) -> Result<Self> {
         match self {
-            LinkId::Identity { lookup_id, sid, rx_pid, .. } => {
-                Ok(LinkId::Identity { lookup_id: lookup_id.clone(),  sid: sid.clone(), rx_pid: rx_pid.clone(), reply_to })
+            LinkId::Identity { lookup_id, link_sid, remote_link_pid, .. } => {
+                Ok(LinkId::Identity { lookup_id: lookup_id.clone(),  link_sid: link_sid.clone(), remote_link_pid: remote_link_pid.clone(), reply_to })
             },
             LinkId::Choke => {
                 Err(anyhow!("Requesting a ReplyTo when in state Choke. Not going to happen buddy"))
@@ -77,30 +77,30 @@ impl LinkId {
             }
         }
     }
-    pub fn sid(&self) -> Result<PrivateIdentityInterface> {
+    pub fn link_sid(&self) -> Result<PrivateIdentityInterface> {
         match self {
-            LinkId::Identity { sid, ..} => {
-                Ok(sid.clone())
+            LinkId::Identity { link_sid, ..} => {
+                Ok(link_sid.clone())
             },
             LinkId::Choke => {
                 Err(anyhow!("Requesting a PrivateIdentityInterface when in state Choke. Not going to happen buddy"))
             }
         }
     }
-    pub fn tx_pid(&self) -> Result<PublicIdentity> {
+    pub fn link_pid(&self) -> Result<PublicIdentity> {
         match self {
-            LinkId::Identity { sid, .. } => {
-                Ok(sid.public_id())
+            LinkId::Identity { link_sid, .. } => {
+                Ok(link_sid.public_id())
             },
             LinkId::Choke => {
                 Err(anyhow!("Requesting a PrivateIdentityInterface when in state Choke. Not going to happen buddy"))
             }
         }
     }
-    pub fn rx_pid(&self) -> Result<Option<PublicIdentity>> {
+    pub fn remote_link_pid(&self) -> Result<Option<PublicIdentity>> {
         match self {
-            LinkId::Identity { rx_pid, ..} => {
-                Ok(rx_pid.clone())
+            LinkId::Identity { remote_link_pid, ..} => {
+                Ok(remote_link_pid.clone())
             },
             LinkId::Choke => {
                 Err(anyhow!("Requesting a PublicIdentity when in state Choke. Not going to happen buddy"))
@@ -111,8 +111,8 @@ impl LinkId {
 impl fmt::Debug for LinkId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LinkId::Identity { lookup_id, sid, rx_pid, reply_to} => {
-                write!(f, "LinkId:({}, {:?}, {:?}, {:?})", lookup_id, sid, rx_pid, reply_to)
+            LinkId::Identity { lookup_id, link_sid, remote_link_pid, reply_to} => {
+                write!(f, "LinkId:({}, {:?}, {:?}, {:?})", lookup_id, link_sid, remote_link_pid, reply_to)
             },
             LinkId::Choke => {
                 write!(f, "LinkId: CHOKED")
