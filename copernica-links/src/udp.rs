@@ -5,10 +5,9 @@ use {
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Sender, Receiver},
-    async_std::{
-        net::UdpSocket,
-        task,
-    },
+    async_executor::{Executor},
+    futures_lite::{future},
+    async_net::{UdpSocket},
     log::{debug, error, trace},
 };
 
@@ -38,7 +37,8 @@ impl Link<'_> for UdpIp {
         let this_link = self.link_id.clone();
         let l2bs_tx = self.l2bs_tx.clone();
         std::thread::spawn(move || {
-            task::block_on(async move {
+            let ex = Executor::new();
+            let task = ex.spawn(async {
                 match this_link.reply_to()? {
                     ReplyTo::UdpIp(listen_addr) => {
                         match UdpSocket::bind(listen_addr).await {
@@ -64,12 +64,14 @@ impl Link<'_> for UdpIp {
                     _ => {},
                 }
                 Ok::<(), anyhow::Error>(())
-            })
+            });
+            let _ = future::block_on(ex.run(task));
         });
         let this_link = self.link_id.clone();
         let bs2l_rx = self.bs2l_rx.clone();
         std::thread::spawn(move || {
-            task::block_on(async move {
+            let ex = Executor::new();
+            let task = ex.spawn(async {
                 match UdpSocket::bind("127.0.0.1:0").await {
                     Ok(socket) => {
                         loop {
@@ -93,7 +95,8 @@ impl Link<'_> for UdpIp {
                     Err(error) => error!("{:?}: {}", this_link, error),
                 }
                 Ok::<(), anyhow::Error>(())
-            })
+            });
+            let _ = future::block_on(ex.run(task));
         });
         Ok(())
     }
