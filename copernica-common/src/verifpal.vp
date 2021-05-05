@@ -1,12 +1,14 @@
 // terminology
 // sid == secret identity; pid == public identity
-// ilp == interlink packet (copernica terminology for a packet that is being transferred between links in a router)
 // c = consumer, r == router, p == producer
 // c2r = a consumer to router link
 // v = which side of the link the data is. e.g.: cv2r = the data is on the consumer side of the c2r link
+//     this convention is purely to allow for unique names, as verifpal won't compile if, for example,
+//     "data" is instantiated twice.
 
 // run this code by installing verifpal then
 // $ verifpal verify verifpal.vp
+// read the verifpal manual here: https://verifpal.com/res/pdf/manual.pdf
 
 attacker[active]
 principal DataProducer [
