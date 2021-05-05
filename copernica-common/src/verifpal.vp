@@ -13,7 +13,7 @@ principal DataProducer [
     knows private
         producer_protocol_sid,
         producer_link_sid,
-        data, data_name
+        data
     producer_link_pid = G^producer_link_sid
 ]
 principal Router [
@@ -37,99 +37,93 @@ principal DataProducer [
 ]
 // communicated likely on a business card
 DataProducer -> DataConsumer: [producer_protocol_pid]
-// communicated likely via a text message or a website
-DataProducer -> DataConsumer: [data_name]
 phase[2]
 principal DataConsumer [
-    bloom_filter_index_c = HASH(data_name)
     consumer_protocol_pid = G^consumer_protocol_sid
     generates data_nonce_cv2r, link_nonce_cv2r
-    data_request_cv2r = CONCAT(
+    request_cv2r = CONCAT(
         producer_protocol_pid,
         consumer_protocol_pid,
-        bloom_filter_index_c,
         data_nonce_cv2r
-    )
-    ilp_cyphertext_request_cv2r = AEAD_ENC(
+    ) // data name should be in here, including it is superfluous
+    request_cyphertext_cv2r = AEAD_ENC(
         router_link_pid^consumer_link_sid,
-        data_request_cv2r,
+        request_cv2r,
         link_nonce_cv2r
     )
 ]
-DataConsumer -> Router: ilp_cyphertext_request_cv2r, link_nonce_cv2r
+DataConsumer -> Router: request_cyphertext_cv2r, link_nonce_cv2r
 principal Router [
-    data_request_c2vr = AEAD_DEC(
+    request_c2vr = AEAD_DEC(
         consumer_link_pid^router_link_sid,
-        ilp_cyphertext_request_cv2r,
+        request_cyphertext_cv2r,
         link_nonce_cv2r
     )?
     generates link_nonce_rv2p
-    ilp_cyphertext_request_rv2p = AEAD_ENC(
+    request_cyphertext_rv2p = AEAD_ENC(
         producer_link_pid^router_link_sid,
-        data_request_c2vr,
+        request_c2vr,
         link_nonce_rv2p
     )
 ]
-Router -> DataProducer: ilp_cyphertext_request_rv2p, link_nonce_rv2p
+Router -> DataProducer: request_cyphertext_rv2p, link_nonce_rv2p
 principal DataProducer [
-    data_request_r2vp = AEAD_DEC(
+    request_r2vp = AEAD_DEC(
         router_link_pid^producer_link_sid,
-        ilp_cyphertext_request_rv2p,
+        request_cyphertext_rv2p,
         link_nonce_rv2p
     )?
-    producer_protocol_pid_r2vp,
-    consumer_protocol_pid_r2vp,
-    bloom_filter_index_r2vp,
-    data_nonce_r2vp = SPLIT(data_request_r2vp)
-    _ = ASSERT(bloom_filter_index_r2vp, HASH(data_name))?
+    producer_protocol_pid_pv2r,
+    consumer_protocol_pid_pv2r,
+    response_nonce_pv2r = SPLIT(request_r2vp)
     generates link_nonce_pv2r
     data_cyphertext_pv2r = AEAD_ENC(
-        consumer_protocol_pid_r2vp^producer_protocol_sid,
+        consumer_protocol_pid_pv2r^producer_protocol_sid,
         data,
-        data_nonce_r2vp
+        response_nonce_pv2r
     )
     signature_pv2r = SIGN(producer_protocol_sid, data)
-    data_concat_response_pv2r = CONCAT(
+    response_concat_pv2r = CONCAT(
         data_cyphertext_pv2r,
         signature_pv2r,
-        data_nonce_r2vp
+        response_nonce_pv2r
     )
-    ilp_cyphertext_pv2r = AEAD_ENC(
+    response_cyphertext_pv2r = AEAD_ENC(
         router_link_pid^producer_link_sid,
-        data_concat_response_pv2r,
+        response_concat_pv2r,
         link_nonce_pv2r
     )
 ]
-DataProducer -> Router: ilp_cyphertext_pv2r, link_nonce_pv2r
+DataProducer -> Router: response_cyphertext_pv2r, link_nonce_pv2r
 principal Router [
-    data_response_p2vr = AEAD_DEC(
+    response_concat_p2vr = AEAD_DEC(
         producer_link_pid^router_link_sid,
-        ilp_cyphertext_pv2r,
+        response_cyphertext_pv2r,
         link_nonce_pv2r
     )?
     generates link_nonce_rv2c
-    ilp_cyphertext_response_rv2c = AEAD_ENC(
+    response_cyphertext_rv2c = AEAD_ENC(
         consumer_link_pid^router_link_sid,
-        data_response_p2vr,
+        response_concat_p2vr,
         link_nonce_rv2c
     )
 ]
-Router -> DataConsumer: ilp_cyphertext_response_rv2c, link_nonce_rv2c
+Router -> DataConsumer: response_cyphertext_rv2c, link_nonce_rv2c
 principal DataConsumer [
-    data_response_p2vc = AEAD_DEC(
+    response_concat_p2vc = AEAD_DEC(
         router_link_pid^consumer_link_sid,
-        ilp_cyphertext_response_rv2c,
+        response_cyphertext_rv2c,
         link_nonce_rv2c
     )?
     data_cyphertext_p2vc,
     signature_p2vc,
-    data_nonce_p2vc = SPLIT(data_response_p2vc)
+    response_nonce_p2vc = SPLIT(response_concat_p2vc)?
     cleartext_data = AEAD_DEC(
         producer_protocol_pid^consumer_protocol_sid,
         data_cyphertext_p2vc,
-        data_nonce_p2vc
-    )
-    verified_data = SIGNVERIF(producer_protocol_pid, cleartext_data, signature_p2vc)
+        response_nonce_p2vc
+    )?
+    verified_data = SIGNVERIF(producer_protocol_pid, cleartext_data, signature_p2vc)?
 ]
 queries[
     confidentiality? producer_protocol_sid
