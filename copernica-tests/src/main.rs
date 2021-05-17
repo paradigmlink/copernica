@@ -3,6 +3,7 @@ mod router;
 mod common;
 mod protocols;
 mod crypto;
+mod netsim;
 use {
     anyhow::{Result},
     log::{error},
@@ -32,7 +33,9 @@ fn main() -> Result<()> {
     //crypto::cleartext_request_cleartext_link();
     //crypto::request_transmute_and_decrypt();
     //crypto::cleartext_response_encrypt_then_decrypt();
-    protocols::smoke_test();
+    //protocols::smoke_test();
+    //netsim::netsim_smoke_test();
+    netsim::smoke_test();
     //copernicafs::single_file_less_than_fragment_size();
     match r {
         Ok(_) => println!("successful"),

@@ -1,25 +1,18 @@
 use {
     crate::{Link, encode, decode},
-    copernica_common::{
-        InterLinkPacket, LinkId, ReplyTo
-    },
+    copernica_common::{ InterLinkPacket, LinkId, ReplyTo },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Sender, Receiver},
     async_executor::{Executor},
     futures_lite::{future},
-    async_net::{UdpSocket},
     log::{debug, error, trace},
+    std::net::{SocketAddr, UdpSocket}
 };
-
 pub struct UdpIp {
     link_id: LinkId,
     l2bs_tx: Sender<InterLinkPacket>,
     bs2l_rx: Receiver<InterLinkPacket>,
 }
-
-impl UdpIp {
-}
-
 impl Link<'_> for UdpIp {
     fn new(link_id: LinkId
         , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
@@ -31,7 +24,6 @@ impl Link<'_> for UdpIp {
             _ => return Err(anyhow!("UdpIp Link expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
         }
     }
-
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
         let this_link = self.link_id.clone();
@@ -40,8 +32,8 @@ impl Link<'_> for UdpIp {
             let ex = Executor::new();
             let task = ex.spawn(async {
                 match this_link.reply_to()? {
-                    ReplyTo::UdpIp(listen_addr) => {
-                        match UdpSocket::bind(listen_addr).await {
+                    ReplyTo::UdpIp(addr) => {
+                        match async_io::Async::<UdpSocket>::bind(addr) {
                             Ok(socket) => {
                                 loop {
                                     let mut buf = vec![0u8; 1500];
@@ -72,7 +64,7 @@ impl Link<'_> for UdpIp {
         std::thread::spawn(move || {
             let ex = Executor::new();
             let task = ex.spawn(async {
-                match UdpSocket::bind("127.0.0.1:0").await {
+                match async_io::Async::<UdpSocket>::bind(SocketAddr::new("127.0.0.1".parse()?, 0)) {
                     Ok(socket) => {
                         loop {
                             match bs2l_rx.recv(){
