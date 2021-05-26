@@ -1,13 +1,19 @@
 use {
     crate::{Link, decode, encode},
     copernica_common::{
-        InterLinkPacket, LinkId, ReplyTo
+        InterLinkPacket, LinkId, ReplyTo, constants
     },
     anyhow::{anyhow, Result},
-    crossbeam_channel::{Sender, Receiver, unbounded},
-    log::{debug, error, trace},
+    futures_lite::{future},
+    async_executor::{Executor},
+    futures::{
+        stream::{self, StreamExt},
+        channel::mpsc::{Sender, Receiver, channel},
+        sink::{SinkExt},
+    },
+    log::{debug, trace, error},
+    std::sync::{Arc, Mutex},
 };
-
 pub struct MpscCorruptor {
     link_id: LinkId,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
@@ -38,7 +44,7 @@ impl<'a> Link<'a> for MpscCorruptor {
         ) -> Result<MpscCorruptor> {
         match link_id.reply_to()? {
             ReplyTo::Mpsc => {
-                let (t2t0_tx, t2t0_rx) = unbounded::<Vec<u8>>();
+                let (t2t0_tx, t2t0_rx) = channel::<Vec<u8>>(constants::BOUNDED_BUFFER_SIZE);
                 return Ok(
                     MpscCorruptor {
                         link_id,
@@ -53,25 +59,29 @@ impl<'a> Link<'a> for MpscCorruptor {
         }
     }
     #[allow(unreachable_code)]
-    fn run(&self) -> Result<()> {
+    fn run(self) -> Result<()> {
         let this_link = self.link_id.clone();
         trace!("Started {:?}:", this_link);
-        let t2t0_rx = self.t2t0_rx.clone();
-        let t2c_tx = self.t2c_tx.clone();
-        std::thread::spawn(move || {
+        let mut t2t0_rx = self.t2t0_rx;
+        let mut t2c_tx = self.t2c_tx;
+        let ex = Executor::new();
+        let task = ex.spawn(async move {
             match this_link.reply_to()? {
                 ReplyTo::Mpsc => {
                     loop {
-                        match t2t0_rx.recv(){
-                            Ok(msg) => {
+                        match t2t0_rx.next().await {
+                            Some(msg) => {
                                 let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp);
                                 debug!("\t|  |  link-to-broker-or-protocol");
                                 trace!("\t|  |  {}", this_link.lookup_id()?);
-                                let _r = t2c_tx.send(ilp)?;
+                                match t2c_tx.send(ilp).await {
+                                    Ok(_) => {},
+                                    Err(e) => error!("mpsc_channel {:?}", e),
+                                }
                             },
-                            Err(error) => error!("{:?}: {}", this_link, error),
+                            None => {}
                         };
                     }
                 },
@@ -79,30 +89,34 @@ impl<'a> Link<'a> for MpscCorruptor {
             }
             Ok::<(), anyhow::Error>(())
         });
+        std::thread::spawn(move || future::block_on(ex.run(task)));
         let this_link = self.link_id.clone();
-        let c2t_rx = self.c2t_rx.clone();
+        let mut c2t_rx = self.c2t_rx;
         if let Some(t2t1_tx) = self.t2t1_tx.clone() {
-            std::thread::spawn(move || {
+            let ex = Executor::new();
+            let task = ex.spawn(async move {
                 loop {
-                    match c2t_rx.recv(){
-                        Ok(ilp) => {
+                    match c2t_rx.next().await {
+                        Some(ilp) => {
                             let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
                             let enc = encode(lp, this_link.clone())?;
                             let mut corrupted = enc;
                             for i in 4..7 {
                                 corrupted[i] = 0x0;
                             }
-                            for s in t2t1_tx.clone() {
+                            for mut s in t2t1_tx.clone() {
                                 debug!("\t|  |  broker-or-protocol-to-link");
                                 trace!("\t|  |  {}", this_link.lookup_id()?);
-                                s.send(corrupted.clone())?;
+                                s.send(corrupted.clone()).await?;
                             }
                         },
-                        Err(error) => error!("{:?}: {}", this_link, error),
+                        None => {}
+                        //Err(error) => error!("{:?}: {}", this_link, error),
                     }
                 }
                 Ok::<(), anyhow::Error>(())
             });
+            std::thread::spawn(move || future::block_on(ex.run(task)));
         } else {
             return Err(anyhow!("You need to bind the transports before using them, i.e. t0.female(t1.male()); followed by: t1.female(t0.male());"))
         }

@@ -6,7 +6,7 @@ use {
     copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket, serialization::*},
     anyhow::Result,
     //log::{trace},
-    crossbeam_channel::Sender,
+    futures::channel::mpsc::{UnboundedSender},
     log::{debug, warn},
     std::collections::HashMap,
 };
@@ -17,7 +17,7 @@ pub struct Router {}
 impl Router {
     pub fn handle_packet(
         ilp: &InterLinkPacket,
-        r2b_tx: Sender<InterLinkPacket>,
+        r2b_tx: UnboundedSender<InterLinkPacket>,
         response_store: sled::Db,
         blooms: &mut HashMap<LinkId, Blooms>,
         bayes: &mut Bayes,
@@ -36,7 +36,7 @@ impl Router {
                             debug!("\t\t|  |  |  |  RESPONSE PACKET FOUND");
                             let lp = LinkPacket::new(this_link.reply_to()?, nw);
                             let ilp = InterLinkPacket::new(this_link.clone(), lp);
-                            r2b_tx.send(ilp)?;
+                            r2b_tx.unbounded_send(ilp)?;
                             return Ok(());
                         }
                         None => {
@@ -85,11 +85,11 @@ impl Router {
                                     }
                                     if (weight < 0.00) && (forwarded == false) {
                                         that_bloom.create_forwarded_request(&hbfi);
-                                        r2b_tx.send(ilp.change_destination(that_link))?;
+                                        r2b_tx.unbounded_send(ilp.change_destination(that_link))?;
                                         continue;
                                     }
                                     that_bloom.create_forwarded_request(&hbfi);
-                                    r2b_tx.send(ilp.change_destination(that_link))?;
+                                    r2b_tx.unbounded_send(ilp.change_destination(that_link))?;
                                     forwarded = true;
                                 }
                             }
@@ -111,7 +111,7 @@ impl Router {
                             if that_bloom.contains_pending_request(&hbfi) {
                                 that_bloom.delete_pending_request(&hbfi);
                                 debug!("\t\t|  |  |  |  FORWARD RESPONSE DOWNSTREAM");
-                                r2b_tx.send(ilp.change_destination(that_link.clone()))?;
+                                r2b_tx.unbounded_send(ilp.change_destination(that_link.clone()))?;
                             }
                         }
                     }

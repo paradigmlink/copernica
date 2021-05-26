@@ -2,11 +2,18 @@ use {
     crate::{Link, encode, decode},
     copernica_common::{ InterLinkPacket, LinkId, ReplyTo },
     anyhow::{anyhow, Result},
-    crossbeam_channel::{Sender, Receiver},
+    futures::{
+        stream::{self, StreamExt, Stream},
+        channel::mpsc::{Sender, Receiver},
+        sink::{SinkExt},
+    },
     async_executor::{Executor},
     futures_lite::{future},
     log::{debug, error, trace},
-    std::net::{SocketAddr, UdpSocket}
+    std::{
+      net::{SocketAddr, UdpSocket},
+      sync::{Arc, Mutex},
+    },
 };
 pub struct UdpIp {
     link_id: LinkId,
@@ -25,71 +32,70 @@ impl Link<'_> for UdpIp {
         }
     }
     #[allow(unreachable_code)]
-    fn run(&self) -> Result<()> {
+    fn run(self) -> Result<()> {
         let this_link = self.link_id.clone();
-        let l2bs_tx = self.l2bs_tx.clone();
-        std::thread::spawn(move || {
-            let ex = Executor::new();
-            let task = ex.spawn(async {
-                match this_link.reply_to()? {
-                    ReplyTo::UdpIp(addr) => {
-                        match async_io::Async::<UdpSocket>::bind(addr) {
-                            Ok(socket) => {
-                                loop {
-                                    let mut buf = vec![0u8; 1500];
-                                    match socket.recv_from(&mut buf).await {
-                                        Ok((n, _peer)) => {
-                                            debug!("\t\t\t|  |  link-to-broker-or-protocol");
-                                            trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
-                                            let (_lnk_tx_pid, lp) = decode(buf[..n].to_vec(), this_link.clone())?;
-                                            let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
-                                            let ilp = InterLinkPacket::new(link_id, lp);
-                                            let _r = l2bs_tx.send(ilp)?;
-                                        },
-                                        Err(error) => error!("{:?}: {}", this_link, error),
-                                    };
+        let mut l2bs_tx = self.l2bs_tx.clone();
+        let ex = Executor::new();
+        let task = ex.spawn(async move {
+            match this_link.reply_to()? {
+                ReplyTo::UdpIp(addr) => {
+                    match async_io::Async::<UdpSocket>::bind(addr) {
+                        Ok(socket) => {
+                            loop {
+                                let mut buf = vec![0u8; 1500];
+                                match socket.recv_from(&mut buf).await {
+                                    Ok((n, _peer)) => {
+                                        debug!("\t\t\t|  |  link-to-broker-or-protocol");
+                                        trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
+                                        let (_lnk_tx_pid, lp) = decode(buf[..n].to_vec(), this_link.clone())?;
+                                        let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
+                                        let ilp = InterLinkPacket::new(link_id, lp);
+                                        match l2bs_tx.send(ilp).await {
+                                            Ok(_) => {},
+                                            Err(e) => error!("udp_ip link {:?}", e),
+                                        }
+                                    },
+                                    Err(error) => error!("{:?}: {}", this_link, error),
+                                };
+                            }
+                        },
+                        Err(error) => error!("{:?}: {}", this_link, error),
+                    }
+                },
+                _ => {},
+            }
+            Ok::<(), anyhow::Error>(())
+        });
+        std::thread::spawn(move || future::block_on(ex.run(task)));
+        let this_link = self.link_id.clone();
+        let ex = Executor::new();
+        let mut bs2l_rx = self.bs2l_rx;
+        let task = ex.spawn(async move {
+            match async_io::Async::<UdpSocket>::bind(SocketAddr::new("127.0.0.1".parse()?, 0)) {
+                Ok(socket) => {
+                    loop {
+                        match bs2l_rx.next().await {
+                            Some(ilp) => {
+                                match ilp.reply_to()? {
+                                    ReplyTo::UdpIp(remote_addr) => {
+                                        let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
+                                        debug!("\t\t\t|  |  broker-or-protocol-to-link");
+                                        trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
+                                        let enc = encode(lp, this_link.clone())?;
+                                        socket.send_to(&enc, remote_addr).await?;
+                                    },
+                                    _ => {},
                                 }
                             },
-                            Err(error) => error!("{:?}: {}", this_link, error),
+                            None => {}
                         }
-                    },
-                    _ => {},
-                }
-                Ok::<(), anyhow::Error>(())
-            });
-            let _ = future::block_on(ex.run(task));
+                    }
+                },
+                Err(error) => error!("{:?}: {}", this_link, error),
+            }
+            Ok::<(), anyhow::Error>(())
         });
-        let this_link = self.link_id.clone();
-        let bs2l_rx = self.bs2l_rx.clone();
-        std::thread::spawn(move || {
-            let ex = Executor::new();
-            let task = ex.spawn(async {
-                match async_io::Async::<UdpSocket>::bind(SocketAddr::new("127.0.0.1".parse()?, 0)) {
-                    Ok(socket) => {
-                        loop {
-                            match bs2l_rx.recv(){
-                                Ok(ilp) => {
-                                    match ilp.reply_to()? {
-                                        ReplyTo::UdpIp(remote_addr) => {
-                                            let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
-                                            debug!("\t\t\t|  |  broker-or-protocol-to-link");
-                                            trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
-                                            let enc = encode(lp, this_link.clone())?;
-                                            socket.send_to(&enc, remote_addr).await?;
-                                        },
-                                        _ => {},
-                                    }
-                                },
-                                Err(error) => error!("{:?}: {}", this_link, error),
-                            }
-                        }
-                    },
-                    Err(error) => error!("{:?}: {}", this_link, error),
-                }
-                Ok::<(), anyhow::Error>(())
-            });
-            let _ = future::block_on(ex.run(task));
-        });
+        std::thread::spawn(move || future::block_on(ex.run(task)));
         Ok(())
     }
 }

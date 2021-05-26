@@ -11,9 +11,12 @@ use {
         InterLinkPacket, LinkId, LinkPacket, PublicIdentity,
         serialization::*,
     },
-    crossbeam_channel::{Sender, Receiver},
+    futures::{
+        channel::mpsc::{Sender, Receiver},
+    },
     anyhow::{Result},
     reed_solomon::{Buffer, Encoder, Decoder},
+    std::sync::{Arc, Mutex},
 };
 pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
     let dec = Decoder::new(6);
@@ -33,6 +36,6 @@ pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
     Ok(merged)
 }
 pub trait Link<'a> {
-    fn run(&self) -> Result<()>;
+    fn run(self) -> Result<()>;
     fn new(link: LinkId, router_in_and_out: ( Sender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
 }

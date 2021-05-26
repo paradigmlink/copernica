@@ -1,11 +1,18 @@
 use {
     crate::{Link, decode, encode},
     copernica_common::{
-        InterLinkPacket, LinkId, ReplyTo
+        InterLinkPacket, LinkId, ReplyTo, constants
     },
     anyhow::{anyhow, Result},
-    crossbeam_channel::{Sender, Receiver, unbounded},
-    log::{debug, error, trace},
+    futures_lite::{future},
+    async_executor::{Executor},
+    futures::{
+        stream::{self, StreamExt},
+        channel::mpsc::{Sender, Receiver, channel},
+        sink::{SinkExt},
+    },
+    log::{debug, trace, error },
+    std::sync::{Arc, Mutex},
 };
 
 pub struct MpscChannel {
@@ -38,7 +45,7 @@ impl<'a> Link<'a> for MpscChannel {
         ) -> Result<MpscChannel> {
         match link_id.reply_to()? {
             ReplyTo::Mpsc => {
-                let (l2l0_tx, l2l0_rx) = unbounded::<Vec<u8>>();
+                let (l2l0_tx, l2l0_rx) = channel::<Vec<u8>>(constants::BOUNDED_BUFFER_SIZE);
                 return Ok(
                     MpscChannel {
                         link_id,
@@ -54,25 +61,29 @@ impl<'a> Link<'a> for MpscChannel {
     }
 
     #[allow(unreachable_code)]
-    fn run(&self) -> Result<()> {
+    fn run(self) -> Result<()> {
         let this_link = self.link_id.clone();
         trace!("Started {:?}:", this_link);
-        let l2l0_rx = self.l2l0_rx.clone();
-        let l2bs_tx = self.l2bs_tx.clone();
-        std::thread::spawn(move || {
+        let mut l2l0_rx = self.l2l0_rx;
+        let mut l2bs_tx = self.l2bs_tx;
+        let ex = Executor::new();
+        let task = ex.spawn(async move {
             match this_link.reply_to()? {
                 ReplyTo::Mpsc => {
                     loop {
-                        match l2l0_rx.recv(){
-                            Ok(msg) => {
+                        match l2l0_rx.next().await {
+                            Some(msg) => {
                                 let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp.clone());
                                 debug!("\t\t|  |  link-to-broker-or-protocol");
                                 trace!("\t|  |  {}", this_link.lookup_id()?);
-                                let _r = l2bs_tx.send(ilp)?;
+                                match l2bs_tx.send(ilp).await {
+                                    Ok(_) => {},
+                                    Err(e) => error!("mpsc_channel {:?}", e),
+                                }
                             },
-                            Err(error) => error!("{:?}: {}", this_link, error),
+                            None => {}
                         };
                     }
                 },
@@ -80,26 +91,32 @@ impl<'a> Link<'a> for MpscChannel {
             }
             Ok::<(), anyhow::Error>(())
         });
+        std::thread::spawn(move || future::block_on(ex.run(task)));
         let this_link = self.link_id.clone();
-        let bs2l_rx = self.bs2l_rx.clone();
+        let mut bs2l_rx = self.bs2l_rx;
         if let Some(l2l1_tx) = self.l2l1_tx.clone() {
-            std::thread::spawn(move || {
+            let ex = Executor::new();
+            let task = ex.spawn(async move {
                 loop {
-                    match bs2l_rx.recv(){
-                        Ok(ilp) => {
+                    match bs2l_rx.next().await {
+                        Some(ilp) => {
                             let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
                             let enc = encode(lp, this_link.clone())?;
-                            for s in l2l1_tx.clone() {
+                            for mut s in l2l1_tx.clone() {
                                 debug!("\t\t|  |  broker-or-protocol-to-link");
                                 trace!("\t\t|  |  {}", this_link.lookup_id()?);
-                                s.send(enc.clone())?;
+                                match s.send(enc.clone()).await {
+                                    Ok(_) => {},
+                                    Err(e) => error!("mpsc_channel outbound: {:?}", e),
+                                }
                             }
                         },
-                        Err(error) => error!("{:?}: {}", this_link, error),
+                        None => {}
                     }
                 }
                 Ok::<(), anyhow::Error>(())
             });
+            std::thread::spawn(move || future::block_on(ex.run(task)));
         } else {
             return Err(anyhow!("You need to bind the transports before using them, i.e. t0.female(t1.male()); followed by: t1.female(t0.male());"))
         }

@@ -2,7 +2,7 @@ mod protocol;
 mod echo;
 pub use {
     self::{
-        protocol::{Protocol, TxRx},
+        protocol::{Protocol, Inbound, Outbound},
         echo::{Echo},
     },
 };

@@ -1,12 +1,20 @@
 use {
-    copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, serialization::*, PrivateIdentityInterface},
-    //std::{thread},
-    log::{debug},
-    crossbeam_channel::{Sender, Receiver, unbounded},
+    copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, serialization::*, PrivateIdentityInterface,
+    constants},
+    log::{debug, error},
+    futures::{
+        stream::{self, StreamExt, Stream},
+        channel::mpsc::{Sender, Receiver, channel},
+        sink::{SinkExt},
+        lock::Mutex,
+    },
+    crossbeam_utils::atomic::AtomicCell,
     sled::{Db, Event, Subscriber},
     anyhow::{Result},
     futures::future::{join_all},
-    async_std::{task},
+    std::sync::{Arc},
+    async_trait::async_trait,
+    //async_std::{task},
 };
 
 /*
@@ -32,46 +40,49 @@ use {
     +-----------+               +-----------+               |           Broker           |   +-----------+   +-----------+
                                                             +----------------------------+
 */
+/*
 #[derive(Clone)]
-pub struct TxRx {
+pub struct Inbound {
+    pub l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+}
+impl Inbound {
+    pub fn new(l2p_rx: Receiver<InterLinkPacket>) -> Self {
+        Self { l2p_rx: Arc::new(Mutex::new(l2p_rx)) }
+    }
+    pub async fn next_inbound(&self) -> Result<Option<InterLinkPacket>> {
+        let l2p_rx_mutex = Arc::clone(&self.l2p_rx);
+        let mut l2p_rx_ref = l2p_rx_mutex.lock().unwrap();
+        let val = l2p_rx_ref.next().await;
+        drop(l2p_rx_ref);
+        Ok(val)
+    }
+}*/
+#[derive(Clone)]
+pub struct Inbound {
+    pub l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+}
+impl Inbound {
+    pub fn new(l2p_rx: Receiver<InterLinkPacket>) -> Self {
+        Self { l2p_rx: Arc::new(Mutex::new(l2p_rx)) }
+    }
+    pub async fn next_inbound(self) -> Option<InterLinkPacket> {
+        let l2p_rx_mutex = Arc::clone(&self.l2p_rx);
+        let mut l2p_rx_ref = l2p_rx_mutex.lock().await;
+        l2p_rx_ref.next().await
+    }
+}
+#[derive(Clone)]
+pub struct Outbound {
     pub db: Db,
     pub link_id: LinkId,
     pub protocol_sid: PrivateIdentityInterface,
     pub p2l_tx: Sender<InterLinkPacket>,
-    pub l2p_rx: Receiver<InterLinkPacket>,
 }
-async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentityInterface) -> Result<Vec<u8>> {
-    let chunk = vec![];
-    while let Some(event) = (&mut subscriber).await {
-    //for event in subscriber.take(1) {
-        match event {
-            Event::Insert{ key, value } => {
-                //let _key_s: HBFI = deserialize_cyphertext_hbfi(&key.to_vec())?;
-                debug!("HBFI {:?}", key);
-                let nw = deserialize_narrow_waist_packet(&value.to_vec())?;
-                    match nw.clone() {
-                        NarrowWaistPacket::Request {..} => {},
-                        NarrowWaistPacket::Response {hbfi, ..} => {
-                            match hbfi.request_pid {
-                                Some(_) => {
-                                    nw.data(Some(sid.clone()))?
-                                },
-                                None => {
-                                    nw.data(None)?
-                                },
-                            };
-                        }
-                    }
-            }
-            Event::Remove {key:_ } => {}
-        }
+impl Outbound {
+    pub fn new(db: Db, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: Sender<InterLinkPacket>) -> Self {
+        Self {db, link_id, protocol_sid, p2l_tx}
     }
-    Ok(chunk)
-}
-impl TxRx {
-    pub fn new(db: Db, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: Sender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> Self {
-        Self {db, link_id, protocol_sid, p2l_tx, l2p_rx}
-    }
+    /*
     pub fn request(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
         let mut counter = start;
         let mut reconstruct: Vec<Result<Vec<u8>>> = vec![];
@@ -86,7 +97,7 @@ impl TxRx {
                 let subscriber = self.db.watch_prefix(hbfi_s);
                 debug!("\t\t|  protocol-to-link");
                 futures_reconstruct.push(process_subscriber(subscriber, self.protocol_sid.clone()));
-                self.p2l_tx.send(ilp)?;
+                self.p2l_tx.try_send(ilp)?;
             }
             counter += 1;
         }
@@ -96,8 +107,8 @@ impl TxRx {
         debug!("HERE WE ARE {:?}", reconstruct);
         let reconstructed = reconstruct.into_iter().map(|u|u.unwrap()).flatten().collect();
         Ok(reconstructed)
-    }
-    pub fn request2(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
+    }*/
+    pub async fn request2(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
         let mut counter = start;
         let mut reconstruct: Vec<u8> = vec![];
         while counter <= end {
@@ -122,11 +133,11 @@ impl TxRx {
                     let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
                     let subscriber = self.db.watch_prefix(hbfi_s);
                     debug!("\t\t|  protocol-to-link");
-                    self.p2l_tx.send(ilp)?;
-                    //debug!("                                HELLO");
+                    match self.p2l_tx.send(ilp).await {
+                        Ok(_) => {},
+                        Err(e) => error!("protocol send error {:?}", e),
+                    }
                     for event in subscriber.take(1) {
-                        //debug!("                            HELLO");
-                        //debug!("{:?}", event);
                         match event {
                             Event::Insert{ key: _, value } => {
                                 let nw = deserialize_narrow_waist_packet(&value.to_vec())?;
@@ -159,7 +170,7 @@ impl TxRx {
         }
         Ok(reconstruct)
     }
-    pub fn respond(&self,
+    pub async fn respond(mut self,
         hbfi: HBFI,
         data: Vec<u8>,
     ) -> Result<()> {
@@ -168,25 +179,58 @@ impl TxRx {
         let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
         let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
         debug!("\t\t|  protocol-to-link");
-        self.p2l_tx.send(ilp.clone())?;
+        //self.p2l_tx.clone().send(ilp.clone()).await?;
+        match self.p2l_tx.send(ilp).await {
+            Ok(_) => {},
+            Err(e) => error!("protocol send error {:?}", e),
+        }
         Ok(())
     }
 }
-
+async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentityInterface) -> Result<Vec<u8>> {
+    let chunk = vec![];
+    while let Some(event) = (&mut subscriber).await {
+    //for event in subscriber.take(1) {
+        match event {
+            Event::Insert{ key, value } => {
+                //let _key_s: HBFI = deserialize_cyphertext_hbfi(&key.to_vec())?;
+                debug!("HBFI {:?}", key);
+                let nw = deserialize_narrow_waist_packet(&value.to_vec())?;
+                    match nw.clone() {
+                        NarrowWaistPacket::Request {..} => {},
+                        NarrowWaistPacket::Response {hbfi, ..} => {
+                            match hbfi.request_pid {
+                                Some(_) => {
+                                    nw.data(Some(sid.clone()))?
+                                },
+                                None => {
+                                    nw.data(None)?
+                                },
+                            };
+                        }
+                    }
+            }
+            Event::Remove {key:_ } => {}
+        }
+    }
+    Ok(chunk)
+}
 pub trait Protocol<'a> {
     fn get_db(&mut self) -> sled::Db;
     fn get_protocol_sid(&mut self) -> PrivateIdentityInterface;
-    fn set_txrx(&mut self, txrx: TxRx);
-    fn get_txrx(&mut self) -> Option<TxRx>;
+    fn set_outbound(&mut self, outbound: Outbound);
+    fn set_inbound(&mut self, inbound: Inbound);
     fn peer_with_link(&mut self, link_id: LinkId) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
-        let (l2p_tx, l2p_rx) = unbounded::<InterLinkPacket>();
-        let (p2l_tx, p2l_rx) = unbounded::<InterLinkPacket>();
-        let txrx = TxRx::new(self.get_db(), link_id, self.get_protocol_sid(), p2l_tx, l2p_rx);
-        self.set_txrx(txrx);
+        let (l2p_tx, l2p_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let (p2l_tx, p2l_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let inbound = Inbound::new(l2p_rx);
+        let outbound = Outbound::new(self.get_db(), link_id, self.get_protocol_sid(), p2l_tx);
+        self.set_inbound(inbound);
+        self.set_outbound(outbound);
         Ok((l2p_tx, p2l_rx))
     }
     #[allow(unreachable_code)]
-    fn run(&mut self) -> Result<()>;
+    fn run(&self) -> Result<()>;
     fn new(db: sled::Db, protocol_sid: PrivateIdentityInterface) -> Self where Self: Sized;
 }
 
