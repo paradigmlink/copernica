@@ -16,7 +16,6 @@ use {
     },
     anyhow::{Result},
     reed_solomon::{Buffer, Encoder, Decoder},
-    std::sync::{Arc, Mutex},
 };
 pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
     let dec = Decoder::new(6);

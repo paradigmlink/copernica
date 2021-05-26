@@ -3,18 +3,14 @@ use {
     constants},
     log::{debug, error},
     futures::{
-        stream::{self, StreamExt, Stream},
+        stream::{StreamExt},
         channel::mpsc::{Sender, Receiver, channel},
         sink::{SinkExt},
         lock::Mutex,
     },
-    crossbeam_utils::atomic::AtomicCell,
-    sled::{Db, Event, Subscriber},
+    sled::{Db, Event},
     anyhow::{Result},
-    futures::future::{join_all},
     std::sync::{Arc},
-    async_trait::async_trait,
-    //async_std::{task},
 };
 
 /*
@@ -40,23 +36,6 @@ use {
     +-----------+               +-----------+               |           Broker           |   +-----------+   +-----------+
                                                             +----------------------------+
 */
-/*
-#[derive(Clone)]
-pub struct Inbound {
-    pub l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-}
-impl Inbound {
-    pub fn new(l2p_rx: Receiver<InterLinkPacket>) -> Self {
-        Self { l2p_rx: Arc::new(Mutex::new(l2p_rx)) }
-    }
-    pub async fn next_inbound(&self) -> Result<Option<InterLinkPacket>> {
-        let l2p_rx_mutex = Arc::clone(&self.l2p_rx);
-        let mut l2p_rx_ref = l2p_rx_mutex.lock().unwrap();
-        let val = l2p_rx_ref.next().await;
-        drop(l2p_rx_ref);
-        Ok(val)
-    }
-}*/
 #[derive(Clone)]
 pub struct Inbound {
     pub l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
@@ -187,6 +166,7 @@ impl Outbound {
         Ok(())
     }
 }
+/*
 async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentityInterface) -> Result<Vec<u8>> {
     let chunk = vec![];
     while let Some(event) = (&mut subscriber).await {
@@ -215,6 +195,7 @@ async fn process_subscriber(mut subscriber: Subscriber, sid: PrivateIdentityInte
     }
     Ok(chunk)
 }
+*/
 pub trait Protocol<'a> {
     fn get_db(&mut self) -> sled::Db;
     fn get_protocol_sid(&mut self) -> PrivateIdentityInterface;

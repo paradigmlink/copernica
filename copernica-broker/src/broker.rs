@@ -7,14 +7,13 @@ use {
     copernica_common::{LinkId, InterLinkPacket, constants},
     anyhow::{anyhow, Result},
     futures::{
-        stream::{self, StreamExt, Stream},
+        stream::{StreamExt},
         channel::mpsc::{UnboundedSender, UnboundedReceiver, Sender, Receiver, channel, unbounded},
         sink::{SinkExt},
     },
     futures_lite::{future},
     std::{
       collections::HashMap,
-      sync::{Arc, Mutex},
     },
     async_executor::{Executor},
     log::{

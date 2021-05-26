@@ -3,23 +3,14 @@ use {
     bincode,
     copernica_common::{
         bloom_filter_index as bfi, serialization::*,
-        NarrowWaistPacket, HBFI, PublicIdentity, PrivateIdentityInterface, InterLinkPacket
+        NarrowWaistPacket, HBFI, PublicIdentity, PrivateIdentityInterface
     },
     crate::{Protocol, Outbound, Inbound},
-    futures::{
-        stream::{self, StreamExt, Stream},
-        channel::mpsc::{Sender, Receiver},
-    },
     log::debug,
-    std::{
-        thread,
-        sync::{Arc, Mutex},
-    },
     async_executor::{Executor},
     futures_lite::{future},
-    async_trait::async_trait,
 };
-//#[derive(Clone)]
+#[derive(Clone)]
 pub struct Echo {
     db: sled::Db,
     protocol_sid: PrivateIdentityInterface,
@@ -57,7 +48,6 @@ impl<'a> Protocol<'a> for Echo {
             inbound: None,
         }
     }
-    //remove async shit and return a task
     fn run(&self) -> Result<()> {
         let db = self.db.clone();
         let outbound = self.outbound.clone();

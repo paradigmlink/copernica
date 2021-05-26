@@ -7,12 +7,11 @@ use {
     futures_lite::{future},
     async_executor::{Executor},
     futures::{
-        stream::{self, StreamExt},
+        stream::{StreamExt},
         channel::mpsc::{Sender, Receiver, channel},
         sink::{SinkExt},
     },
     log::{debug, trace, error },
-    std::sync::{Arc, Mutex},
 };
 
 pub struct MpscChannel {

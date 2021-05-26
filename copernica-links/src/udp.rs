@@ -3,7 +3,7 @@ use {
     copernica_common::{ InterLinkPacket, LinkId, ReplyTo },
     anyhow::{anyhow, Result},
     futures::{
-        stream::{self, StreamExt, Stream},
+        stream::{StreamExt},
         channel::mpsc::{Sender, Receiver},
         sink::{SinkExt},
     },
@@ -12,7 +12,6 @@ use {
     log::{debug, error, trace},
     std::{
       net::{SocketAddr, UdpSocket},
-      sync::{Arc, Mutex},
     },
 };
 pub struct UdpIp {
