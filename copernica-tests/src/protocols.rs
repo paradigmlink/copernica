@@ -11,8 +11,6 @@ use {
     log::{debug},
 };
 pub fn smoke_test() -> Result<()> {
-    let echo_store0 = sled::open(generate_random_dir_name())?;
-    let echo_store1 = sled::open(generate_random_dir_name())?;
     let broker_store0 = sled::open(generate_random_dir_name())?;
     let broker_store1 = sled::open(generate_random_dir_name())?;
 
@@ -20,8 +18,8 @@ pub fn smoke_test() -> Result<()> {
     let mut broker1 = Broker::new(broker_store1);
     let echo_protocol_sid0 = PrivateIdentityInterface::new_key();
     let echo_protocol_sid1 = PrivateIdentityInterface::new_key();
-    let mut echo_protocol0: Echo = Protocol::new(echo_store0, echo_protocol_sid0.clone());
-    let mut echo_protocol1: Echo = Protocol::new(echo_store1, echo_protocol_sid1.clone());
+    let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone());
+    let mut echo_protocol1: Echo = Protocol::new(echo_protocol_sid1.clone());
 
     // echo_protocol0 to broker0
     let link_sid0 = PrivateIdentityInterface::new_key();

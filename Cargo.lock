@@ -569,7 +569,6 @@ dependencies = [
  "futures-lite",
  "log 0.4.14",
  "serde",
- "sled",
  "walkdir",
 ]
 
