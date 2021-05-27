@@ -1,7 +1,3 @@
-use futures::channel::mpsc;
-use futures::sink::SinkExt;
-use netsim_embed::*;
-use std::net::{SocketAddrV4, UdpSocket};
 use {
     copernica_protocols::{Echo, Protocol},
     copernica_broker::{Broker},
@@ -10,56 +6,6 @@ use {
     log::{debug},
     anyhow::{Result},
 };
-
-pub fn netsim_smoke_test() -> Result<()>{
-    run(async {
-        let mut net = NetworkBuilder::new(Ipv4Range::global());
-        let addr = net.spawn_machine(
-            Wire::new(),
-            |_: mpsc::UnboundedReceiver<()>, _: mpsc::UnboundedSender<()>| async move {
-                let addr = SocketAddrV4::new(0.into(), 3000);
-                let socket = async_io::Async::<UdpSocket>::bind(addr).unwrap();
-                loop {
-                    let mut buf = [0u8; 11];
-                    let (len, addr) = socket.recv_from(&mut buf).await.unwrap();
-                    if &buf[..len] == b"ping" {
-                        println!("received ping");
-
-                        socket.send_to(b"pong", addr).await.unwrap();
-                        break;
-                    }
-                }
-            },
-        );
-
-        let mut local = NetworkBuilder::new(Ipv4Range::random_local_subnet());
-        local.spawn_machine(
-            Wire::new(),
-            move |_: mpsc::UnboundedReceiver<()>, mut events: mpsc::UnboundedSender<()>| async move {
-                let laddr = SocketAddrV4::new(0.into(), 3000);
-                println!("Binding to local ADDRESS: {}", laddr);
-                let socket = async_io::Async::<UdpSocket>::bind(laddr).unwrap();
-                socket
-                    .send_to(b"ping", SocketAddrV4::new(addr, 3000))
-                    .await
-                    .unwrap();
-                    println!("Sending to ADDRESS: {}", addr);
-
-                let mut buf = [0u8; 11];
-                let (len, _addr) = socket.recv_from(&mut buf).await.unwrap();
-                if &buf[..len] == b"pong" {
-                    println!("received pong");
-                    events.send(()).await.unwrap();
-                }
-            },
-        );
-
-        net.spawn_network(Some(NatConfig::default()), local);
-        net.spawn().subnet(0).machine(0).recv().await;
-    });
-    Ok(())
-}
-
 pub fn smoke_test() -> Result<()> {
     let mut broker0 = Broker::new();
     let mut broker1 = Broker::new();
