@@ -5,7 +5,7 @@ mod broker;
 pub mod bayes;
 mod router;
 pub use crate::{
-    broker::Broker,
+    broker::{Broker, ResponseStore},
     router::Router,
     bayes::{Bayes, LinkWeight},
 };

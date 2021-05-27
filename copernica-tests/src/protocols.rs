@@ -2,8 +2,6 @@
 use {
 
     anyhow::{Result},
-    crate::common::{generate_random_dir_name},
-    sled,
     copernica_protocols::{Echo, Protocol},
     copernica_broker::{Broker},
     copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface},
@@ -11,11 +9,8 @@ use {
     log::{debug},
 };
 pub fn smoke_test() -> Result<()> {
-    let broker_store0 = sled::open(generate_random_dir_name())?;
-    let broker_store1 = sled::open(generate_random_dir_name())?;
-
-    let mut broker0 = Broker::new(broker_store0);
-    let mut broker1 = Broker::new(broker_store1);
+    let mut broker0 = Broker::new();
+    let mut broker1 = Broker::new();
     let echo_protocol_sid0 = PrivateIdentityInterface::new_key();
     let echo_protocol_sid1 = PrivateIdentityInterface::new_key();
     let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone());
