@@ -44,10 +44,6 @@ pub fn smoke_test() -> Result<()> {
     let link4: UdpIp = Link::new(link_id4.clone(), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
     let link5: UdpIp = Link::new(link_id5.clone(), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
 
-    //let links: Vec<Box<dyn Link>> = vec![Box::new(link0), Box::new(link1), Box::new(link2), Box::new(link3), Box::new(link4), Box::new(link5)];
-    //for link in links {
-    //    link.run()?;
-    //}
     echo_protocol0.run()?;    // echo0 service is connected to link0
     link0.run()?;    // link0 link is connected to link1
     link1.run()?;    // etc
@@ -59,12 +55,45 @@ pub fn smoke_test() -> Result<()> {
     link5.run()?;
     echo_protocol1.run()?;
 
-    debug!("cleartext  : \"ping\"");
-    let pong: String = echo_protocol1.cleartext_ping(echo_protocol_sid0.public_id())?;
-    debug!("cleartext  : {:?}", pong);
+    debug!("unreliable unordered cleartext ping");
+    let pong: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
+    debug!("unreliable cleartext  {:?}", pong);
 
-    debug!("cyphertext : \"ping\"");
-    let pong: String = echo_protocol0.cyphertext_ping(echo_protocol_sid1.public_id())?;
-    debug!("cyphertext : {:?}", pong);
+    debug!("unreliable unordered cyphertext ping");
+    let pong: String = echo_protocol0.unreliable_unordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
+    debug!("unreliable cyphertext {:?}", pong);
+/*
+    debug!("unreliable sequenced cleartext ping");
+    let pong: String = echo_protocol1.unreliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id())?;
+    debug!("unreliable sequenced cleartext {:?}", pong);
+
+    debug!("unreliable sequenced cyphertext ping");
+    let pong: String = echo_protocol0.unreliable_sequenced_cyphertext_ping(echo_protocol_sid1.public_id())?;
+    debug!("unreliable sequenced cyphertext {:?}", pong);
+
+    debug!("reliable unordered cleartext ping");
+    let pong: String = echo_protocol1.reliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
+    debug!("reliable unordered cleartext {:?}", pong);
+
+    debug!("reliable unordered cyphertext ping");
+    let pong: String = echo_protocol0.reliable_unordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
+    debug!("reliable unordered cyphertext {:?}", pong);
+
+    debug!("reliable ordered cleartext ping");
+    let pong: String = echo_protocol1.reliable_ordered_cleartext_ping(echo_protocol_sid0.public_id())?;
+    debug!("reliable ordered cleartext {:?}", pong);
+
+    debug!("reliable ordered cyphertext ping");
+    let pong: String = echo_protocol0.reliable_ordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
+    debug!("reliable ordered cyphertext {:?}", pong);
+
+    debug!("reliable sequenced cleartext ping");
+    let pong: String = echo_protocol1.reliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id())?;
+    debug!("reliable sequenced cleartext {:?}", pong);
+
+    debug!("reliable sequenced cyphertext ping");
+    let pong: String = echo_protocol0.reliable_sequenced_cyphertext_ping(echo_protocol_sid1.public_id())?;
+    debug!("reliable sequenced cyphertext {:?}", pong);
+*/
     Ok(())
 }

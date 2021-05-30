@@ -62,11 +62,11 @@ pub fn smoke_test() -> Result<()> {
     echo_protocol1.run()?;
 
     debug!("cleartext  : \"ping\"");
-    let pong: String = echo_protocol1.cleartext_ping(echo_protocol_sid0.public_id())?;
+    let pong: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
     debug!("cleartext  : {:?}", pong);
 
     debug!("cyphertext : \"ping\"");
-    let pong: String = echo_protocol0.cyphertext_ping(echo_protocol_sid1.public_id())?;
+    let pong: String = echo_protocol0.unreliable_unordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
     debug!("cyphertext : {:?}", pong);
     Ok(())
 }
