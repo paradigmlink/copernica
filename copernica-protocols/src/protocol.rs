@@ -1,6 +1,6 @@
 use {
     copernica_common::{LinkId, NarrowWaistPacket, LinkPacket, InterLinkPacket, HBFI, PrivateIdentityInterface,
-    constants},
+    constants, Nonce},
     log::{debug, error},
     futures::{
         stream::{StreamExt},
@@ -8,8 +8,13 @@ use {
         sink::{SinkExt},
         lock::Mutex,
     },
+    smol_timeout::TimeoutExt,
     anyhow::{Result},
-    std::sync::{Arc},
+    std::{
+        time::{Instant, Duration},
+        sync::{Arc},
+    },
+    uluru::LRUCache,
 };
 
 /*
@@ -35,12 +40,74 @@ use {
     +-----------+               +-----------+               |           Broker           |   +-----------+   +-----------+
                                                             +----------------------------+
 */
+pub type Names = Arc<Mutex<LRUCache<(Nonce, Instant, Duration), { constants::CONGESTION_CONTROL_SIZE }>>>;
+#[derive(Clone)]
+pub struct CongestionControl(Names);
+impl CongestionControl {
+    fn new() -> Self {
+        Self(Names::default())
+    }
+    async fn start_timer(&mut self, nw: NarrowWaistPacket) {
+        let names_mutex = self.0.clone();
+        let mut names_ref = names_mutex.lock().await;
+        let nonce = match nw {
+            NarrowWaistPacket::Request { nonce, .. } => nonce,
+            NarrowWaistPacket::Response{ nonce, .. } => nonce,
+        };
+        match names_ref.touch(|n|n.0==nonce) {
+            true  => {
+                let now = Instant::now();
+                if let Some(front) = names_ref.front_mut() {
+                    front.1 = now;
+                }
+            },
+            false => {
+                let now = Instant::now();
+                names_ref.insert((nonce, now, Duration::new(1,0)));
+            }
+        }
+    }
+    async fn wait(&self, nw: NarrowWaistPacket, rx_mutex: Arc<Mutex<Receiver<InterLinkPacket>>>) -> Option<InterLinkPacket> {
+        let names_mutex = self.0.clone();
+        let mut names_ref = names_mutex.lock().await;
+        let nonce = match nw {
+            NarrowWaistPacket::Request { nonce, .. } => nonce,
+            NarrowWaistPacket::Response{ nonce, .. } => nonce,
+        };
+        let ilp = async {
+            let mut rx_ref = rx_mutex.lock().await;
+            rx_ref.next().await
+        };
+        let res = names_ref.find(|n|n.0==nonce);
+        match res {
+            Some(res) => {
+                let ilp = ilp.timeout(res.2);
+                match ilp.await {
+                    Some(Some(ilp)) => {
+                        let elapsed = res.1.elapsed();
+                        res.2 = elapsed;
+                        return Some(ilp)
+                    },
+                    _ => {
+                        res.2 = res.2 * 2;
+                        return None
+                    }
+                }
+            },
+            None => {
+                // what happens when elements are removed from the LRU??? bug?
+                return None
+            }
+        }
+    }
+}
 #[derive(Clone)]
 pub struct TxRx {
     pub link_id: LinkId,
     pub protocol_sid: PrivateIdentityInterface,
     pub p2l_tx: Sender<InterLinkPacket>,
     pub l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+    pub cc: CongestionControl,
     pub unreliable_unordered_response_tx: Sender<InterLinkPacket>,
     pub unreliable_unordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
     pub unreliable_sequenced_response_tx: Sender<InterLinkPacket>,
@@ -65,6 +132,7 @@ impl TxRx {
             protocol_sid,
             p2l_tx,
             l2p_rx: Arc::new(Mutex::new(l2p_rx)),
+            cc: CongestionControl::new(),
             unreliable_unordered_response_rx: Arc::new(Mutex::new(unreliable_unordered_response_rx)),
             unreliable_unordered_response_tx,
             unreliable_sequenced_response_rx: Arc::new(Mutex::new(unreliable_sequenced_response_rx)),
@@ -82,22 +150,22 @@ impl TxRx {
         let mut l2p_rx_ref = l2p_rx_mutex.lock().await;
         l2p_rx_ref.next().await
     }
-    pub async fn unreliable_unordered_request(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
+    pub async fn unreliable_unordered_request(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
         let mut counter = start;
         let mut reconstruct: Vec<u8> = vec![];
-        let nw = NarrowWaistPacket::request(hbfi.clone())?;
-        let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
-        let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
-        debug!("\t\t|  protocol-to-link");
-        let mut p2l_tx = self.p2l_tx.clone();
-        match p2l_tx.send(ilp).await {
-            Ok(_) => { },
-            Err(e) => error!("protocol send error {:?}", e),
-        }
-        let unreliable_unordered_response_rx_mutex = Arc::clone(&self.unreliable_unordered_response_rx);
-        let mut unreliable_unordered_response_rx_ref = unreliable_unordered_response_rx_mutex.lock().await;
         while counter <= end {
-            match unreliable_unordered_response_rx_ref.next().await {
+            let nw = NarrowWaistPacket::request(hbfi.clone().offset(counter))?;
+            let lp = LinkPacket::new(self.link_id.reply_to()?, nw.clone());
+            let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
+            debug!("\t\t|  protocol-to-link");
+            self.cc.start_timer(nw.clone()).await;
+            let mut p2l_tx = self.p2l_tx.clone();
+            match p2l_tx.send(ilp).await {
+                Ok(_) => { },
+                Err(e) => error!("protocol send error {:?}", e),
+            }
+            let ilp = self.cc.wait(nw.clone(), Arc::clone(&self.unreliable_unordered_response_rx)).await;
+            match ilp {
                 Some(ilp) => {
                     let nw = ilp.narrow_waist();
                     let chunk = match hbfi.request_pid {

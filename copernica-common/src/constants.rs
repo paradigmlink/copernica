@@ -81,3 +81,4 @@ pub const HBFI_REQUEST_KEY_END: usize = HBFI_REQUEST_KEY_START + ID_SIZE + CC_SI
 
 pub const BOUNDED_BUFFER_SIZE: usize = 25;
 pub const RESPONSE_STORE_SIZE: usize = 250;
+pub const CONGESTION_CONTROL_SIZE: usize = 100;

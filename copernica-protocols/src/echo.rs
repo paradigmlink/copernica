@@ -24,7 +24,7 @@ pub struct Echo {
 }
 impl<'a> Echo {
     pub fn unreliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
             let echo = future::block_on(async { txrx.unreliable_unordered_request(hbfi.clone(), 0, 0).await });
             let echo: String = bincode::deserialize(&echo?)?;
@@ -34,7 +34,7 @@ impl<'a> Echo {
         }
     }
     pub fn unreliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
             let echo = future::block_on(async { txrx.unreliable_unordered_request(hbfi.clone(), 0, 0).await });
             let echo: String = bincode::deserialize(&echo?)?;

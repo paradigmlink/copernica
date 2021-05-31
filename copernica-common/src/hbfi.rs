@@ -19,7 +19,7 @@ pub struct HBFI {
     pub m0d: BFI, // Module
     pub fun: BFI, // Function
     pub arg: BFI, // Argument
-    pub ost: u64,
+    pub ost: u64, // Offset: current 1024 byte chunk of data in a range.
 }
 
 impl HBFI {
