@@ -150,11 +150,12 @@ impl TxRx {
         let mut l2p_rx_ref = l2p_rx_mutex.lock().await;
         l2p_rx_ref.next().await
     }
-    pub async fn unreliable_unordered_request(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
+    pub async fn unreliable_unordered_request(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
         let mut counter = start;
-        let mut reconstruct: Vec<u8> = vec![];
+        let mut reconstruct: Vec<Vec<u8>> = vec![];
         while counter <= end {
-            let nw = NarrowWaistPacket::request(hbfi.clone().offset(counter))?;
+            let hbfi_req = hbfi.clone().offset(counter);
+            let nw = NarrowWaistPacket::request(hbfi_req)?;
             let lp = LinkPacket::new(self.link_id.reply_to()?, nw.clone());
             let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
             debug!("\t\t|  protocol-to-link");
@@ -168,15 +169,20 @@ impl TxRx {
             match ilp {
                 Some(ilp) => {
                     let nw = ilp.narrow_waist();
-                    let chunk = match hbfi.request_pid {
-                        Some(_) => {
-                            nw.data(Some(self.protocol_sid.clone()))?
+                    match nw.clone() {
+                        NarrowWaistPacket::Request { .. } => { },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            let chunk = match hbfi.request_pid {
+                                Some(_) => {
+                                    nw.data(Some(self.protocol_sid.clone()))?
+                                },
+                                None => {
+                                    nw.data(None)?
+                                },
+                            };
+                            reconstruct.push(chunk);
                         },
-                        None => {
-                            nw.data(None)?
-                        },
-                    };
-                    reconstruct.append(&mut chunk.clone());
+                    }
                 },
                 None => {}
             }
@@ -184,80 +190,43 @@ impl TxRx {
         }
         Ok(reconstruct)
     }
-    pub async fn unreliable_sequenced_request(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
+    pub async fn unreliable_sequenced_request(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
         let mut counter = start;
-        let mut reconstruct: Vec<u8> = vec![];
-        let nw = NarrowWaistPacket::request(hbfi.clone())?;
-        let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
-        let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
-        debug!("\t\t|  protocol-to-link");
-        let mut p2l_tx = self.p2l_tx.clone();
-        match p2l_tx.send(ilp).await {
-            Ok(_) => {},
-            Err(e) => error!("protocol send error {:?}", e),
-        }
-        let unreliable_sequenced_response_rx_mutex = Arc::clone(&self.unreliable_sequenced_response_rx);
-        let mut unreliable_sequenced_response_rx_ref = unreliable_sequenced_response_rx_mutex.lock().await;
+        let mut reconstruct: Vec<Vec<u8>> = vec![];
         while counter <= end {
-            match unreliable_sequenced_response_rx_ref.next().await {
-                Some(ilp) => {
-                    let nw = ilp.narrow_waist();
-                    match nw.clone() {
-                        NarrowWaistPacket::Request { hbfi, .. } => if hbfi.ost < counter { continue },
-                        NarrowWaistPacket::Response { hbfi, .. } => if hbfi.ost < counter { continue },
-                    }
-                    let chunk = match hbfi.request_pid {
-                        Some(_) => {
-                            nw.data(Some(self.protocol_sid.clone()))?
-                        },
-                        None => {
-                            nw.data(None)?
-                        },
-                    };
-                    reconstruct.append(&mut chunk.clone());
-                    debug!("RECONSTRUCT: {:?}, counter: {}", reconstruct, counter);
-                },
-                None => {
-                    debug!("NOTHING");
-                }
+            let hbfi_req = hbfi.clone().offset(counter);
+            let nw = NarrowWaistPacket::request(hbfi_req)?;
+            let lp = LinkPacket::new(self.link_id.reply_to()?, nw.clone());
+            let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
+            debug!("\t\t|  protocol-to-link");
+            self.cc.start_timer(nw.clone()).await;
+            let mut p2l_tx = self.p2l_tx.clone();
+            match p2l_tx.send(ilp).await {
+                Ok(_) => { },
+                Err(e) => error!("protocol send error {:?}", e),
             }
-            counter += 1;
-            debug!("RECONSTRUCT: {:?}, counter: {}", reconstruct, counter);
-        }
-        Ok(reconstruct)
-    }
-
-    pub async fn reliable_unordered_request(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
-        let mut counter = start;
-        let mut reconstruct: Vec<u8> = vec![];
-        let nw = NarrowWaistPacket::request(hbfi.clone())?;
-        let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
-        let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
-        debug!("\t\t|  protocol-to-link");
-        let mut p2l_tx = self.p2l_tx.clone();
-        match p2l_tx.send(ilp).await {
-            Ok(_) => {},
-            Err(e) => error!("protocol send error {:?}", e),
-        }
-        let reliable_unordered_response_rx_mutex = Arc::clone(&self.reliable_unordered_response_rx);
-        let mut reliable_unordered_response_rx_ref = reliable_unordered_response_rx_mutex.lock().await;
-        while counter <= end {
-            match reliable_unordered_response_rx_ref.next().await {
+            let ilp = self.cc.wait(nw.clone(), Arc::clone(&self.unreliable_sequenced_response_rx)).await;
+            match ilp {
                 Some(ilp) => {
                     let nw = ilp.narrow_waist();
                     match nw.clone() {
-                        NarrowWaistPacket::Request { hbfi, .. } => if hbfi.ost < counter { continue },
-                        NarrowWaistPacket::Response { hbfi, .. } => if hbfi.ost < counter { continue },
+                        NarrowWaistPacket::Request { .. } => { },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            if hbfi.ost < counter {
+                                counter = hbfi.ost;
+                                continue
+                            }
+                            let chunk = match hbfi.request_pid {
+                                Some(_) => {
+                                    nw.data(Some(self.protocol_sid.clone()))?
+                                },
+                                None => {
+                                    nw.data(None)?
+                                },
+                            };
+                            reconstruct.push(chunk);
+                        },
                     }
-                    let chunk = match hbfi.request_pid {
-                        Some(_) => {
-                            nw.data(Some(self.protocol_sid.clone()))?
-                        },
-                        None => {
-                            nw.data(None)?
-                        },
-                    };
-                    reconstruct.append(&mut chunk.clone());
                 },
                 None => {}
             }
@@ -265,38 +234,40 @@ impl TxRx {
         }
         Ok(reconstruct)
     }
-    pub async fn reliable_ordered_request(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
+
+    pub async fn reliable_unordered_request(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
         let mut counter = start;
-        let mut reconstruct: Vec<u8> = vec![];
-        let nw = NarrowWaistPacket::request(hbfi.clone())?;
-        let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
-        let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
-        debug!("\t\t|  protocol-to-link");
-        let mut p2l_tx = self.p2l_tx.clone();
-        match p2l_tx.send(ilp).await {
-            Ok(_) => {},
-            Err(e) => error!("protocol send error {:?}", e),
-        }
-        let reliable_ordered_response_rx_mutex = Arc::clone(&self.reliable_ordered_response_rx);
-        let mut reliable_ordered_response_rx_ref = reliable_ordered_response_rx_mutex.lock().await;
+        let mut reconstruct: Vec<Vec<u8>> = vec![];
         while counter <= end {
-            match reliable_ordered_response_rx_ref.next().await {
+            let hbfi_req = hbfi.clone().offset(counter);
+            let nw = NarrowWaistPacket::request(hbfi_req)?;
+            let lp = LinkPacket::new(self.link_id.reply_to()?, nw.clone());
+            let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
+            debug!("\t\t|  protocol-to-link");
+            self.cc.start_timer(nw.clone()).await;
+            let mut p2l_tx = self.p2l_tx.clone();
+            match p2l_tx.send(ilp).await {
+                Ok(_) => { },
+                Err(e) => error!("protocol send error {:?}", e),
+            }
+            let ilp = self.cc.wait(nw.clone(), Arc::clone(&self.reliable_unordered_response_rx)).await;
+            match ilp {
                 Some(ilp) => {
                     let nw = ilp.narrow_waist();
                     match nw.clone() {
-                        NarrowWaistPacket::Request { hbfi, .. } => if hbfi.ost < counter { continue },
-                        NarrowWaistPacket::Response { hbfi, .. } => if hbfi.ost < counter { continue },
+                        NarrowWaistPacket::Request { .. } => { },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            let chunk = match hbfi.request_pid {
+                                Some(_) => {
+                                    nw.data(Some(self.protocol_sid.clone()))?
+                                },
+                                None => {
+                                    nw.data(None)?
+                                },
+                            };
+                            reconstruct.push(chunk);
+                        },
                     }
-                    let chunk = match hbfi.request_pid {
-                        Some(_) => {
-                            nw.data(Some(self.protocol_sid.clone()))?
-                        },
-                        None => {
-                            nw.data(None)?
-                        },
-                    };
-                    reconstruct.append(&mut chunk.clone());
-
                 },
                 None => {}
             }
@@ -304,38 +275,83 @@ impl TxRx {
         }
         Ok(reconstruct)
     }
-    pub async fn reliable_sequenced_request(&self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<u8>> {
+    pub async fn reliable_ordered_request(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
         let mut counter = start;
-        let mut reconstruct: Vec<u8> = vec![];
-        let nw = NarrowWaistPacket::request(hbfi.clone())?;
-        let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
-        let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
-        debug!("\t\t|  protocol-to-link");
-        let mut p2l_tx = self.p2l_tx.clone();
-        match p2l_tx.send(ilp).await {
-            Ok(_) => {},
-            Err(e) => error!("protocol send error {:?}", e),
-        }
-        let reliable_sequenced_response_rx_mutex = Arc::clone(&self.reliable_sequenced_response_rx);
-        let mut reliable_sequenced_response_rx_ref = reliable_sequenced_response_rx_mutex.lock().await;
+        let mut reconstruct: Vec<Vec<u8>> = vec![];
         while counter <= end {
-            match reliable_sequenced_response_rx_ref.next().await {
+            let hbfi_req = hbfi.clone().offset(counter);
+            let nw = NarrowWaistPacket::request(hbfi_req)?;
+            let lp = LinkPacket::new(self.link_id.reply_to()?, nw.clone());
+            let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
+            debug!("\t\t|  protocol-to-link");
+            self.cc.start_timer(nw.clone()).await;
+            let mut p2l_tx = self.p2l_tx.clone();
+            match p2l_tx.send(ilp).await {
+                Ok(_) => { },
+                Err(e) => error!("protocol send error {:?}", e),
+            }
+            let ilp = self.cc.wait(nw.clone(), Arc::clone(&self.reliable_ordered_response_rx)).await;
+            match ilp {
                 Some(ilp) => {
                     let nw = ilp.narrow_waist();
                     match nw.clone() {
-                        NarrowWaistPacket::Request { hbfi, .. } => if hbfi.ost < counter { continue },
-                        NarrowWaistPacket::Response { hbfi, .. } => if hbfi.ost < counter { continue },
+                        NarrowWaistPacket::Request { .. } => { },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            let chunk = match hbfi.request_pid {
+                                Some(_) => {
+                                    nw.data(Some(self.protocol_sid.clone()))?
+                                },
+                                None => {
+                                    nw.data(None)?
+                                },
+                            };
+                            reconstruct.push(chunk);
+                        },
                     }
-                    let chunk = match hbfi.request_pid {
-                        Some(_) => {
-                            nw.data(Some(self.protocol_sid.clone()))?
+                },
+                None => {}
+            }
+            counter += 1;
+        }
+        Ok(reconstruct)
+    }
+    pub async fn reliable_sequenced_request(&mut self, hbfi: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
+        let mut counter = start;
+        let mut reconstruct: Vec<Vec<u8>> = vec![];
+        while counter <= end {
+            let hbfi_req = hbfi.clone().offset(counter);
+            let nw = NarrowWaistPacket::request(hbfi_req)?;
+            let lp = LinkPacket::new(self.link_id.reply_to()?, nw.clone());
+            let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
+            debug!("\t\t|  protocol-to-link");
+            self.cc.start_timer(nw.clone()).await;
+            let mut p2l_tx = self.p2l_tx.clone();
+            match p2l_tx.send(ilp).await {
+                Ok(_) => { },
+                Err(e) => error!("protocol send error {:?}", e),
+            }
+            let ilp = self.cc.wait(nw.clone(), Arc::clone(&self.reliable_sequenced_response_rx)).await;
+            match ilp {
+                Some(ilp) => {
+                    let nw = ilp.narrow_waist();
+                    match nw.clone() {
+                        NarrowWaistPacket::Request { .. } => { },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            if hbfi.ost < counter {
+                                counter = hbfi.ost;
+                                continue
+                            }
+                            let chunk = match hbfi.request_pid {
+                                Some(_) => {
+                                    nw.data(Some(self.protocol_sid.clone()))?
+                                },
+                                None => {
+                                    nw.data(None)?
+                                },
+                            };
+                            reconstruct.push(chunk);
                         },
-                        None => {
-                            nw.data(None)?
-                        },
-                    };
-                    reconstruct.append(&mut chunk.clone());
-
+                    }
                 },
                 None => {}
             }

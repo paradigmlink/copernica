@@ -57,12 +57,12 @@ pub fn smoke_test() -> Result<()> {
 
     debug!("unreliable unordered cleartext ping");
     let pong: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
-    debug!("unreliable cleartext  {:?}", pong);
+    debug!("unreliable unordered cleartext {:?}", pong);
 
     debug!("unreliable unordered cyphertext ping");
     let pong: String = echo_protocol0.unreliable_unordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
-    debug!("unreliable cyphertext {:?}", pong);
-/*
+    debug!("unreliable unordered cyphertext {:?}", pong);
+
     debug!("unreliable sequenced cleartext ping");
     let pong: String = echo_protocol1.unreliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id())?;
     debug!("unreliable sequenced cleartext {:?}", pong);
@@ -94,6 +94,6 @@ pub fn smoke_test() -> Result<()> {
     debug!("reliable sequenced cyphertext ping");
     let pong: String = echo_protocol0.reliable_sequenced_cyphertext_ping(echo_protocol_sid1.public_id())?;
     debug!("reliable sequenced cyphertext {:?}", pong);
-*/
+
     Ok(())
 }

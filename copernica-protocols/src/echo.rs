@@ -26,9 +26,13 @@ impl<'a> Echo {
     pub fn unreliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
-            let echo = future::block_on(async { txrx.unreliable_unordered_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.unreliable_unordered_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
@@ -36,89 +40,125 @@ impl<'a> Echo {
     pub fn unreliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
-            let echo = future::block_on(async { txrx.unreliable_unordered_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.unreliable_unordered_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
     }
     pub fn unreliable_sequenced_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
-            let echo = future::block_on(async { txrx.unreliable_sequenced_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
     }
     pub fn unreliable_sequenced_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
-            let echo = future::block_on(async { txrx.unreliable_sequenced_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
     }
     pub fn reliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
-            let echo = future::block_on(async { txrx.reliable_unordered_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_unordered_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
     }
     pub fn reliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
-            let echo = future::block_on(async { txrx.reliable_unordered_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_unordered_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
     }
     pub fn reliable_ordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
-            let echo = future::block_on(async { txrx.reliable_ordered_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_ordered_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
     }
     pub fn reliable_ordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
-            let echo = future::block_on(async { txrx.reliable_ordered_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_ordered_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
     }
     pub fn reliable_sequenced_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
-            let echo = future::block_on(async { txrx.reliable_sequenced_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_sequenced_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
     }
     pub fn reliable_sequenced_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        if let Some(txrx) = self.txrx.clone() {
+        if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
-            let echo = future::block_on(async { txrx.reliable_sequenced_request(hbfi.clone(), 0, 0).await });
-            let echo: String = bincode::deserialize(&echo?)?;
-            Ok(echo)
+            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_sequenced_request(hbfi.clone(), 0, 3).await })?;
+            let mut result: String = "".into();
+            for s in &echo {
+                let data: &str = bincode::deserialize(&s)?;
+                result.push_str(data);
+            }
+            Ok(result)
         } else {
             Err(anyhow!("You must peer with a link first"))
         }
@@ -160,38 +200,98 @@ impl<'a> Protocol<'a> for Echo {
                                         => {
                                             match arg {
                                                 arg if arg == bfi(UNRELIABLE_UNORDERED_ECHO)? => {
-                                                    let echo: Vec<u8> = bincode::serialize(&"pong".to_string())?;
+                                                    let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
+                                                    match ost {
+                                                        ost if ost == 0 => {
+                                                            echo = bincode::serialize(&"p")?;
+                                                        }
+                                                        ost if ost == 1 => {
+                                                            echo = bincode::serialize(&"o")?;
+                                                        }
+                                                        ost if ost == 2 => {
+                                                            echo = bincode::serialize(&"n")?;
+                                                        }
+                                                        ost if ost == 3 => {
+                                                            echo = bincode::serialize(&"g")?;
+                                                        }
+                                                        _ => {}
+                                                    }
                                                     txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
-                                                    let mut echo: Vec<u8> = bincode::serialize(&"pang".to_string())?;
+                                                    let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
                                                     match ost {
                                                         ost if ost == 0 => {
-                                                            echo = bincode::serialize(&"p".to_string())?;
+                                                            echo = bincode::serialize(&"p")?;
                                                         }
                                                         ost if ost == 1 => {
-                                                            echo = bincode::serialize(&"o".to_string())?;
+                                                            echo = bincode::serialize(&"o")?;
                                                         }
                                                         ost if ost == 2 => {
-                                                            echo = bincode::serialize(&"n".to_string())?;
+                                                            echo = bincode::serialize(&"n")?;
                                                         }
                                                         ost if ost == 3 => {
-                                                            echo = bincode::serialize(&"g".to_string())?;
+                                                            echo = bincode::serialize(&"g")?;
                                                         }
                                                         _ => {}
                                                     }
                                                     txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_UNORDERED_ECHO)? => {
-                                                    let echo: Vec<u8> = bincode::serialize(&"pong".to_string())?;
+                                                    let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
+                                                    match ost {
+                                                        ost if ost == 0 => {
+                                                            echo = bincode::serialize(&"p")?;
+                                                        }
+                                                        ost if ost == 1 => {
+                                                            echo = bincode::serialize(&"o")?;
+                                                        }
+                                                        ost if ost == 2 => {
+                                                            echo = bincode::serialize(&"n")?;
+                                                        }
+                                                        ost if ost == 3 => {
+                                                            echo = bincode::serialize(&"g")?;
+                                                        }
+                                                        _ => {}
+                                                    }
                                                     txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
-                                                    let echo: Vec<u8> = bincode::serialize(&"pong".to_string())?;
+                                                    let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
+                                                    match ost {
+                                                        ost if ost == 0 => {
+                                                            echo = bincode::serialize(&"p")?;
+                                                        }
+                                                        ost if ost == 1 => {
+                                                            echo = bincode::serialize(&"o")?;
+                                                        }
+                                                        ost if ost == 2 => {
+                                                            echo = bincode::serialize(&"n")?;
+                                                        }
+                                                        ost if ost == 3 => {
+                                                            echo = bincode::serialize(&"g")?;
+                                                        }
+                                                        _ => {}
+                                                    }
                                                     txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_SEQUENCED_ECHO)? => {
-                                                    let echo: Vec<u8> = bincode::serialize(&"pong".to_string())?;
+                                                    let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
+                                                    match ost {
+                                                        ost if ost == 0 => {
+                                                            echo = bincode::serialize(&"p")?;
+                                                        }
+                                                        ost if ost == 1 => {
+                                                            echo = bincode::serialize(&"o")?;
+                                                        }
+                                                        ost if ost == 2 => {
+                                                            echo = bincode::serialize(&"n")?;
+                                                        }
+                                                        ost if ost == 3 => {
+                                                            echo = bincode::serialize(&"g")?;
+                                                        }
+                                                        _ => {}
+                                                    }
                                                     txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 _ => {}
