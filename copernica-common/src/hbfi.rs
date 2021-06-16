@@ -3,12 +3,13 @@ use {
     anyhow::{Result},
     serde::{Deserialize, Serialize},
     std::fmt,
+    core::hash::{Hash, Hasher}
 };
 
 pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]; // Bloom Filter Index
 pub type BFIS = [BFI; constants::BFI_COUNT]; // Bloom Filter Index
 
-#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct HBFI {
     // Hierarchical Bloom Filter Index
     pub request_pid: Option<PublicIdentity>,
@@ -21,7 +22,37 @@ pub struct HBFI {
     pub arg: BFI, // Argument
     pub ost: u64, // Offset: current 1024 byte chunk of data in a range.
 }
-
+pub struct HBFIWithoutFrame(HBFI);
+impl HBFIWithoutFrame {
+    pub fn new(hbfi: HBFI) -> Self {
+        Self(hbfi)
+    }
+}
+impl Hash for HBFIWithoutFrame {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.request_pid.hash(state);
+        self.0.response_pid.hash(state);
+        self.0.req.hash(state);
+        self.0.res.hash(state);
+        self.0.app.hash(state);
+        self.0.m0d.hash(state);
+        self.0.fun.hash(state);
+        self.0.arg.hash(state)
+    }
+}
+impl PartialEq for HBFIWithoutFrame {
+    fn eq(&self, other: &Self) -> bool {
+        (self.0.request_pid == other.0.request_pid)
+        && (self.0.response_pid == other.0.response_pid)
+        && (self.0.req == other.0.req)
+        && (self.0.res == other.0.res)
+        && (self.0.app == other.0.app)
+        && (self.0.m0d == other.0.m0d)
+        && (self.0.fun == other.0.fun)
+        && (self.0.arg == other.0.arg)
+    }
+}
+impl Eq for HBFIWithoutFrame {}
 impl HBFI {
     pub fn new(request_pid: Option<PublicIdentity>
         ,response_pid: PublicIdentity

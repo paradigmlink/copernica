@@ -12,7 +12,7 @@ use {
 };
 pub type Nonce = [u8; constants::NONCE_SIZE];
 pub type Tag = [u8; constants::TAG_SIZE];
-#[derive(Clone, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct Data(Vec<u8>);
 impl Data {
     pub fn new(data: Vec<u8>) -> Result<Data> {
@@ -46,7 +46,7 @@ impl PartialEq for Data {
         }
     }
 }
-
+impl Eq for Data {}
 impl fmt::Display for Data {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.0)

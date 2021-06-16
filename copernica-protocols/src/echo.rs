@@ -198,6 +198,7 @@ impl<'a> Protocol<'a> for Echo {
                                             && (m0d == m0d_check)
                                             && (fun == fun_check)
                                         => {
+                                            let total = 3;
                                             match arg {
                                                 arg if arg == bfi(UNRELIABLE_UNORDERED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -216,7 +217,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
                                                 },
                                                 arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -235,7 +236,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_UNORDERED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -254,7 +255,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -273,7 +274,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_SEQUENCED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -292,7 +293,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
                                                 },
                                                 _ => {}
                                             }

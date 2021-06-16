@@ -5,11 +5,15 @@ use {
         ResponseData, Nonce,
         PrivateIdentityInterface, PublicIdentity, Signature
     },
-    std::fmt,
+    core::hash::{Hash, Hasher},
+    std::{
+        cmp::Ordering,
+        fmt,
+    },
     anyhow::{anyhow, Result},
     log::{debug, error},
 };
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum NarrowWaistPacket {
     Request {
         hbfi: HBFI,
@@ -236,10 +240,74 @@ impl NarrowWaistPacket {
         }
     }
 }
+#[derive(Clone)]
+pub struct NWWhereRequestEqResponse(pub NarrowWaistPacket);
+impl NWWhereRequestEqResponse {
+    pub fn new(nw: NarrowWaistPacket) -> Self {
+        Self(nw)
+    }
+}
+impl Hash for NWWhereRequestEqResponse {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match &self.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi.hash(state) },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi.hash(state) }
+        }
+    }
+}
+impl PartialOrd for NWWhereRequestEqResponse {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let self_hbfi = match &self.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi }
+        };
+        let other_hbfi = match &other.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi }
+        };
+        Some(self_hbfi.cmp(other_hbfi))
+    }
+}
+
+impl Ord for NWWhereRequestEqResponse {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_hbfi = match &self.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi }
+        };
+        let other_hbfi = match &other.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi }
+        };
+        self_hbfi.ost.cmp(&other_hbfi.ost)
+    }
+}
+impl PartialEq for NWWhereRequestEqResponse {
+    fn eq(&self, other: &Self) -> bool {
+        let self_hbfi = match &self.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi }
+        };
+        let other_hbfi = match &other.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi }
+        };
+        self_hbfi == other_hbfi
+    }
+}
+impl Eq for NWWhereRequestEqResponse {}
+impl fmt::Debug for NWWhereRequestEqResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.0 {
+            NarrowWaistPacket::Request  { hbfi, .. } => write!(f, "NWEQ REQ {:?}", hbfi),
+            NarrowWaistPacket::Response { hbfi, .. } => write!(f, "NWEQ RES {:?}", hbfi),
+        }
+    }
+}
 impl fmt::Debug for NarrowWaistPacket {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            NarrowWaistPacket::Request { hbfi, .. } => write!(f, "REQ {:?}", hbfi),
+            NarrowWaistPacket::Request { hbfi, .. } => write!(f, "NW REQ {:?}", hbfi),
             NarrowWaistPacket::Response {
                 hbfi,
                 offset,
@@ -247,7 +315,7 @@ impl fmt::Debug for NarrowWaistPacket {
                 signature,
                 nonce,
                 ..
-            } => write!(f, "RES {:?} {}/{} {} {:?}", hbfi, offset, total, signature, nonce),
+            } => write!(f, "NW RES {:?} {}/{} {} {:?}", hbfi, offset, total, signature, nonce),
         }
     }
 }

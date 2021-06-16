@@ -9,7 +9,7 @@ use {
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
     //log::{debug},
 };
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ResponseData {
     ClearText {
         data: Data,
