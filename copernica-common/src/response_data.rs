@@ -36,7 +36,7 @@ impl fmt::Debug for ResponseData {
     }
 }
 impl ResponseData {
-    pub fn reconstitute_cypher_text(tag: [u8; constants::TAG_SIZE], data: Data) -> Self {
+    pub fn reconstitute_cypher_text(tag: Tag, data: Data) -> Self {
         ResponseData::CypherText { tag, data }
     }
     pub fn reconstitute_clear_text(data: Data) -> Self {
@@ -79,8 +79,8 @@ impl ResponseData {
         let shared_secret = response_sid.shared_secret(nonce_reverse, request_pid);
         let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
         let mut encrypted: Vec<u8> = vec![0; data.len()];
-        let mut tag: Tag = [0; constants::TAG_SIZE];
-        ctx.encrypt(&data, &mut encrypted[..], &mut tag);
+        let mut tag = Tag([0; constants::TAG_SIZE]);
+        ctx.encrypt(&data, &mut encrypted[..], &mut tag.0);
         let data = Data::new(encrypted)?;
         Ok(ResponseData::CypherText { data, tag })
     }
@@ -103,7 +103,7 @@ impl ResponseData {
                 let shared_secret = request_sid.shared_secret(nonce_reverse, response_pid);
                 let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
                 let mut decrypted = [0u8; constants::FRAGMENT_SIZE];
-                if ctx.decrypt(&data.raw_data(), &mut decrypted[..], &tag[..]) {
+                if ctx.decrypt(&data.raw_data(), &mut decrypted[..], &tag.0[..]) {
                     let data: Data = Data::new(decrypted.to_vec())?;
                     Ok(data.data()?)
                 } else {
@@ -119,7 +119,7 @@ impl ResponseData {
         match self {
             ResponseData::ClearText { data } => { data.raw_data() },
             ResponseData::CypherText { data, tag } => {
-                [data.raw_data(), tag[..].to_vec()].concat()
+                [data.raw_data(), tag.0[..].to_vec()].concat()
             },
         }
     }

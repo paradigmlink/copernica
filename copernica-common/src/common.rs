@@ -12,7 +12,8 @@ use {
 };
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Nonce(pub [u8; constants::NONCE_SIZE]);
-pub type Tag = [u8; constants::TAG_SIZE];
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
+pub struct Tag(pub [u8; constants::TAG_SIZE]);
 #[derive(Clone, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct Data(Vec<u8>);
 impl Data {

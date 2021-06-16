@@ -59,15 +59,15 @@ pub fn serialize_response_data(rd: &ResponseData) -> (u16, Vec<u8>) {
             (buf.len() as u16, buf)
         },
         ResponseData::CypherText { data, tag } => {
-            buf.extend_from_slice(tag.as_ref());
+            buf.extend_from_slice(&tag.0);
             buf.extend_from_slice(&data.raw_data());
             (buf.len() as u16, buf)
         },
     }
 }
 pub fn deserialize_cyphertext_response_data(data: &Vec<u8>) -> Result<ResponseData> {
-    let mut tag = [0u8; TAG_SIZE];
-    tag.clone_from_slice(&data[..TAG_SIZE]);
+    let mut tag = Tag([0u8; TAG_SIZE]);
+    tag.0.clone_from_slice(&data[..TAG_SIZE]);
     let data = Data::new(data[TAG_SIZE..].to_vec())?;
     Ok(ResponseData::reconstitute_cypher_text(tag, data))
 }
@@ -383,16 +383,16 @@ pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>
             buf.extend_from_slice(&nonce.0);
             trace!("ser link_nonce: \t\t{:?}", nonce);
     // Tag
-            let mut tag: Tag = [0; TAG_SIZE];
+            let mut tag = Tag([0; TAG_SIZE]);
             let shared_secret = link_id.shared_secret(nonce.clone(), lnk_rx_pid)?;
             let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
             drop(shared_secret);
             let (nws_size, mut nws) = serialize_narrow_waist_packet(&nw)?;
             let mut encrypted = vec![0u8; nws.len()];
-            ctx.encrypt(&nws, &mut encrypted[..], &mut tag);
+            ctx.encrypt(&nws, &mut encrypted[..], &mut tag.0);
             nws.copy_from_slice(&encrypted[..]);
-            buf.extend_from_slice(tag.as_ref());
-            trace!("ser link_tag: \t\t\t{:?}", tag.as_ref());
+            buf.extend_from_slice(&tag.0);
+            trace!("ser link_tag: \t\t\t{:?}", tag);
     // Reply To Size
             let (reply_to_size, reply_to) = serialize_reply_to(&reply_to)?;
             buf.extend_from_slice(&[reply_to_size]);
