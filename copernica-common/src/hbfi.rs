@@ -22,13 +22,8 @@ pub struct HBFI {
     pub arg: BFI, // Argument
     pub ost: u64, // Offset: current 1024 byte chunk of data in a range.
 }
-pub struct HBFIWithoutFrame(HBFI);
-impl HBFIWithoutFrame {
-    pub fn new(hbfi: HBFI) -> Self {
-        Self(hbfi)
-    }
-}
-impl Hash for HBFIWithoutFrame {
+pub struct HBFIExcludeFrame(pub HBFI);
+impl Hash for HBFIExcludeFrame {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.request_pid.hash(state);
         self.0.response_pid.hash(state);
@@ -40,7 +35,7 @@ impl Hash for HBFIWithoutFrame {
         self.0.arg.hash(state)
     }
 }
-impl PartialEq for HBFIWithoutFrame {
+impl PartialEq for HBFIExcludeFrame {
     fn eq(&self, other: &Self) -> bool {
         (self.0.request_pid == other.0.request_pid)
         && (self.0.response_pid == other.0.response_pid)
@@ -52,7 +47,7 @@ impl PartialEq for HBFIWithoutFrame {
         && (self.0.arg == other.0.arg)
     }
 }
-impl Eq for HBFIWithoutFrame {}
+impl Eq for HBFIExcludeFrame {}
 impl HBFI {
     pub fn new(request_pid: Option<PublicIdentity>
         ,response_pid: PublicIdentity

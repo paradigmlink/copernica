@@ -1,5 +1,5 @@
 use {
-    copernica_common::{LinkId, NarrowWaistPacket, NWWhereRequestEqResponse, LinkPacket, InterLinkPacket, HBFI, HBFIWithoutFrame, PrivateIdentityInterface,
+    copernica_common::{LinkId, NarrowWaistPacket, NarrowWaistPacketReqEqRes, LinkPacket, InterLinkPacket, HBFI, HBFIExcludeFrame, PrivateIdentityInterface,
     constants, Nonce},
     log::{debug, error},
     futures::{
@@ -106,13 +106,13 @@ impl CongestionControl {
 #[derive(Debug)]
 enum AIMD {
     AdditiveIncrease {
-        returned: BTreeSet<NWWhereRequestEqResponse>,
-        unassociated: BTreeSet<NWWhereRequestEqResponse>
+        returned: BTreeSet<NarrowWaistPacketReqEqRes>,
+        unassociated: BTreeSet<NarrowWaistPacketReqEqRes>
     },
     MultiplicativeDecrease {
-        returned: BTreeSet<NWWhereRequestEqResponse>,
-        failed: BTreeSet<NWWhereRequestEqResponse>,
-        unassociated: BTreeSet<NWWhereRequestEqResponse>
+        returned: BTreeSet<NarrowWaistPacketReqEqRes>,
+        failed: BTreeSet<NarrowWaistPacketReqEqRes>,
+        unassociated: BTreeSet<NarrowWaistPacketReqEqRes>
     },
 }
 #[derive(Clone)]
@@ -121,7 +121,7 @@ pub struct TxRx {
     pub protocol_sid: PrivateIdentityInterface,
     pub p2l_tx: Sender<InterLinkPacket>,
     pub l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-    pub incomplete_responses: Arc<Mutex<WaitMap<HBFIWithoutFrame, BTreeMap<u64, NarrowWaistPacket>>>>,
+    pub incomplete_responses: Arc<Mutex<WaitMap<HBFIExcludeFrame, BTreeMap<u64, NarrowWaistPacket>>>>,
     pub cc: CongestionControl,
     pub unreliable_unordered_response_tx: Sender<InterLinkPacket>,
     pub unreliable_unordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
@@ -164,7 +164,7 @@ impl TxRx {
     pub async fn register_hbfi(&mut self, hbfi: HBFI) {
         let incomplete_responses_mutex = self.incomplete_responses.clone();
         let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-        let hbfi2 = HBFIWithoutFrame::new(hbfi);
+        let hbfi2 = HBFIExcludeFrame(hbfi);
         incomplete_responses_ref.insert(hbfi2, BTreeMap::new());
     }
     pub async fn next_inbound(self) -> Option<InterLinkPacket> {
@@ -172,10 +172,10 @@ impl TxRx {
         let mut l2p_rx_ref = l2p_rx_mutex.lock().await;
         l2p_rx_ref.next().await
     }
-    async fn send_and_receive(&self, nws: BTreeSet<NWWhereRequestEqResponse>, hbfi_seek: HBFI, rx_mutex: Arc<Mutex<Receiver<InterLinkPacket>>>) -> Result<AIMD> {
+    async fn send_and_receive(&self, nws: BTreeSet<NarrowWaistPacketReqEqRes>, hbfi_seek: HBFI, rx_mutex: Arc<Mutex<Receiver<InterLinkPacket>>>) -> Result<AIMD> {
         debug!("INITIAL {:?}", nws);
         let total = nws.len();
-        let hbfi_seek_no_frame = HBFIWithoutFrame::new(hbfi_seek.clone());
+        let hbfi_seek_no_frame = HBFIExcludeFrame(hbfi_seek.clone());
         for nw in nws.clone() {
             let lp = LinkPacket::new(self.link_id.reply_to()?, nw.0.clone());
             let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
@@ -186,8 +186,8 @@ impl TxRx {
                 Err(e) => error!("protocol send error {:?}", e),
             }
         }
-        let mut returned: BTreeSet<NWWhereRequestEqResponse> = BTreeSet::new();
-        let mut unassociated: BTreeSet<NWWhereRequestEqResponse> = BTreeSet::new();
+        let mut returned: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+        let mut unassociated: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
         let mut counter = 0;
         while counter < total {
             let ilp = async {
@@ -198,17 +198,17 @@ impl TxRx {
                 let nw = ilp.narrow_waist();
                 let inbound_hbfi = match nw.clone() {
                     NarrowWaistPacket::Request {..} => { continue },
-                    NarrowWaistPacket::Response {hbfi, ..} => { HBFIWithoutFrame::new(hbfi.clone()) },
+                    NarrowWaistPacket::Response {hbfi, ..} => { HBFIExcludeFrame(hbfi.clone()) },
                 };
                 if hbfi_seek_no_frame == inbound_hbfi {
-                    returned.insert(NWWhereRequestEqResponse::new(nw));
+                    returned.insert(NarrowWaistPacketReqEqRes(nw));
                     counter += 1;
                 } else {
-                    unassociated.insert(NWWhereRequestEqResponse::new(nw));
+                    unassociated.insert(NarrowWaistPacketReqEqRes(nw));
                 }
             }
         }
-        let failed: BTreeSet<NWWhereRequestEqResponse> = nws.difference(&returned).cloned().collect();
+        let failed: BTreeSet<NarrowWaistPacketReqEqRes> = nws.difference(&returned).cloned().collect();
         debug!("RETURNED {:?}", returned);
         debug!("FAILED   {:?}", failed);
         debug!("INITIAL == RETURNED: {:?}", (nws == returned) );
@@ -225,11 +225,11 @@ impl TxRx {
         let batch_start: u64 = start;
         let batch_end: u64 = start;
         loop {
-            let mut nws: BTreeSet<NWWhereRequestEqResponse> = BTreeSet::new();
+            let mut nws: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
             for counter in batch_start..=batch_end {
                 let hbfi_req = hbfi_seek.clone().offset(counter);
                 let nw = NarrowWaistPacket::request(hbfi_req)?;
-                nws.insert(NWWhereRequestEqResponse::new(nw));
+                nws.insert(NarrowWaistPacketReqEqRes(nw));
             }
             let aimd = self.send_and_receive(nws, hbfi_seek.clone(), Arc::clone(&self.unreliable_unordered_response_rx)).await?;
             match aimd {
@@ -241,13 +241,13 @@ impl TxRx {
                                 let incomplete_responses_mutex = self.incomplete_responses.clone();
                                 let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
                                 if hbfi == hbfi_seek {
-                                    if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIWithoutFrame::new(hbfi_seek.clone())) {
+                                    if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
                                         let entry = entry.value_mut();
                                         entry.insert(offset, nw.0.clone());
                                         break
                                     };
                                 } else {
-                                    if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIWithoutFrame::new(hbfi)) {
+                                    if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi)) {
                                         let entry = entry.value_mut();
                                         entry.insert(offset, nw.0.clone());
                                     };
@@ -264,7 +264,7 @@ impl TxRx {
         let mut reconstruct: Vec<Vec<u8>> = vec![];
         let incomplete_responses_mutex = self.incomplete_responses.clone();
         let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-        if let Some(map) = incomplete_responses_ref.get(&HBFIWithoutFrame::new(hbfi_seek.clone())) {
+        if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
             let map = map.value();
             for (_, nw) in map.range(start..=end) {
                 let chunk = match hbfi_seek.request_pid {
