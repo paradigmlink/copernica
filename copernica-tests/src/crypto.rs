@@ -15,9 +15,7 @@ pub fn encrypted_response_encrypted_link() -> Result<()> {
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
     let expected_data = vec![0; 600];
-    let offset = 100;
-    let total = 100;
-    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
+    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone())?;
 
     let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let lnk_tx_pid = lnk_tx_sid.public_id();
@@ -52,9 +50,7 @@ pub fn cleartext_response_encrypted_link() -> Result<()> {
     let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
     let expected_data = vec![0; 600];
-    let offset = 100;
-    let total = 100;
-    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
+    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone())?;
 
     let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let lnk_tx_pid = lnk_tx_sid.public_id();
@@ -151,9 +147,7 @@ pub fn encrypted_response_cleartext_link() -> Result<()> {
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
     let expected_data = vec![0; 600];
-    let offset = 100;
-    let total = 100;
-    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
+    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone())?;
 
     let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let lnk_rx_sid = PrivateIdentityInterface::new_key();
@@ -186,9 +180,7 @@ pub fn cleartext_response_cleartext_link() -> Result<()> {
     let hbfi = HBFI::new(None, response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
     let expected_data = vec![0; 600];
-    let offset = 100;
-    let total = 100;
-    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
+    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone())?;
 
     let lnk_tx_sid = PrivateIdentityInterface::new_key();
     let lnk_rx_sid = PrivateIdentityInterface::new_key();
@@ -278,9 +270,7 @@ pub fn request_transmute_and_decrypt() -> Result<()> {
     let hbfi = HBFI::new(Some(request_pid), response_pid.clone(), "app", "m0d", "fun", "arg")?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::request(hbfi.clone())?;
     let expected_data = vec![0; 600];
-    let offset = 0;
-    let total = 1;
-    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone(), offset, total)?;
+    let nw: NarrowWaistPacket = nw.transmute(response_sid.clone(), expected_data.clone())?;
     let actual_data = nw.data(Some(request_sid))?;
 
     assert_eq!(actual_data, expected_data);

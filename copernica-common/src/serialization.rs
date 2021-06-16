@@ -168,14 +168,6 @@ pub fn deserialize_cyphertext_narrow_waist_packet_response(data: &Vec<u8>) -> Re
     signature.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
     trace!("des \tsignature: \t\t{:?}", signature.as_ref());
     let signature: Signature = Signature::from(signature);
-    let mut offset = [0u8; U64_SIZE];
-    offset.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_END]);
-    trace!("des \toffset: \t\t{:?}", offset.as_ref());
-    let offset: u64 = u8_to_u64(offset);
-    let mut total = [0u8; U64_SIZE];
-    total.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_END]);
-    trace!("des \ttotal: \t\t\t{:?}", total.as_ref());
-    let total: u64 = u8_to_u64(total);
     let mut nonce = Nonce([0u8; NONCE_SIZE]);
     nonce.0.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
     trace!("des \tnonce: \t\t\t{:?}", nonce);
@@ -183,7 +175,7 @@ pub fn deserialize_cyphertext_narrow_waist_packet_response(data: &Vec<u8>) -> Re
     let response_data_end = hbfi_end + CYPHERTEXT_RESPONSE_DATA_SIZE;
     let hbfi: HBFI = deserialize_cyphertext_hbfi(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end].to_vec())?;
     let data: ResponseData = deserialize_cyphertext_response_data(&data[hbfi_end..response_data_end].to_vec())?;
-    let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, signature, offset, total, nonce, data };
+    let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, signature, nonce, data };
     Ok(nw)
 }
 pub fn deserialize_cleartext_narrow_waist_packet_response(data: &Vec<u8>) -> Result<NarrowWaistPacket> {
@@ -191,14 +183,6 @@ pub fn deserialize_cleartext_narrow_waist_packet_response(data: &Vec<u8>) -> Res
     signature.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
     trace!("des \tsignature: \t\t{:?}", signature.as_ref());
     let signature: Signature = Signature::from(signature);
-    let mut offset = [0u8; U64_SIZE];
-    offset.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_OFFSET_END]);
-    trace!("des \toffset: \t\t{:?}", offset.as_ref());
-    let offset: u64 = u8_to_u64(offset);
-    let mut total = [0u8; U64_SIZE];
-    total.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_END]);
-    trace!("des \ttotal: \t\t\t{:?}", total.as_ref());
-    let total: u64 = u8_to_u64(total);
     let mut nonce = Nonce([0u8; NONCE_SIZE]);
     nonce.0.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
     trace!("des \tnonce: \t\t\t{:?}", nonce);
@@ -206,7 +190,7 @@ pub fn deserialize_cleartext_narrow_waist_packet_response(data: &Vec<u8>) -> Res
     let response_data_end = hbfi_end + CLEARTEXT_RESPONSE_DATA_SIZE;
     let hbfi: HBFI = deserialize_cleartext_hbfi(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end].to_vec())?;
     let data: ResponseData = deserialize_cleartext_response_data(&data[hbfi_end..response_data_end].to_vec())?;
-    let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, signature, offset, total, nonce, data };
+    let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, signature, nonce, data };
     Ok(nw)
 }
 pub fn deserialize_cyphertext_narrow_waist_packet_request(data: &Vec<u8>) -> Result<NarrowWaistPacket> {
@@ -250,23 +234,15 @@ pub fn serialize_narrow_waist_packet(nw: &NarrowWaistPacket) -> Result<(u16, Vec
             buf.extend_from_slice(&nonce.0);
             buf.extend_from_slice(&hbfi);
         },
-        NarrowWaistPacket::Response { hbfi, signature, offset, total, nonce, data } => {
+        NarrowWaistPacket::Response { hbfi, signature, nonce, data } => {
             let (hbfi_size, hbfi) = serialize_hbfi(&hbfi)?;
             let (response_data_size, response_data) = serialize_response_data(&data);
-            let ost = &u64_to_u8(*offset);
-            let tot = &u64_to_u8(*total);
             size = hbfi_size as u16
                 + signature.as_ref().len() as u16
-                + ost.len() as u16
-                + tot.len() as u16
                 + nonce.0.len() as u16
                 + response_data_size as u16;
             trace!("ser \tsignature: \t\t{:?}", signature.as_ref());
             buf.extend_from_slice(signature.as_ref());
-            trace!("ser \toffset: \t\t{:?}", ost.as_ref());
-            buf.extend_from_slice(ost);
-            trace!("ser \ttotal: \t\t\t{:?}", tot.as_ref());
-            buf.extend_from_slice(tot);
             trace!("ser \tnonce: \t\t\t{:?}", nonce);
             buf.extend_from_slice(&nonce.0);
             buf.extend_from_slice(&hbfi);

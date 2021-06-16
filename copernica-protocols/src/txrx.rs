@@ -237,19 +237,19 @@ impl TxRx {
                     for nw in returned {
                         match nw.clone().0 {
                             NarrowWaistPacket::Request { .. } => { },
-                            NarrowWaistPacket::Response { hbfi, offset, .. } => {
+                            NarrowWaistPacket::Response { hbfi, .. } => {
                                 let incomplete_responses_mutex = self.incomplete_responses.clone();
                                 let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
                                 if hbfi == hbfi_seek {
                                     if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
                                         let entry = entry.value_mut();
-                                        entry.insert(offset, nw.0.clone());
+                                        entry.insert(hbfi.ost.clone(), nw.0.clone());
                                         break
                                     };
                                 } else {
-                                    if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi)) {
+                                    if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
                                         let entry = entry.value_mut();
-                                        entry.insert(offset, nw.0.clone());
+                                        entry.insert(hbfi.ost.clone(), nw.0.clone());
                                     };
                                 }
                             },
@@ -456,7 +456,7 @@ impl TxRx {
         total: u64
     ) -> Result<()> {
         debug!("\t\t|  RESPONSE PACKET FOUND");
-        let nw = NarrowWaistPacket::response(self.protocol_sid.clone(), hbfi.clone(), data, offset, total)?;
+        let nw = NarrowWaistPacket::response(self.protocol_sid.clone(), hbfi.clone(), data)?;
         let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
         let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
         debug!("\t\t|  protocol-to-link");

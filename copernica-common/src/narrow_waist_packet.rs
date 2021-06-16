@@ -24,8 +24,6 @@ pub enum NarrowWaistPacket {
         nonce: Nonce,
         signature: Signature,
         data: ResponseData,
-        offset: u64,
-        total: u64,
     },
 }
 impl NarrowWaistPacket {
@@ -34,7 +32,7 @@ impl NarrowWaistPacket {
         let nonce: Nonce = generate_nonce(&mut rng);
         Ok(NarrowWaistPacket::Request { hbfi, nonce })
     }
-    pub fn transmute(&self, response_sid: PrivateIdentityInterface, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
+    pub fn transmute(&self, response_sid: PrivateIdentityInterface, data: Vec<u8>) -> Result<Self> {
         match self {
             NarrowWaistPacket::Request { hbfi, .. } => {
                 if hbfi.response_pid != response_sid.public_id() {
@@ -47,19 +45,19 @@ impl NarrowWaistPacket {
                         let hbfi = hbfi.clone();
                         let nonce = nonce.clone();
                         let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, nonce.clone())?;
-                        let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
+                        let manifest = manifest(data.manifest_data(), &hbfi, &nonce)?;
                         let response_signkey = response_sid.signing_key();
                         let signature = response_signkey.sign(manifest);
-                        Ok(NarrowWaistPacket::Response { hbfi, nonce, offset, total, data, signature })
+                        Ok(NarrowWaistPacket::Response { hbfi, nonce, data, signature })
                     },
                     None => {
                         let hbfi = hbfi.clone();
                         let nonce = nonce.clone();
                         let data = ResponseData::clear_text(data)?;
-                        let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
+                        let manifest = manifest(data.manifest_data(), &hbfi, &nonce)?;
                         let response_signkey = response_sid.signing_key();
                         let signature = response_signkey.sign(manifest);
-                        Ok(NarrowWaistPacket::Response { hbfi, nonce, offset, total, data, signature })
+                        Ok(NarrowWaistPacket::Response { hbfi, nonce, data, signature })
                     }
                 }
 
@@ -71,7 +69,7 @@ impl NarrowWaistPacket {
             },
         }
     }
-    pub fn response(response_sid: PrivateIdentityInterface, hbfi: HBFI, data: Vec<u8>, offset: u64, total: u64) -> Result<Self> {
+    pub fn response(response_sid: PrivateIdentityInterface, hbfi: HBFI, data: Vec<u8>) -> Result<Self> {
         // consider returning Result<Vec<Self>>
         if hbfi.response_pid != response_sid.public_id() {
             let msg = "The Request's Response Public Identity doesn't match the Public Identity used to sign or encypt the Response";
@@ -83,23 +81,23 @@ impl NarrowWaistPacket {
         match hbfi.request_pid.clone() {
             Some(request_pid) => {
                 let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, nonce.clone())?;
-                let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
+                let manifest = manifest(data.manifest_data(), &hbfi, &nonce)?;
                 let response_signkey = response_sid.signing_key();
                 let signature = response_signkey.sign(manifest);
-                Ok(NarrowWaistPacket::Response { hbfi, nonce, offset, total, data, signature })
+                Ok(NarrowWaistPacket::Response { hbfi, nonce, data, signature })
             },
             None => {
                 let data = ResponseData::clear_text(data)?;
-                let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
+                let manifest = manifest(data.manifest_data(), &hbfi, &nonce)?;
                 let response_signkey = response_sid.signing_key();
                 let signature = response_signkey.sign(manifest);
-                Ok(NarrowWaistPacket::Response { hbfi, nonce, offset, total, data, signature })
+                Ok(NarrowWaistPacket::Response { hbfi, nonce, data, signature })
             }
         }
     }
     pub fn encrypt(&self, response_sid: PrivateIdentityInterface, hbfi: HBFI) -> Result<Self> {
         match self {
-            NarrowWaistPacket::Response { data, offset, total, .. } => {
+            NarrowWaistPacket::Response { data, .. } => {
                 if let Some(request_pid) = hbfi.request_pid.clone() {
                     match data {
                         ResponseData::ClearText { data } => {
@@ -111,10 +109,10 @@ impl NarrowWaistPacket {
                             let mut rng = rand::thread_rng();
                             let nonce: Nonce = generate_nonce(&mut rng);
                             let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data.data()?, nonce.clone())?;
-                            let manifest = manifest(data.manifest_data(), &hbfi, offset, total, &nonce)?;
+                            let manifest = manifest(data.manifest_data(), &hbfi, &nonce)?;
                             let response_signk = response_sid.signing_key();
                             let signature = response_signk.sign(manifest);
-                            Ok(NarrowWaistPacket::Response{ data, signature, hbfi, offset: *offset, total: *total, nonce})
+                            Ok(NarrowWaistPacket::Response{ data, signature, hbfi, nonce})
                         },
                         ResponseData::CypherText { .. } => {
                             let err_msg = "No point in encrypting an already encrypted packet";
@@ -140,8 +138,8 @@ impl NarrowWaistPacket {
             NarrowWaistPacket::Request {..} => {
                 return Ok(true)
             },
-            NarrowWaistPacket::Response { data, hbfi, offset, total, signature, nonce} => {
-                let manifest = manifest(data.manifest_data(), hbfi, offset, total, nonce)?;
+            NarrowWaistPacket::Response { data, hbfi, signature, nonce} => {
+                let manifest = manifest(data.manifest_data(), hbfi, nonce)?;
                 let verify_key = hbfi.response_pid.verify_key()?;
                 let verified = verify_key.verify(&signature, manifest);
                 return Ok(verified);
@@ -153,7 +151,7 @@ impl NarrowWaistPacket {
             NarrowWaistPacket::Request {..} => {
                 return Err(anyhow!("The Request's Response Public Identity doesn't match the Public Identity used to sign or encypt the Response"));
             },
-            NarrowWaistPacket::Response { data, hbfi, offset, total, .. } => {
+            NarrowWaistPacket::Response { data, hbfi, .. } => {
                 match data {
                     ResponseData::ClearText { data } => {
                         if response_sid.public_id() != hbfi.response_pid {
@@ -171,10 +169,10 @@ impl NarrowWaistPacket {
                         let nonce: Nonce = generate_nonce(&mut rng);
                         let hbfi = hbfi.encrypt_for(request_pid.clone())?;
                         let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data.data()?, nonce.clone())?;
-                        let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
+                        let manifest = manifest(data.manifest_data(), &hbfi, &nonce)?;
                         let response_signk = response_sid.signing_key();
                         let signature = response_signk.sign(manifest.clone());
-                        let nw = NarrowWaistPacket::Response{ data, signature, hbfi: hbfi.clone(), offset: *offset, total: *total, nonce};
+                        let nw = NarrowWaistPacket::Response{ data, signature, hbfi: hbfi.clone(), nonce};
                         if !nw.verify()? {
                             let err_msg = "Encrypting for a public_id failed a signature check";
                             error!("{}", err_msg);
@@ -305,12 +303,10 @@ impl fmt::Debug for NarrowWaistPacket {
             NarrowWaistPacket::Request { hbfi, .. } => write!(f, "NW REQ {:?}", hbfi),
             NarrowWaistPacket::Response {
                 hbfi,
-                offset,
-                total,
                 signature,
                 nonce,
                 ..
-            } => write!(f, "NW RES {:?} {}/{} {} {:?}", hbfi, offset, total, signature, nonce),
+            } => write!(f, "NW RES {:?} {} {:?}", hbfi, signature, nonce),
         }
     }
 }

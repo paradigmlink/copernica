@@ -14,6 +14,7 @@ use {
 pub struct Nonce(pub [u8; constants::NONCE_SIZE]);
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 pub struct Tag(pub [u8; constants::TAG_SIZE]);
+// the below is a hack, I don't know how to implement Serialize/Deserialize for struct Data(pub [u8; constants::FRAGMENT_SIZE])
 #[derive(Clone, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct Data(Vec<u8>);
 impl Data {
@@ -55,9 +56,9 @@ impl fmt::Display for Data {
     }
 }
 
-pub fn manifest(data: Vec<u8>, hbfi: &HBFI, offset: &u64, total: &u64, nonce: &Nonce) -> Result<Vec<u8>> {
+pub fn manifest(data: Vec<u8>, hbfi: &HBFI, nonce: &Nonce) -> Result<Vec<u8>> {
     let (_hbfi_size, hbfi) = serialize_hbfi(hbfi)?;
-    let manifest = [data, hbfi, u64_to_u8(*offset).to_vec(), u64_to_u8(*total).to_vec(), nonce.0.to_vec()].concat();
+    let manifest = [data, hbfi, nonce.0.to_vec()].concat();
     Ok(manifest)
 }
 
