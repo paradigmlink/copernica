@@ -10,7 +10,8 @@ use {
     anyhow::{anyhow, Result},
     //log::{debug},
 };
-pub type Nonce = [u8; constants::NONCE_SIZE];
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct Nonce(pub [u8; constants::NONCE_SIZE]);
 pub type Tag = [u8; constants::TAG_SIZE];
 #[derive(Clone, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
 pub struct Data(Vec<u8>);
@@ -55,7 +56,7 @@ impl fmt::Display for Data {
 
 pub fn manifest(data: Vec<u8>, hbfi: &HBFI, offset: &u64, total: &u64, nonce: &Nonce) -> Result<Vec<u8>> {
     let (_hbfi_size, hbfi) = serialize_hbfi(hbfi)?;
-    let manifest = [data, hbfi, u64_to_u8(*offset).to_vec(), u64_to_u8(*total).to_vec(), nonce.to_vec()].concat();
+    let manifest = [data, hbfi, u64_to_u8(*offset).to_vec(), u64_to_u8(*total).to_vec(), nonce.0.to_vec()].concat();
     Ok(manifest)
 }
 
@@ -63,7 +64,7 @@ pub fn generate_nonce<R>(rng: &mut R) -> Nonce
 where
     R: RngCore + CryptoRng,
 {
-    let mut nonce: Nonce = [0; constants::NONCE_SIZE];
-    rng.fill_bytes(&mut nonce);
+    let mut nonce = Nonce([0; constants::NONCE_SIZE]);
+    rng.fill_bytes(&mut nonce.0);
     nonce
 }

@@ -74,10 +74,10 @@ impl ResponseData {
         let flattened = data.into_iter().flatten().collect::<Vec<u8>>();
         let mut data: [u8; constants::FRAGMENT_SIZE] = [0; constants::FRAGMENT_SIZE];
         data.copy_from_slice(&flattened[0..constants::FRAGMENT_SIZE]);
-        let mut nonce_reverse = nonce;
-        nonce_reverse.reverse();
+        let mut nonce_reverse = nonce.clone();
+        nonce_reverse.0.reverse();
         let shared_secret = response_sid.shared_secret(nonce_reverse, request_pid);
-        let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce, &[]);
+        let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
         let mut encrypted: Vec<u8> = vec![0; data.len()];
         let mut tag: Tag = [0; constants::TAG_SIZE];
         ctx.encrypt(&data, &mut encrypted[..], &mut tag);
@@ -98,10 +98,10 @@ impl ResponseData {
     pub fn decrypt_data(&self, request_sid: PrivateIdentityInterface, response_pid: PublicIdentity, nonce: Nonce) -> Result<Vec<u8>> {
         match self {
             ResponseData::CypherText { data, tag } => {
-                let mut nonce_reverse = nonce;
-                nonce_reverse.reverse();
+                let mut nonce_reverse = nonce.clone();
+                nonce_reverse.0.reverse();
                 let shared_secret = request_sid.shared_secret(nonce_reverse, response_pid);
-                let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce, &[]);
+                let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
                 let mut decrypted = [0u8; constants::FRAGMENT_SIZE];
                 if ctx.decrypt(&data.raw_data(), &mut decrypted[..], &tag[..]) {
                     let data: Data = Data::new(decrypted.to_vec())?;

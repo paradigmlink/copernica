@@ -353,20 +353,20 @@ impl PrivateIdentityInterface {
         }
     }
     pub fn shared_secret(&self, nonce: Nonce, rx_pid: PublicIdentity) -> SharedSecret {
-        let rx_pk = rx_pid.derive(&nonce);
+        let rx_pk = rx_pid.derive(&nonce.0);
         match &self.inner {
             PrivateIdentityState::Key { key } => {
-                let tx_sk = key.derive(&nonce);
+                let tx_sk = key.derive(&nonce.0);
                 let shared_secret = tx_sk.exchange(&rx_pk);
                 shared_secret
             },
             PrivateIdentityState::FileSystem { key } => {
-                let tx_sk = key.derive(&nonce);
+                let tx_sk = key.derive(&nonce.0);
                 let shared_secret = tx_sk.exchange(&rx_pk);
                 shared_secret
             },
             PrivateIdentityState::SentinelOne { key } => {
-                let tx_sk = key.derive(&nonce);
+                let tx_sk = key.derive(&nonce.0);
                 let shared_secret = tx_sk.exchange(&rx_pk);
                 shared_secret
             },

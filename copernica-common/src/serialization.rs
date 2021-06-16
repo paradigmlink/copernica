@@ -176,9 +176,9 @@ pub fn deserialize_cyphertext_narrow_waist_packet_response(data: &Vec<u8>) -> Re
     total.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_END]);
     trace!("des \ttotal: \t\t\t{:?}", total.as_ref());
     let total: u64 = u8_to_u64(total);
-    let mut nonce = [0u8; NONCE_SIZE];
-    nonce.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
-    trace!("des \tnonce: \t\t\t{:?}", nonce.as_ref());
+    let mut nonce = Nonce([0u8; NONCE_SIZE]);
+    nonce.0.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
+    trace!("des \tnonce: \t\t\t{:?}", nonce);
     let hbfi_end = CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CYPHERTEXT_HBFI_SIZE;
     let response_data_end = hbfi_end + CYPHERTEXT_RESPONSE_DATA_SIZE;
     let hbfi: HBFI = deserialize_cyphertext_hbfi(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end].to_vec())?;
@@ -199,9 +199,9 @@ pub fn deserialize_cleartext_narrow_waist_packet_response(data: &Vec<u8>) -> Res
     total.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_TOTAL_END]);
     trace!("des \ttotal: \t\t\t{:?}", total.as_ref());
     let total: u64 = u8_to_u64(total);
-    let mut nonce = [0u8; NONCE_SIZE];
-    nonce.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
-    trace!("des \tnonce: \t\t\t{:?}", nonce.as_ref());
+    let mut nonce = Nonce([0u8; NONCE_SIZE]);
+    nonce.0.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
+    trace!("des \tnonce: \t\t\t{:?}", nonce);
     let hbfi_end = CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CLEARTEXT_HBFI_SIZE;
     let response_data_end = hbfi_end + CLEARTEXT_RESPONSE_DATA_SIZE;
     let hbfi: HBFI = deserialize_cleartext_hbfi(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end].to_vec())?;
@@ -210,15 +210,15 @@ pub fn deserialize_cleartext_narrow_waist_packet_response(data: &Vec<u8>) -> Res
     Ok(nw)
 }
 pub fn deserialize_cyphertext_narrow_waist_packet_request(data: &Vec<u8>) -> Result<NarrowWaistPacket> {
-    let mut nonce = [0u8; NONCE_SIZE];
-    nonce.clone_from_slice(&data[0..NONCE_SIZE]);
+    let mut nonce = Nonce([0u8; NONCE_SIZE]);
+    nonce.0.clone_from_slice(&data[0..NONCE_SIZE]);
     let hbfi: HBFI = deserialize_cyphertext_hbfi(&data[NONCE_SIZE..NONCE_SIZE+CYPHERTEXT_HBFI_SIZE].to_vec())?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::Request { hbfi, nonce };
     Ok(nw)
 }
 pub fn deserialize_cleartext_narrow_waist_packet_request(data: &Vec<u8>) -> Result<NarrowWaistPacket> {
-    let mut nonce = [0u8; NONCE_SIZE];
-    nonce.clone_from_slice(&data[0..NONCE_SIZE]);
+    let mut nonce = Nonce([0u8; NONCE_SIZE]);
+    nonce.0.clone_from_slice(&data[0..NONCE_SIZE]);
     let hbfi: HBFI = deserialize_cleartext_hbfi(&data[NONCE_SIZE..NONCE_SIZE+CLEARTEXT_HBFI_SIZE].to_vec())?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::Request { hbfi, nonce };
     Ok(nw)
@@ -246,8 +246,8 @@ pub fn serialize_narrow_waist_packet(nw: &NarrowWaistPacket) -> Result<(u16, Vec
     match nw {
         NarrowWaistPacket::Request { hbfi, nonce } => {
             let (hbfi_size, hbfi) = serialize_hbfi(&hbfi)?;
-            size = hbfi_size as u16 + nonce.len() as u16;
-            buf.extend_from_slice(nonce);
+            size = hbfi_size as u16 + nonce.0.len() as u16;
+            buf.extend_from_slice(&nonce.0);
             buf.extend_from_slice(&hbfi);
         },
         NarrowWaistPacket::Response { hbfi, signature, offset, total, nonce, data } => {
@@ -259,7 +259,7 @@ pub fn serialize_narrow_waist_packet(nw: &NarrowWaistPacket) -> Result<(u16, Vec
                 + signature.as_ref().len() as u16
                 + ost.len() as u16
                 + tot.len() as u16
-                + nonce.len() as u16
+                + nonce.0.len() as u16
                 + response_data_size as u16;
             trace!("ser \tsignature: \t\t{:?}", signature.as_ref());
             buf.extend_from_slice(signature.as_ref());
@@ -267,8 +267,8 @@ pub fn serialize_narrow_waist_packet(nw: &NarrowWaistPacket) -> Result<(u16, Vec
             buf.extend_from_slice(ost);
             trace!("ser \ttotal: \t\t\t{:?}", tot.as_ref());
             buf.extend_from_slice(tot);
-            trace!("ser \tnonce: \t\t\t{:?}", nonce.as_ref());
-            buf.extend_from_slice(nonce);
+            trace!("ser \tnonce: \t\t\t{:?}", nonce);
+            buf.extend_from_slice(&nonce.0);
             buf.extend_from_slice(&hbfi);
             buf.extend_from_slice(&response_data);
         },
@@ -380,12 +380,12 @@ pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>
     // Nonce
             let mut rng = rand::thread_rng();
             let nonce: Nonce = generate_nonce(&mut rng);
-            buf.extend_from_slice(nonce.as_ref());
-            trace!("ser link_nonce: \t\t{:?}", nonce.as_ref());
+            buf.extend_from_slice(&nonce.0);
+            trace!("ser link_nonce: \t\t{:?}", nonce);
     // Tag
             let mut tag: Tag = [0; TAG_SIZE];
-            let shared_secret = link_id.shared_secret(nonce, lnk_rx_pid)?;
-            let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce, &[]);
+            let shared_secret = link_id.shared_secret(nonce.clone(), lnk_rx_pid)?;
+            let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
             drop(shared_secret);
             let (nws_size, mut nws) = serialize_narrow_waist_packet(&nw)?;
             let mut encrypted = vec![0u8; nws.len()];
@@ -416,8 +416,8 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, link_id: LinkId) -> Re
     //trace!("des link_tx_pk: \t\t{:?}", link_tx_pk);
     let lnk_tx_pid: PublicIdentity = PublicIdentity::from(link_tx_pk_with_cc);
 // Nonce
-    let mut link_nonce = [0u8; NONCE_SIZE];
-    link_nonce.clone_from_slice(&data[CYPHERTEXT_LINK_NONCE_START..CYPHERTEXT_LINK_NONCE_END]);
+    let mut link_nonce = Nonce([0u8; NONCE_SIZE]);
+    link_nonce.0.clone_from_slice(&data[CYPHERTEXT_LINK_NONCE_START..CYPHERTEXT_LINK_NONCE_END]);
     trace!("des link_nonce: \t\t{:?}", link_nonce);
 // Tag
     let mut link_tag = [0u8; TAG_SIZE];
@@ -435,8 +435,8 @@ pub fn deserialize_cyphertext_link_packet(data: &Vec<u8>, link_id: LinkId) -> Re
     trace!("des reply_to: \t\t\t{:?}", reply_to);
     let nw_start = CYPHERTEXT_LINK_NARROW_WAIST_SIZE_END + reply_to_size[0] as usize;
     trace!("des nw_start: \t\t\t{:?}", nw_start);
-    let shared_secret = link_id.shared_secret(link_nonce, lnk_tx_pid.clone())?;
-    let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &link_nonce, &[]);
+    let shared_secret = link_id.shared_secret(link_nonce.clone(), lnk_tx_pid.clone())?;
+    let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &link_nonce.0, &[]);
     drop(shared_secret);
     let nw: NarrowWaistPacket = match nw_size {
         CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {

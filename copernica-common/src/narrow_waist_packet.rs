@@ -46,7 +46,7 @@ impl NarrowWaistPacket {
                     Some(request_pid) => {
                         let hbfi = hbfi.clone();
                         let nonce = nonce.clone();
-                        let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, nonce)?;
+                        let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, nonce.clone())?;
                         let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
                         let response_signkey = response_sid.signing_key();
                         let signature = response_signkey.sign(manifest);
@@ -82,7 +82,7 @@ impl NarrowWaistPacket {
         let nonce: Nonce = generate_nonce(&mut rng);
         match hbfi.request_pid.clone() {
             Some(request_pid) => {
-                let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, nonce)?;
+                let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data, nonce.clone())?;
                 let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
                 let response_signkey = response_sid.signing_key();
                 let signature = response_signkey.sign(manifest);
@@ -110,7 +110,7 @@ impl NarrowWaistPacket {
                             }
                             let mut rng = rand::thread_rng();
                             let nonce: Nonce = generate_nonce(&mut rng);
-                            let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data.data()?, nonce)?;
+                            let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data.data()?, nonce.clone())?;
                             let manifest = manifest(data.manifest_data(), &hbfi, offset, total, &nonce)?;
                             let response_signk = response_sid.signing_key();
                             let signature = response_signk.sign(manifest);
@@ -170,7 +170,7 @@ impl NarrowWaistPacket {
                         let mut rng = rand::thread_rng();
                         let nonce: Nonce = generate_nonce(&mut rng);
                         let hbfi = hbfi.encrypt_for(request_pid.clone())?;
-                        let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data.data()?, nonce)?;
+                        let data = ResponseData::cypher_text(response_sid.clone(), request_pid, data.data()?, nonce.clone())?;
                         let manifest = manifest(data.manifest_data(), &hbfi, &offset, &total, &nonce)?;
                         let response_signk = response_sid.signing_key();
                         let signature = response_signk.sign(manifest.clone());
@@ -219,7 +219,7 @@ impl NarrowWaistPacket {
                                             return Err(anyhow!(err_msg));
                                         }
                                         //debug!("{:?}", data.decrypt_data(request_sid.clone(), hbfi.response_pid.clone(), *nonce)?);
-                                        return Ok(data.decrypt_data(request_sid, hbfi.response_pid.clone(), *nonce)?)
+                                        return Ok(data.decrypt_data(request_sid, hbfi.response_pid.clone(), nonce.clone())?)
                                     },
                                     None => {
                                         let err_msg = "Decrypting an encrypted data packet requires a PublicIdentity to do so";
