@@ -192,108 +192,107 @@ impl<'a> Protocol<'a> for Echo {
                             let nw: NarrowWaistPacket = ilp.narrow_waist();
                             match nw.clone() {
                                 NarrowWaistPacket::Request { hbfi, .. } => match hbfi {
-                                    HBFI { res, app, m0d, fun, arg, ost, .. }
+                                    HBFI { res, app, m0d, fun, arg, frm, .. }
                                         if (res == res_check)
                                             && (app == app_check)
                                             && (m0d == m0d_check)
                                             && (fun == fun_check)
                                         => {
-                                            let total = 3;
                                             match arg {
                                                 arg if arg == bfi(UNRELIABLE_UNORDERED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
-                                                    match ost {
-                                                        ost if ost == 0 => {
+                                                    match frm {
+                                                        frm if frm == 0 => {
                                                             echo = bincode::serialize(&"p")?;
                                                         }
-                                                        ost if ost == 1 => {
+                                                        frm if frm == 1 => {
                                                             echo = bincode::serialize(&"o")?;
                                                         }
-                                                        ost if ost == 2 => {
+                                                        frm if frm == 2 => {
                                                             echo = bincode::serialize(&"n")?;
                                                         }
-                                                        ost if ost == 3 => {
+                                                        frm if frm == 3 => {
                                                             echo = bincode::serialize(&"g")?;
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
-                                                    match ost {
-                                                        ost if ost == 0 => {
+                                                    match frm {
+                                                        frm if frm == 0 => {
                                                             echo = bincode::serialize(&"p")?;
                                                         }
-                                                        ost if ost == 1 => {
+                                                        frm if frm == 1 => {
                                                             echo = bincode::serialize(&"o")?;
                                                         }
-                                                        ost if ost == 2 => {
+                                                        frm if frm == 2 => {
                                                             echo = bincode::serialize(&"n")?;
                                                         }
-                                                        ost if ost == 3 => {
+                                                        frm if frm == 3 => {
                                                             echo = bincode::serialize(&"g")?;
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_UNORDERED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
-                                                    match ost {
-                                                        ost if ost == 0 => {
+                                                    match frm {
+                                                        frm if frm == 0 => {
                                                             echo = bincode::serialize(&"p")?;
                                                         }
-                                                        ost if ost == 1 => {
+                                                        frm if frm == 1 => {
                                                             echo = bincode::serialize(&"o")?;
                                                         }
-                                                        ost if ost == 2 => {
+                                                        frm if frm == 2 => {
                                                             echo = bincode::serialize(&"n")?;
                                                         }
-                                                        ost if ost == 3 => {
+                                                        frm if frm == 3 => {
                                                             echo = bincode::serialize(&"g")?;
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
-                                                    match ost {
-                                                        ost if ost == 0 => {
+                                                    match frm {
+                                                        frm if frm == 0 => {
                                                             echo = bincode::serialize(&"p")?;
                                                         }
-                                                        ost if ost == 1 => {
+                                                        frm if frm == 1 => {
                                                             echo = bincode::serialize(&"o")?;
                                                         }
-                                                        ost if ost == 2 => {
+                                                        frm if frm == 2 => {
                                                             echo = bincode::serialize(&"n")?;
                                                         }
-                                                        ost if ost == 3 => {
+                                                        frm if frm == 3 => {
                                                             echo = bincode::serialize(&"g")?;
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_SEQUENCED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
-                                                    match ost {
-                                                        ost if ost == 0 => {
+                                                    match frm {
+                                                        frm if frm == 0 => {
                                                             echo = bincode::serialize(&"p")?;
                                                         }
-                                                        ost if ost == 1 => {
+                                                        frm if frm == 1 => {
                                                             echo = bincode::serialize(&"o")?;
                                                         }
-                                                        ost if ost == 2 => {
+                                                        frm if frm == 2 => {
                                                             echo = bincode::serialize(&"n")?;
                                                         }
-                                                        ost if ost == 3 => {
+                                                        frm if frm == 3 => {
                                                             echo = bincode::serialize(&"g")?;
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo, hbfi.ost.clone(), total).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
                                                 },
                                                 _ => {}
                                             }

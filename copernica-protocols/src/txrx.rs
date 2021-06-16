@@ -243,13 +243,13 @@ impl TxRx {
                                 if hbfi == hbfi_seek {
                                     if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
                                         let entry = entry.value_mut();
-                                        entry.insert(hbfi.ost.clone(), nw.0.clone());
+                                        entry.insert(hbfi.frm.clone(), nw.0.clone());
                                         break
                                     };
                                 } else {
                                     if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
                                         let entry = entry.value_mut();
-                                        entry.insert(hbfi.ost.clone(), nw.0.clone());
+                                        entry.insert(hbfi.frm.clone(), nw.0.clone());
                                     };
                                 }
                             },
@@ -302,8 +302,8 @@ impl TxRx {
                     match nw.clone() {
                         NarrowWaistPacket::Request { .. } => { },
                         NarrowWaistPacket::Response { hbfi, .. } => {
-                            if hbfi.ost < counter {
-                                counter = hbfi.ost;
+                            if hbfi.frm < counter {
+                                counter = hbfi.frm;
                                 continue
                             }
                             let chunk = match hbfi.request_pid {
@@ -427,8 +427,8 @@ impl TxRx {
                     match nw.clone() {
                         NarrowWaistPacket::Request { .. } => { },
                         NarrowWaistPacket::Response { hbfi, .. } => {
-                            if hbfi.ost < counter {
-                                counter = hbfi.ost;
+                            if hbfi.frm < counter {
+                                counter = hbfi.frm;
                                 continue
                             }
                             let chunk = match hbfi.request_pid {
@@ -452,8 +452,6 @@ impl TxRx {
     pub async fn respond(mut self,
         hbfi: HBFI,
         data: Vec<u8>,
-        offset: u64,
-        total: u64
     ) -> Result<()> {
         debug!("\t\t|  RESPONSE PACKET FOUND");
         let nw = NarrowWaistPacket::response(self.protocol_sid.clone(), hbfi.clone(), data)?;

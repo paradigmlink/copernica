@@ -20,7 +20,7 @@ pub struct HBFI {
     pub m0d: BFI, // Module
     pub fun: BFI, // Function
     pub arg: BFI, // Argument
-    pub ost: u64, // Offset: current 1024 byte chunk of data in a range.
+    pub frm: u64, // Frame Count: current 1024 byte chunk of data in a range.
 }
 pub struct HBFIExcludeFrame(pub HBFI);
 impl Hash for HBFIExcludeFrame {
@@ -71,7 +71,7 @@ impl HBFI {
             m0d: bloom_filter_index(m0d)?,
             fun: bloom_filter_index(fun)?,
             arg: bloom_filter_index(arg)?,
-            ost: 0,
+            frm: 0,
         })
     }
 /*    pub fn to_vec(&self) -> Vec<BFI> {
@@ -92,8 +92,8 @@ impl HBFI {
         , self.arg.clone()
         ]
     }
-    pub fn offset(mut self, ost: u64) -> Self {
-        self.ost = ost;
+    pub fn offset(mut self, frm: u64) -> Self {
+        self.frm = frm;
         self
     }
 }
@@ -109,7 +109,7 @@ impl HBFI {
             , m0d: self.m0d.clone()
             , fun: self.fun.clone()
             , arg: self.arg.clone()
-            , ost: self.ost.clone()
+            , frm: self.frm.clone()
         })
     }
     pub fn cleartext_repr(&self) -> Self {
@@ -121,7 +121,7 @@ impl HBFI {
             , m0d: self.m0d.clone()
             , fun: self.fun.clone()
             , arg: self.arg.clone()
-            , ost: self.ost.clone()
+            , frm: self.frm.clone()
         }
     }
 }
@@ -129,8 +129,8 @@ impl HBFI {
 impl fmt::Debug for HBFI {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            HBFI { request_pid, response_pid, res, req, app, m0d, fun, arg, ost } =>
-            write!(f, "req_pid:{:?},res_pid:{:?},req:{:?},res:{:?},app:{:?},m0d:{:?},fun:{:?},arg:{:?},ost:{:?}", request_pid, response_pid, req, res, app, m0d, fun, arg, ost),
+            HBFI { request_pid, response_pid, res, req, app, m0d, fun, arg, frm } =>
+            write!(f, "req_pid:{:?},res_pid:{:?},req:{:?},res:{:?},app:{:?},m0d:{:?},fun:{:?},arg:{:?},frm:{:?}", request_pid, response_pid, req, res, app, m0d, fun, arg, frm),
         }
     }
 }
@@ -138,8 +138,8 @@ impl fmt::Debug for HBFI {
 impl fmt::Display for HBFI {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &*self {
-            HBFI { request_pid, response_pid, res, req, app, m0d, fun, arg, ost } =>
-            write!(f, "req_pid:{:?},res_pid:{:?},req:{:?},res:{:?},app:{:?},m0d:{:?},fun:{:?},arg:{:?},ost:{:?}", request_pid, response_pid, req, res, app, m0d, fun, arg, ost),
+            HBFI { request_pid, response_pid, res, req, app, m0d, fun, arg, frm } =>
+            write!(f, "req_pid:{:?},res_pid:{:?},req:{:?},res:{:?},app:{:?},m0d:{:?},fun:{:?},arg:{:?},frm:{:?}", request_pid, response_pid, req, res, app, m0d, fun, arg, frm),
         }
     }
 }

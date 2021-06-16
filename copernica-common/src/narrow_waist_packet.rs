@@ -272,7 +272,7 @@ impl Ord for NarrowWaistPacketReqEqRes {
             NarrowWaistPacket::Request { hbfi, .. } => { hbfi },
             NarrowWaistPacket::Response { hbfi, .. } => { hbfi }
         };
-        self_hbfi.ost.cmp(&other_hbfi.ost)
+        self_hbfi.frm.cmp(&other_hbfi.frm)
     }
 }
 impl PartialEq for NarrowWaistPacketReqEqRes {

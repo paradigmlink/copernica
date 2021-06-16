@@ -83,7 +83,7 @@ pub fn serialize_hbfi(hbfi: &HBFI) -> Result<(u8, Vec<u8>)> {
     let m0d = &bfi_to_u8(hbfi.m0d);
     let fun = &bfi_to_u8(hbfi.fun);
     let arg = &bfi_to_u8(hbfi.arg);
-    let ost = &u64_to_u8(hbfi.ost);
+    let frm = &u64_to_u8(hbfi.frm);
     let mut ids_buf: Vec<u8> = vec![];
     match &hbfi.request_pid {
         Some(request_pid) => {
@@ -109,11 +109,11 @@ pub fn serialize_hbfi(hbfi: &HBFI) -> Result<(u8, Vec<u8>)> {
     trace!("ser \thbfi 4: \t\t{:?}", fun.as_ref());
     buf.extend_from_slice(arg);
     trace!("ser \thbfi 5: \t\t{:?}", arg.as_ref());
-    buf.extend_from_slice(ost);
-    trace!("ser \toffset: \t\t{:?}", ost.as_ref());
+    buf.extend_from_slice(frm);
+    trace!("ser \toffset: \t\t{:?}", frm.as_ref());
     buf.extend_from_slice(&ids_buf);
     trace!("ser \tids: \t\t\t{:?}", ids_buf);
-    let size = res.len() + req.len() + app.len() + m0d.len() + fun.len() + arg.len() + ost.len() + ids_buf.len();
+    let size = res.len() + req.len() + app.len() + m0d.len() + fun.len() + arg.len() + frm.len() + ids_buf.len();
     Ok((size as u8, buf))
 }
 pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
@@ -126,10 +126,10 @@ pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
         bfis.push(u8_to_bfi(bbfi));
         count += BFI_BYTE_SIZE;
     }
-    let mut ost = [0u8; U64_SIZE];
-    ost.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
-    trace!("des \toffset: \t\t{:?}", ost.as_ref());
-    let ost: u64 = u8_to_u64(ost);
+    let mut frm = [0u8; U64_SIZE];
+    frm.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
+    trace!("des \toffset: \t\t{:?}", frm.as_ref());
+    let frm: u64 = u8_to_u64(frm);
     let mut res_key = [0u8; ID_SIZE + CC_SIZE];
     res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
     //trace!("des \tres_key: \t\t{:?}", res_key);
@@ -139,7 +139,7 @@ pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     Ok(HBFI { response_pid: PublicIdentity::from(res_key)
             , request_pid: Some(PublicIdentity::from(req_key))
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
-            , ost})
+            , frm})
 }
 pub fn deserialize_cleartext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     let mut bfis: Vec<BFI> = Vec::with_capacity(BFI_COUNT);
@@ -151,17 +151,17 @@ pub fn deserialize_cleartext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
         bfis.push(u8_to_bfi(bbfi));
         count += BFI_BYTE_SIZE;
     }
-    let mut ost = [0u8; U64_SIZE];
-    ost.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
-    trace!("des \toffset: \t\t{:?}", ost.as_ref());
-    let ost: u64 = u8_to_u64(ost);
+    let mut frm = [0u8; U64_SIZE];
+    frm.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
+    trace!("des \toffset: \t\t{:?}", frm.as_ref());
+    let frm: u64 = u8_to_u64(frm);
     let mut res_key = [0u8; ID_SIZE + CC_SIZE];
     res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
     //trace!("des \tres_key: \t\t{:?}", res_key);
     Ok(HBFI { response_pid: PublicIdentity::from(res_key)
             , request_pid: None
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
-            , ost})
+            , frm})
 }
 pub fn deserialize_cyphertext_narrow_waist_packet_response(data: &Vec<u8>) -> Result<NarrowWaistPacket> {
     let mut signature = [0u8; Signature::SIZE];
