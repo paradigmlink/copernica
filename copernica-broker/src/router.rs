@@ -41,7 +41,7 @@ impl Router {
                         }
                         None => {
                             debug!("\t\t|  |  |  |  FORWARD REQUEST UPSTREAM");
-                            this_bloom.create_pending_request(&hbfi);
+                            this_bloom.create_pending_request(hbfi.clone());
                             let link_weights = bayes.classify(&hbfi.to_bfis());
                             bayes.train(&hbfi.to_bfis(), choke);
                             if link_weights[0].linkid == *choke {
@@ -76,18 +76,15 @@ impl Router {
                                     continue;
                                 }
                                 if let Some(that_bloom) = blooms.get_mut(&that_link) {
-                                    if that_bloom.contains_forwarded_request(&hbfi) {
-                                        continue;
-                                    }
-                                    if that_bloom.contains_pending_request(&hbfi) {
+                                    if that_bloom.contains_pending_request(hbfi.clone()) {
                                         continue;
                                     }
                                     if (weight < 0.00) && (forwarded == false) {
-                                        that_bloom.create_forwarded_request(&hbfi);
+                                        that_bloom.create_forwarded_request(hbfi.clone());
                                         r2b_tx.unbounded_send(ilp.change_destination(that_link))?;
                                         continue;
                                     }
-                                    that_bloom.create_forwarded_request(&hbfi);
+                                    that_bloom.create_forwarded_request(hbfi.clone());
                                     r2b_tx.unbounded_send(ilp.change_destination(that_link))?;
                                     forwarded = true;
                                 }
@@ -96,16 +93,14 @@ impl Router {
                     }
                 }
                 NarrowWaistPacket::Response { hbfi, .. } => {
-                    if this_bloom.contains_forwarded_request(&hbfi) {
+                    if this_bloom.contains_forwarded_request(hbfi.clone()) {
                         rs.insert(nw);
                         bayes.super_train(&hbfi.to_bfis(), &this_link);
-                        this_bloom.delete_forwarded_request(&hbfi);
                         for (that_link, that_bloom) in blooms.iter_mut() {
                             if that_link.link_pid()? == this_link.link_pid()? {
                                 continue;
                             }
-                            if that_bloom.contains_pending_request(&hbfi) {
-                                that_bloom.delete_pending_request(&hbfi);
+                            if that_bloom.contains_pending_request(hbfi.clone()) {
                                 debug!("\t\t|  |  |  |  FORWARD RESPONSE DOWNSTREAM");
                                 r2b_tx.unbounded_send(ilp.change_destination(that_link.clone()))?;
                             }
