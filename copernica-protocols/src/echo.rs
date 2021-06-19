@@ -203,19 +203,15 @@ impl<'a> Protocol<'a> for Echo {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
                                                     match frm {
                                                         frm if frm == 0 => {
-                                                            debug!("GOT \"p\" 0");
                                                             echo = bincode::serialize(&"p")?;
                                                         }
                                                         frm if frm == 1 => {
-                                                            debug!("GOT \"o\" 1");
                                                             echo = bincode::serialize(&"o")?;
                                                         }
                                                         frm if frm == 2 => {
-                                                            debug!("GOT \"n\" 2");
                                                             echo = bincode::serialize(&"n")?;
                                                         }
                                                         frm if frm == 3 => {
-                                                            debug!("GOT \"g\" 3");
                                                             echo = bincode::serialize(&"g")?;
                                                         }
                                                         _ => {}
