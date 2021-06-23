@@ -6,15 +6,17 @@ use {
     },
     copernica_common::{LinkId, InterLinkPacket, NarrowWaistPacket, constants},
     anyhow::{anyhow, Result},
-    futures::{
+    futures::{ join,
         stream::{StreamExt},
         channel::mpsc::{UnboundedSender, UnboundedReceiver, Sender, Receiver, channel, unbounded},
         sink::{SinkExt},
+        lock::Mutex,
     },
     futures_lite::{future},
     uluru::LRUCache,
     std::{
-      collections::HashMap,
+        collections::HashMap,
+        sync::{Arc},
     },
     async_executor::{Executor},
     log::{
@@ -49,11 +51,11 @@ use {
 pub type ResponseStore = LRUCache<NarrowWaistPacket, { constants::RESPONSE_STORE_SIZE }>;
 pub struct Broker {
     rs:     ResponseStore,
-    l2b_tx: Sender<InterLinkPacket>,               // give to link
-    l2b_rx: Receiver<InterLinkPacket>,             // keep in broker
-    b2l:    HashMap<u32, Sender<InterLinkPacket>>, // keep in broker
-    r2b_tx: UnboundedSender<InterLinkPacket>,      // give to router
-    r2b_rx: UnboundedReceiver<InterLinkPacket>,    // keep in broker
+    l2b_tx: Sender<InterLinkPacket>,                         // give to link
+    l2b_rx: Receiver<InterLinkPacket>,                       // keep in broker
+    b2l:    HashMap<u32, Sender<InterLinkPacket>>,           // keep in broker
+    r2b_tx: UnboundedSender<InterLinkPacket>,                // give to router
+    r2b_rx: Arc<Mutex<UnboundedReceiver<InterLinkPacket>>>,  // keep in broker
     blooms: HashMap<LinkId, Blooms>,
 }
 impl Broker {
@@ -68,7 +70,7 @@ impl Broker {
             l2b_tx,
             l2b_rx,
             r2b_tx,
-            r2b_rx,
+            r2b_rx: Arc::new(Mutex::new(r2b_rx)),
             b2l,
             blooms,
         }
@@ -95,14 +97,14 @@ impl Broker {
         let choke = LinkId::choke();
         let mut b2l = self.b2l.clone();
         let r2b_tx = self.r2b_tx.clone();
-        let mut r2b_rx = self.r2b_rx;
+        let r2b_rx_mutex = Arc::clone(&self.r2b_rx);
         let mut bayes = Bayes::new();
         for (link_id, _) in &blooms {
             bayes.add_link(&link_id);
         }
         let rs = self.rs.clone();
         let ex = Executor::new();
-        let task = ex.spawn(async move {
+        let receiver_task = ex.spawn(async move {
             loop {
                 match l2b_rx.next().await {
                     Some(ilp) => {
@@ -113,22 +115,38 @@ impl Broker {
                             bayes.add_link(&ilp.link_id());
                         }
                         Router::handle_packet(&ilp, r2b_tx.clone(), &mut rs.clone(), &mut blooms, &mut bayes, &choke)?;
-                        if let Some(ilp) = r2b_rx.next().await {
-                            if let Some(b2l_tx) = b2l.get_mut(&ilp.link_id().lookup_id()?) {
-                                debug!("\t\t|  |  |  router-to-broker");
-                                match b2l_tx.send(ilp).await {
-                                    Ok(_) => {},
-                                    Err(e) => error!("broker {:?}", e),
-                                }
-                            }
-                        }
                     }
                     None => {},
                 }
             }
             Ok::<(), anyhow::Error>(())
         });
-        std::thread::spawn(move || future::block_on(ex.run(task)));
+        let sender_task = async move {
+            loop {
+                let r2b_rx_mutex = r2b_rx_mutex.clone();
+                let mut r2b_rx_ref = r2b_rx_mutex.lock().await;
+                if let Some(ilp) = r2b_rx_ref.next().await {
+                    match &ilp.link_id().lookup_id() {
+                        Ok(id) => {
+                            match b2l.get_mut(id) {
+                                Some(b2l_tx) => {
+                                    debug!("\t\t|  |  |  router-to-broker");
+                                    future::block_on(async {
+                                        match b2l_tx.send(ilp).await {
+                                            Ok(_) => {},
+                                            Err(e) => error!("broker {:?}", e),
+                                        }
+                                    });
+                                },
+                                None => { continue }
+                            }
+                        },
+                        Err(_e) => { continue },
+                    };
+                }
+            }
+        };
+        std::thread::spawn(move || future::block_on(ex.run(async { join!(receiver_task, sender_task) })));
         Ok(())
     }
 }
