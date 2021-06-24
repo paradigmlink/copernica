@@ -40,7 +40,7 @@ impl LinkId {
         match self {
             LinkId::Identity { lookup_id, .. } => Ok(*lookup_id),
             LinkId::Choke => {
-                Err(anyhow!("Choke state shouldn't do anything, thus doesn't require a lookup_id"))
+                Err(anyhow!("Requesting a ReplyTo when in state Choke. Not going to happen buddy"))
             }
         }
     }

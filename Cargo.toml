@@ -7,6 +7,7 @@ members = [
     "copernica-common",
     "copernica-tests",
     "copernica-protocols",
+    "copernica-monitor",
 ]
 exclude = [
     "copernica-sentinel",

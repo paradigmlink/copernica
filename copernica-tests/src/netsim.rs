@@ -1,7 +1,7 @@
 use {
     copernica_protocols::{Echo, Protocol},
     copernica_broker::{Broker},
-    copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface},
+    copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface, constants},
     copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp},
     log::{debug},
     anyhow::{Result},
@@ -55,6 +55,7 @@ pub fn smoke_test() -> Result<()> {
     link5.run()?;
     echo_protocol1.run()?;
 
+    debug!("{}", constants::SESSION_START);
     debug!("unreliable unordered cleartext ping");
     let pong: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
     debug!("unreliable unordered cleartext {:?}", pong);

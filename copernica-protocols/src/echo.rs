@@ -4,9 +4,7 @@ use {
     copernica_common::{
         bloom_filter_index as bfi, NarrowWaistPacket, HBFI, PublicIdentity, PrivateIdentityInterface
     },
-    futures::{
-        sink::{SinkExt},
-    },
+    futures::{ sink::{SinkExt} },
     crate::{Protocol, TxRx},
     log::debug,
     async_executor::{Executor},

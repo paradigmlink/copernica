@@ -3,3 +3,4 @@
 packets/tests/words.txt
 copernica.log
 logs/*
+nohup.out

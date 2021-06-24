@@ -24,10 +24,19 @@ let
     fi
     exit 0
   '';
-  #cargo-bin = "${builtins.getEnv "HOME"}/.cargo/bin";
+  monitor = writeShellScriptBin "monitor" ''
+    dot -Tpng ./monitor.dot > ./monitor.png
+    nohup feh --auto-reload --quiet monitor.png &
+    nohup inotifywait -e close_write,moved_to,create -m . |
+        while read -r directory events filename; do
+          if [ "$filename" = "monitor.dot" ]; then
+            dot -Tpng ./monitor.dot > ./monitor.png
+          fi
+        done &
+  '';
 in
 stdenv.mkDerivation {
   name = "copernica";
   src = null;
-  buildInputs = [ rustup gdb pkgconfig pre-commit libusb ripgrep libiconv gitui];
+  buildInputs = [ rustup gdb pkgconfig pre-commit libusb ripgrep libiconv gitui monitor feh graphviz inotify-tools];
 }
