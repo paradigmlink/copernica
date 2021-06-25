@@ -262,6 +262,87 @@ impl TxRx {
         };
         Ok(reconstruct)
     }
+    async fn process_aimd(&self, aimd: AIMD, hbfi_seek: HBFI, congestion_window_size: &mut u64, pending_queue: &mut BTreeSet<NarrowWaistPacketReqEqRes>) {
+        match aimd {
+            AIMD::AdditiveIncrease { returned, unassociated } => {
+                let incomplete_responses_mutex = self.incomplete_responses.clone();
+                let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
+                for nw in returned {
+                    match nw.clone().0 {
+                        NarrowWaistPacket::Request { .. } => { return },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
+                                let entry = entry.value_mut();
+                                entry.insert(hbfi.frm.clone(), nw.0.clone());
+                            };
+                        },
+                    }
+                }
+                for nw in unassociated {
+                    match nw.clone().0 {
+                        NarrowWaistPacket::Request { .. } => { return },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
+                                let entry = entry.value_mut();
+                                entry.insert(hbfi.frm.clone(), nw.0.clone());
+                            };
+                        },
+                    }
+                }
+                *congestion_window_size += 1;
+            },
+            AIMD::MultiplicativeDecrease { returned, failed, unassociated }=> {
+                let incomplete_responses_mutex = self.incomplete_responses.clone();
+                let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
+                for nw in returned {
+                    match nw.clone().0 {
+                        NarrowWaistPacket::Request { .. } => { return },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
+                                let entry = entry.value_mut();
+                                entry.insert(hbfi.frm.clone(), nw.0.clone());
+                            };
+                        },
+                    }
+                }
+                for nw in unassociated {
+                    match nw.clone().0 {
+                        NarrowWaistPacket::Request { .. } => { return },
+                        NarrowWaistPacket::Response { hbfi, .. } => {
+                            if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
+                                let entry = entry.value_mut();
+                                entry.insert(hbfi.frm.clone(), nw.0.clone());
+                            };
+                        },
+                    }
+                }
+                *congestion_window_size = 1;
+                for nw in failed {
+                    pending_queue.insert(nw);
+                }
+            }
+        }
+    }
+    async fn reconstruct_responses(&self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
+        let mut reconstruct: Vec<Vec<u8>> = vec![];
+        let incomplete_responses_mutex = self.incomplete_responses.clone();
+        let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
+        if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
+            let map = map.value();
+            for (_, nw) in map.range(start..=end) {
+                let chunk = match hbfi_seek.request_pid {
+                    Some(_) => {
+                        nw.data(Some(self.protocol_sid.clone()))?
+                    },
+                    None => {
+                        nw.data(None)?
+                    },
+                };
+                reconstruct.push(chunk);
+            }
+        };
+        Ok(reconstruct)
+    }
     pub async fn unreliable_sequenced_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
         self.register_hbfi(hbfi_seek.clone()).await;
         let window_timeout = Duration::new(1,0);
@@ -285,84 +366,10 @@ impl TxRx {
                 }
             }
             let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.unreliable_sequenced_response_rx), window_timeout).await?;
-            match aimd {
-                AIMD::AdditiveIncrease { returned, unassociated } => {
-                    let incomplete_responses_mutex = self.incomplete_responses.clone();
-                    let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-                    for nw in returned {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    for nw in unassociated {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    congestion_window_size += 1;
-                },
-                AIMD::MultiplicativeDecrease { returned, failed, unassociated }=> {
-                    let incomplete_responses_mutex = self.incomplete_responses.clone();
-                    let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-                    for nw in returned {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    for nw in unassociated {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    congestion_window_size = 1;
-                    for nw in failed {
-                        pending_queue.insert(nw);
-                    }
-                }
-            }
+            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue).await;
         }
-        let mut reconstruct: Vec<Vec<u8>> = vec![];
-        let incomplete_responses_mutex = self.incomplete_responses.clone();
-        let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-        if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
-            let map = map.value();
-            for (_, nw) in map.range(start..=end) {
-                let chunk = match hbfi_seek.request_pid {
-                    Some(_) => {
-                        nw.data(Some(self.protocol_sid.clone()))?
-                    },
-                    None => {
-                        nw.data(None)?
-                    },
-                };
-                reconstruct.push(chunk);
-            }
-        };
-        Ok(reconstruct)
+        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end).await;
+        reconstructed
     }
 
     pub async fn reliable_unordered_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
@@ -388,84 +395,10 @@ impl TxRx {
                 }
             }
             let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.reliable_unordered_response_rx), window_timeout).await?;
-            match aimd {
-                AIMD::AdditiveIncrease { returned, unassociated } => {
-                    let incomplete_responses_mutex = self.incomplete_responses.clone();
-                    let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-                    for nw in returned {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    for nw in unassociated {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    congestion_window_size += 1;
-                },
-                AIMD::MultiplicativeDecrease { returned, failed, unassociated }=> {
-                    let incomplete_responses_mutex = self.incomplete_responses.clone();
-                    let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-                    for nw in returned {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    for nw in unassociated {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    congestion_window_size = 1;
-                    for nw in failed {
-                        pending_queue.insert(nw);
-                    }
-                }
-            }
+            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue).await;
         }
-        let mut reconstruct: Vec<Vec<u8>> = vec![];
-        let incomplete_responses_mutex = self.incomplete_responses.clone();
-        let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-        if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
-            let map = map.value();
-            for (_, nw) in map.range(start..=end) {
-                let chunk = match hbfi_seek.request_pid {
-                    Some(_) => {
-                        nw.data(Some(self.protocol_sid.clone()))?
-                    },
-                    None => {
-                        nw.data(None)?
-                    },
-                };
-                reconstruct.push(chunk);
-            }
-        };
-        Ok(reconstruct)
+        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end).await;
+        reconstructed
     }
     pub async fn reliable_ordered_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
         self.register_hbfi(hbfi_seek.clone()).await;
@@ -490,84 +423,10 @@ impl TxRx {
                 }
             }
             let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.reliable_ordered_response_rx), window_timeout).await?;
-            match aimd {
-                AIMD::AdditiveIncrease { returned, unassociated } => {
-                    let incomplete_responses_mutex = self.incomplete_responses.clone();
-                    let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-                    for nw in returned {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    for nw in unassociated {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    congestion_window_size += 1;
-                },
-                AIMD::MultiplicativeDecrease { returned, failed, unassociated }=> {
-                    let incomplete_responses_mutex = self.incomplete_responses.clone();
-                    let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-                    for nw in returned {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    for nw in unassociated {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    congestion_window_size = 1;
-                    for nw in failed {
-                        pending_queue.insert(nw);
-                    }
-                }
-            }
+            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue).await;
         }
-        let mut reconstruct: Vec<Vec<u8>> = vec![];
-        let incomplete_responses_mutex = self.incomplete_responses.clone();
-        let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-        if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
-            let map = map.value();
-            for (_, nw) in map.range(start..=end) {
-                let chunk = match hbfi_seek.request_pid {
-                    Some(_) => {
-                        nw.data(Some(self.protocol_sid.clone()))?
-                    },
-                    None => {
-                        nw.data(None)?
-                    },
-                };
-                reconstruct.push(chunk);
-            }
-        };
-        Ok(reconstruct)
+        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end).await;
+        reconstructed
     }
     pub async fn reliable_sequenced_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
         self.register_hbfi(hbfi_seek.clone()).await;
@@ -592,84 +451,10 @@ impl TxRx {
                 }
             }
             let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.reliable_sequenced_response_rx), window_timeout).await?;
-            match aimd {
-                AIMD::AdditiveIncrease { returned, unassociated } => {
-                    let incomplete_responses_mutex = self.incomplete_responses.clone();
-                    let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-                    for nw in returned {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    for nw in unassociated {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    congestion_window_size += 1;
-                },
-                AIMD::MultiplicativeDecrease { returned, failed, unassociated }=> {
-                    let incomplete_responses_mutex = self.incomplete_responses.clone();
-                    let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-                    for nw in returned {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    for nw in unassociated {
-                        match nw.clone().0 {
-                            NarrowWaistPacket::Request { .. } => { continue },
-                            NarrowWaistPacket::Response { hbfi, .. } => {
-                                if let Some(mut entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                    let entry = entry.value_mut();
-                                    entry.insert(hbfi.frm.clone(), nw.0.clone());
-                                };
-                            },
-                        }
-                    }
-                    congestion_window_size = 1;
-                    for nw in failed {
-                        pending_queue.insert(nw);
-                    }
-                }
-            }
+            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue).await;
         }
-        let mut reconstruct: Vec<Vec<u8>> = vec![];
-        let incomplete_responses_mutex = self.incomplete_responses.clone();
-        let incomplete_responses_ref = incomplete_responses_mutex.lock().await;
-        if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
-            let map = map.value();
-            for (_, nw) in map.range(start..=end) {
-                let chunk = match hbfi_seek.request_pid {
-                    Some(_) => {
-                        nw.data(Some(self.protocol_sid.clone()))?
-                    },
-                    None => {
-                        nw.data(None)?
-                    },
-                };
-                reconstruct.push(chunk);
-            }
-        };
-        Ok(reconstruct)
+        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end).await;
+        reconstructed
     }
     pub async fn respond(mut self,
         hbfi: HBFI,
