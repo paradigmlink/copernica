@@ -10,11 +10,12 @@ path = "src/lib.rs"
 
 [dependencies]
 copernica-common = { path = "../copernica-common" }
+copernica-monitor = { path = "../copernica-monitor" }
 log = "0.4"
 futures = "0.3.15"
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
-rand = "0.8.3"
+rand = "0.8.4"
 rand_core = "0.6.1"
 async-executor = "1.4.1"
 futures-lite = "1.11.3"

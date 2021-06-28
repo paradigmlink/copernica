@@ -4,11 +4,9 @@ use {
     copernica_common::{
         bloom_filter_index as bfi, NarrowWaistPacket, HBFI, PublicIdentity, PrivateIdentityInterface
     },
-    futures::{ sink::{SinkExt} },
+    copernica_monitor::{LogEntry},
     crate::{Protocol, TxRx},
     log::debug,
-    async_executor::{Executor},
-    futures_lite::{future},
 };
 static UNRELIABLE_UNORDERED_ECHO: &str = "unreliable_unordered_echo";
 static UNRELIABLE_SEQUENCED_ECHO: &str = "unreliable_sequenced_echo";
@@ -24,7 +22,7 @@ impl<'a> Echo {
     pub fn unreliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.unreliable_unordered_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.unreliable_unordered_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -38,7 +36,7 @@ impl<'a> Echo {
     pub fn unreliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.unreliable_unordered_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.unreliable_unordered_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -52,7 +50,7 @@ impl<'a> Echo {
     pub fn unreliable_sequenced_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -66,7 +64,7 @@ impl<'a> Echo {
     pub fn unreliable_sequenced_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -80,7 +78,7 @@ impl<'a> Echo {
     pub fn reliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_unordered_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.reliable_unordered_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -94,7 +92,7 @@ impl<'a> Echo {
     pub fn reliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_unordered_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.reliable_unordered_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -108,7 +106,7 @@ impl<'a> Echo {
     pub fn reliable_ordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_ordered_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.reliable_ordered_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -122,7 +120,7 @@ impl<'a> Echo {
     pub fn reliable_ordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_ordered_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.reliable_ordered_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -136,7 +134,7 @@ impl<'a> Echo {
     pub fn reliable_sequenced_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_sequenced_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.reliable_sequenced_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -150,7 +148,7 @@ impl<'a> Echo {
     pub fn reliable_sequenced_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         if let Some(mut txrx) = self.txrx.clone() {
             let hbfi = HBFI::new(Some(txrx.protocol_sid.public_id()), response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
-            let echo: Vec<Vec<u8>> = future::block_on(async { txrx.reliable_sequenced_request(hbfi.clone(), 0, 3).await })?;
+            let echo: Vec<Vec<u8>> = txrx.reliable_sequenced_request(hbfi.clone(), 0, 3)?;
             let mut result: String = "".into();
             for s in &echo {
                 let data: &str = bincode::deserialize(&s)?;
@@ -163,7 +161,8 @@ impl<'a> Echo {
     }
 }
 impl<'a> Protocol<'a> for Echo {
-    fn new(protocol_sid: PrivateIdentityInterface) -> Echo {
+    fn new(protocol_sid: PrivateIdentityInterface, label: &str) -> Echo {
+        debug!("{}", LogEntry::protocol(protocol_sid.public_id(), label));
         Echo {
             protocol_sid,
             txrx: None,
@@ -171,21 +170,20 @@ impl<'a> Protocol<'a> for Echo {
     }
     fn run(&self) -> Result<()> {
         let txrx = self.txrx.clone();
-        let ex = Executor::new();
-        let task = ex.spawn(async move {
+        std::thread::spawn(move || {
             if let Some(txrx) = txrx {
-                let mut unreliable_unordered_response = txrx.unreliable_unordered_response_tx.clone();
-                let mut unreliable_sequenced_response = txrx.unreliable_sequenced_response_tx.clone();
-                let mut reliable_unordered_response = txrx.reliable_unordered_response_tx.clone();
-                let mut reliable_ordered_response = txrx.reliable_ordered_response_tx.clone();
-                let mut reliable_sequenced_response = txrx.reliable_sequenced_response_tx.clone();
+                let unreliable_unordered_response = txrx.unreliable_unordered_response_tx.clone();
+                let unreliable_sequenced_response = txrx.unreliable_sequenced_response_tx.clone();
+                let reliable_unordered_response = txrx.reliable_unordered_response_tx.clone();
+                let reliable_ordered_response = txrx.reliable_ordered_response_tx.clone();
+                let reliable_sequenced_response = txrx.reliable_sequenced_response_tx.clone();
                 let res_check = bfi(&format!("{}", txrx.protocol_sid.clone().public_id()))?;
                 let app_check = bfi("echo")?;
                 let m0d_check = bfi("echo")?;
                 let fun_check = bfi("echo")?;
                 loop {
-                    match txrx.clone().next_inbound().await {
-                        Some(ilp) => {
+                    match txrx.clone().next() {
+                        Ok(ilp) => {
                             debug!("\t\t|  link-to-protocol");
                             let nw: NarrowWaistPacket = ilp.narrow_waist();
                             match nw.clone() {
@@ -214,7 +212,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo)?;
                                                 },
                                                 arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -233,7 +231,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo)?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_UNORDERED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -252,7 +250,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo)?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -271,7 +269,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo)?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_SEQUENCED_ECHO)? => {
                                                     let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
@@ -290,7 +288,7 @@ impl<'a> Protocol<'a> for Echo {
                                                         }
                                                         _ => {}
                                                     }
-                                                    txrx.clone().respond(hbfi.clone(), echo).await?;
+                                                    txrx.clone().respond(hbfi.clone(), echo)?;
                                                 },
                                                 _ => {}
                                             }
@@ -306,23 +304,23 @@ impl<'a> Protocol<'a> for Echo {
                                             match arg {
                                                 arg if arg == bfi(UNRELIABLE_UNORDERED_ECHO)? => {
                                                     debug!("\t\t|  RESPONSE PACKET ARRIVED");
-                                                    unreliable_unordered_response.send(ilp).await?;
+                                                    unreliable_unordered_response.send(ilp)?;
                                                 },
                                                 arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
                                                     debug!("\t\t|  RESPONSE PACKET ARRIVED");
-                                                    unreliable_sequenced_response.send(ilp).await?;
+                                                    unreliable_sequenced_response.send(ilp)?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_UNORDERED_ECHO)? => {
                                                     debug!("\t\t|  RESPONSE PACKET ARRIVED");
-                                                    reliable_unordered_response.send(ilp).await?;
+                                                    reliable_unordered_response.send(ilp)?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
                                                     debug!("\t\t|  RESPONSE PACKET ARRIVED");
-                                                    reliable_ordered_response.send(ilp).await?;
+                                                    reliable_ordered_response.send(ilp)?;
                                                 },
                                                 arg if arg == bfi(RELIABLE_SEQUENCED_ECHO)? => {
                                                     debug!("\t\t|  RESPONSE PACKET ARRIVED");
-                                                    reliable_sequenced_response.send(ilp).await?;
+                                                    reliable_sequenced_response.send(ilp)?;
                                                 },
                                                 _ => {}
                                             }
@@ -331,13 +329,13 @@ impl<'a> Protocol<'a> for Echo {
                                 }
                             }
                         }
-                        None => {}
+                        Err(_e) => {}
                     }
                 }
             }
             Ok::<(), anyhow::Error>(())
         });
-        std::thread::spawn(move || future::block_on(ex.run(task)));
+        //std::thread::spawn(move || future::block_on(ex.run(task)));
         Ok(())
     }
     fn set_txrx(&mut self, txrx: TxRx) {

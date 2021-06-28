@@ -5,20 +5,15 @@ use {
         Bayes,
     },
     copernica_common::{LinkId, InterLinkPacket, NarrowWaistPacket, constants},
+    copernica_monitor::{LogEntry},
     anyhow::{anyhow, Result},
-    futures::{ join,
-        stream::{StreamExt},
-        channel::mpsc::{UnboundedSender, UnboundedReceiver, Sender, Receiver, channel, unbounded},
-        sink::{SinkExt},
-        lock::Mutex,
-    },
-    futures_lite::{future},
+    std::sync::mpsc::{Receiver, SyncSender, sync_channel as channel},
     uluru::LRUCache,
+    rand::Rng,
     std::{
         collections::HashMap,
-        sync::{Arc},
+        sync::{Arc, Mutex},
     },
-    async_executor::{Executor},
     log::{
         error, trace,
         debug
@@ -50,22 +45,26 @@ use {
 */
 pub type ResponseStore = LRUCache<NarrowWaistPacket, { constants::RESPONSE_STORE_SIZE }>;
 pub struct Broker {
+    id:     u32,
     rs:     ResponseStore,
-    l2b_tx: Sender<InterLinkPacket>,                         // give to link
+    l2b_tx: SyncSender<InterLinkPacket>,                         // give to link
     l2b_rx: Receiver<InterLinkPacket>,                       // keep in broker
-    b2l:    HashMap<u32, Sender<InterLinkPacket>>,           // keep in broker
-    r2b_tx: UnboundedSender<InterLinkPacket>,                // give to router
-    r2b_rx: Arc<Mutex<UnboundedReceiver<InterLinkPacket>>>,  // keep in broker
+    b2l:    HashMap<u32, SyncSender<InterLinkPacket>>,           // keep in broker
+    r2b_tx: SyncSender<InterLinkPacket>,                // give to router
+    r2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,  // keep in broker
     blooms: HashMap<LinkId, Blooms>,
 }
 impl Broker {
     pub fn new() -> Self {
         let (l2b_tx, l2b_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
-        let (r2b_tx, r2b_rx) = unbounded::<InterLinkPacket>();
+        let (r2b_tx, r2b_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let b2l = HashMap::new();
         let blooms = HashMap::new();
         let rs = ResponseStore::default();
+        let mut rng = rand::thread_rng();
+        let id = rng.gen::<u32>();
         Self {
+            id,
             rs,
             l2b_tx,
             l2b_rx,
@@ -78,21 +77,24 @@ impl Broker {
     pub fn peer_with_link(
         &mut self,
         link_id: LinkId,
-    ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
-        match self.blooms.get(&link_id) {
+    ) -> Result<(SyncSender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
+        let channel_pair = match self.blooms.get(&link_id) {
             Some(_) => Err(anyhow!("Channel already initialized")),
             None => {
                 let (b2l_tx, b2l_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
                 self.b2l.insert(link_id.lookup_id()?, b2l_tx.clone());
-                trace!("ADDING REMOTE: {:?}", link_id);
                 self.blooms.insert(link_id, Blooms::new());
                 Ok((self.l2b_tx.clone(), b2l_rx))
             }
-        }
+        };
+        let ids: Vec<u32> = self.b2l.keys().cloned().collect();
+        debug!("{}", LogEntry::router(self.id, ids));
+        channel_pair
+
     }
     #[allow(unreachable_code)]
     pub fn run(self) -> Result<()> {
-        let mut l2b_rx = self.l2b_rx;
+        let l2b_rx = self.l2b_rx;
         let mut blooms = self.blooms.clone();
         let choke = LinkId::choke();
         let mut b2l = self.b2l.clone();
@@ -103,11 +105,10 @@ impl Broker {
             bayes.add_link(&link_id);
         }
         let rs = self.rs.clone();
-        let ex = Executor::new();
-        let receiver_task = ex.spawn(async move {
+        std::thread::spawn(move || {
             loop {
-                match l2b_rx.next().await {
-                    Some(ilp) => {
+                match l2b_rx.recv() {
+                    Ok(ilp) => {
                         debug!("\t\t|  |  |  broker-to-router");
                         if !blooms.contains_key(&ilp.link_id()) {
                             trace!("ADDING {:?} to BLOOMS", ilp);
@@ -116,27 +117,25 @@ impl Broker {
                         }
                         Router::handle_packet(&ilp, r2b_tx.clone(), &mut rs.clone(), &mut blooms, &mut bayes, &choke)?;
                     }
-                    None => {},
+                    Err(error) => error!("{}", error),
                 }
             }
             Ok::<(), anyhow::Error>(())
         });
-        let sender_task = async move {
+        std::thread::spawn(move || {
             loop {
                 let r2b_rx_mutex = r2b_rx_mutex.clone();
-                let mut r2b_rx_ref = r2b_rx_mutex.lock().await;
-                if let Some(ilp) = r2b_rx_ref.next().await {
+                let r2b_rx_ref = r2b_rx_mutex.lock().unwrap();
+                if let Ok(ilp) = r2b_rx_ref.recv() {
                     match &ilp.link_id().lookup_id() {
                         Ok(id) => {
                             match b2l.get_mut(id) {
                                 Some(b2l_tx) => {
                                     debug!("\t\t|  |  |  router-to-broker");
-                                    future::block_on(async {
-                                        match b2l_tx.send(ilp).await {
-                                            Ok(_) => {},
-                                            Err(e) => error!("broker {:?}", e),
-                                        }
-                                    });
+                                    match b2l_tx.send(ilp) {
+                                        Ok(_) => {},
+                                        Err(e) => error!("broker {:?}", e),
+                                    }
                                 },
                                 None => { continue }
                             }
@@ -145,8 +144,7 @@ impl Broker {
                     };
                 }
             }
-        };
-        std::thread::spawn(move || future::block_on(ex.run(async { join!(receiver_task, sender_task) })));
+        });
         Ok(())
     }
 }

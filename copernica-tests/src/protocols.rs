@@ -13,16 +13,16 @@ pub fn smoke_test() -> Result<()> {
     let mut broker1 = Broker::new();
     let echo_protocol_sid0 = PrivateIdentityInterface::new_key();
     let echo_protocol_sid1 = PrivateIdentityInterface::new_key();
-    let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone());
-    let mut echo_protocol1: Echo = Protocol::new(echo_protocol_sid1.clone());
+    let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone(), "echo_protocol0");
+    let mut echo_protocol1: Echo = Protocol::new(echo_protocol_sid1.clone(), "echo_protocol1");
 
     // echo_protocol0 to broker0
     let link_sid0 = PrivateIdentityInterface::new_key();
     let link_sid1 = PrivateIdentityInterface::new_key();
     let link_id0 = LinkId::link_with_type(link_sid0.clone(), None, ReplyTo::Mpsc);
     let link_id1 = LinkId::link_with_type(link_sid1.clone(), None, ReplyTo::Mpsc);
-    let mut link0: MpscChannel = Link::new(link_id0.clone(), broker0.peer_with_link(link_id0.clone())?)?;
-    let mut link1: MpscChannel = Link::new(link_id1.clone(), echo_protocol0.peer_with_link(link_id0.clone())?)?;
+    let mut link0: MpscChannel = Link::new(link_id0.clone(), "link0", broker0.peer_with_link(link_id0.clone())?)?;
+    let mut link1: MpscChannel = Link::new(link_id1.clone(), "link1",echo_protocol0.peer_with_link(link_id0.clone())?)?;
     link0.female(link1.male());
     link1.female(link0.male());
 
@@ -31,8 +31,8 @@ pub fn smoke_test() -> Result<()> {
     let link_sid3 = PrivateIdentityInterface::new_key();
     let link_id2 = LinkId::link_with_type(link_sid2.clone(), Some(link_sid3.public_id()), ReplyTo::Mpsc);
     let link_id3 = LinkId::link_with_type(link_sid3.clone(), Some(link_sid2.public_id()), ReplyTo::Mpsc);
-    let mut link2: MpscCorruptor = Link::new(link_id2.clone(), broker0.peer_with_link(link_id2.clone())?)?;
-    let mut link3: MpscCorruptor = Link::new(link_id3.clone(), broker1.peer_with_link(link_id3.clone())?)?;
+    let mut link2: MpscCorruptor = Link::new(link_id2.clone(), "link2", broker0.peer_with_link(link_id2.clone())?)?;
+    let mut link3: MpscCorruptor = Link::new(link_id3.clone(), "link3", broker1.peer_with_link(link_id3.clone())?)?;
     link2.female(link3.male());
     link3.female(link2.male());
 
@@ -43,8 +43,8 @@ pub fn smoke_test() -> Result<()> {
     let address5 = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), Some(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), Some(link_sid4.public_id()), address5.clone());
-    let link4: UdpIp = Link::new(link_id4.clone(), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
-    let link5: UdpIp = Link::new(link_id5.clone(), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+    let link4: UdpIp = Link::new(link_id4.clone(), "link4", broker1.peer_with_link(link_id4.remote(address5)?)?)?;
+    let link5: UdpIp = Link::new(link_id5.clone(), "link5", echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
 
     //let links: Vec<Box<dyn Link>> = vec![Box::new(link0), Box::new(link1), Box::new(link2), Box::new(link3), Box::new(link4), Box::new(link5)];
     //for link in links {

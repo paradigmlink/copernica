@@ -11,9 +11,7 @@ use {
         InterLinkPacket, LinkId, LinkPacket, PublicIdentity,
         serialization::*,
     },
-    futures::{
-        channel::mpsc::{Sender, Receiver},
-    },
+    std::sync::mpsc::{Receiver, SyncSender},
     anyhow::{Result},
     reed_solomon::{Buffer, Encoder, Decoder},
 };
@@ -36,5 +34,5 @@ pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
 }
 pub trait Link<'a> {
     fn run(self) -> Result<()>;
-    fn new(link: LinkId, router_in_and_out: ( Sender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
+    fn new(link: LinkId, label: &str, router_in_and_out: ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
 }

@@ -1,8 +1,6 @@
 use {
     copernica_common::{LinkId, InterLinkPacket, PrivateIdentityInterface, constants},
-    futures::{
-        channel::mpsc::{Sender, Receiver, channel},
-    },
+    std::sync::mpsc::{sync_channel as channel, Receiver, SyncSender},
     crate::{TxRx},
     anyhow::{Result},
 };
@@ -33,7 +31,7 @@ use {
 pub trait Protocol<'a> {
     fn get_protocol_sid(&mut self) -> PrivateIdentityInterface;
     fn set_txrx(&mut self, txrx: TxRx);
-    fn peer_with_link(&mut self, link_id: LinkId) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
+    fn peer_with_link(&mut self, link_id: LinkId) -> Result<(SyncSender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
         let (l2p_tx, l2p_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (p2l_tx, p2l_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let txrx = TxRx::new(link_id, self.get_protocol_sid(), p2l_tx, l2p_rx);
@@ -42,7 +40,7 @@ pub trait Protocol<'a> {
     }
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()>;
-    fn new(protocol_sid: PrivateIdentityInterface) -> Self where Self: Sized;
+    fn new(protocol_sid: PrivateIdentityInterface, label: &str) -> Self where Self: Sized;
 }
 
 

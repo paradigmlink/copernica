@@ -6,7 +6,7 @@ use {
     copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
     anyhow::Result,
     //log::{trace},
-    futures::{ channel::mpsc::{UnboundedSender}},
+    std::sync::mpsc::{SyncSender},
     log::{debug, warn},
     std::collections::HashMap,
 };
@@ -15,7 +15,7 @@ pub struct Router {}
 impl Router {
     pub fn handle_packet(
         ilp: &InterLinkPacket,
-        r2b_tx: UnboundedSender<InterLinkPacket>,
+        r2b_tx: SyncSender<InterLinkPacket>,
         rs: &mut ResponseStore,
         blooms: &mut HashMap<LinkId, Blooms>,
         bayes: &mut Bayes,
@@ -36,7 +36,7 @@ impl Router {
                             debug!("\t\t|  |  |  |  RESPONSE PACKET FOUND");
                             let lp = LinkPacket::new(this_link.reply_to()?, nw.clone());
                             let ilp = InterLinkPacket::new(this_link.clone(), lp);
-                            r2b_tx.unbounded_send(ilp)?;
+                            r2b_tx.send(ilp)?;
                             return Ok(());
                         }
                         None => {
@@ -81,11 +81,11 @@ impl Router {
                                     }
                                     if (weight < 0.00) && (forwarded == false) {
                                         that_bloom.create_forwarded_request(hbfi.clone());
-                                        r2b_tx.unbounded_send(ilp.change_destination(that_link))?;
+                                        r2b_tx.send(ilp.change_destination(that_link))?;
                                         continue;
                                     }
                                     that_bloom.create_forwarded_request(hbfi.clone());
-                                    r2b_tx.unbounded_send(ilp.change_destination(that_link))?;
+                                    r2b_tx.send(ilp.change_destination(that_link))?;
                                     forwarded = true;
                                 }
                             }
@@ -102,7 +102,7 @@ impl Router {
                             }
                             if that_bloom.contains_pending_request(hbfi.clone()) {
                                 debug!("\t\t|  |  |  |  FORWARD RESPONSE DOWNSTREAM");
-                                r2b_tx.unbounded_send(ilp.change_destination(that_link.clone()))?;
+                                r2b_tx.send(ilp.change_destination(that_link.clone()))?;
                             }
                         }
                     }
