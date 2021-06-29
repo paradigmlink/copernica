@@ -129,7 +129,6 @@ impl TxRx {
         let data_mutex: Arc<Mutex<Data>> = Arc::new(Mutex::new(Data(returned, unassociated)));
         let data_mutex_to_thread = Arc::clone(&data_mutex);
         let (sender, receiver) = channel(1);
-        let tsender = sender.clone();
         std::thread::spawn(move || {
             let mut counter = 0;
             while counter < total {
@@ -149,16 +148,12 @@ impl TxRx {
                             data.1.insert(NarrowWaistPacketReqEqRes(nw));
                         }
                     },
-                Err(_e) => {},
+                    Err(_e) => {},
                 }
             }
-            sender.send(Ok(()));
+            sender.send(());
         });
-        std::thread::spawn(move || {
-            std::thread::sleep(window_timeout);
-            tsender.send(Err(anyhow!("timed out")));
-        });
-        receiver.recv();
+        receiver.recv_timeout(window_timeout);
         let data = data_mutex.lock().unwrap();
         let returned = data.0.clone();
         let unassociated = data.1.clone();
