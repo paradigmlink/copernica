@@ -9,7 +9,7 @@ pub use {
 use {
     copernica_common::{
         InterLinkPacket, LinkId, LinkPacket, PublicIdentity,
-        serialization::*,
+        Operations, serialization::*
     },
     std::sync::mpsc::{Receiver, SyncSender},
     anyhow::{Result},
@@ -34,5 +34,5 @@ pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
 }
 pub trait Link<'a> {
     fn run(self) -> Result<()>;
-    fn new(link: LinkId, label: &str, router_in_and_out: ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
+    fn new(link: LinkId, ops: (String, Operations), router_in_and_out: ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
 }

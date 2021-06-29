@@ -1,7 +1,9 @@
 use {
-    copernica_common::{LinkId, NarrowWaistPacket, NarrowWaistPacketReqEqRes, LinkPacket, InterLinkPacket, HBFI, HBFIExcludeFrame, PrivateIdentityInterface,
-    constants},
-    copernica_monitor::LogEntry,
+    copernica_common::{
+        LinkId, NarrowWaistPacket, NarrowWaistPacketReqEqRes,
+        LinkPacket, InterLinkPacket, HBFI, HBFIExcludeFrame,
+        PrivateIdentityInterface, PublicIdentity, constants, LogEntry
+    },
     log::{debug, error},
     anyhow::{anyhow, Result},
     std::{
@@ -47,32 +49,38 @@ enum AIMD {
     },
 }
 #[derive(Clone)]
-pub struct TxRx {
-    pub link_id: LinkId,
-    pub protocol_sid: PrivateIdentityInterface,
-    pub p2l_tx: SyncSender<InterLinkPacket>,
-    pub l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-    pub incomplete_responses: Arc<Mutex<HashMap<HBFIExcludeFrame, BTreeMap<u64, NarrowWaistPacket>>>>,
-    pub unreliable_unordered_response_tx: SyncSender<InterLinkPacket>,
-    pub unreliable_unordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-    pub unreliable_sequenced_response_tx: SyncSender<InterLinkPacket>,
-    pub unreliable_sequenced_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-    pub reliable_unordered_response_tx: SyncSender<InterLinkPacket>,
-    pub reliable_unordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-    pub reliable_ordered_response_tx: SyncSender<InterLinkPacket>,
-    pub reliable_ordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-    pub reliable_sequenced_response_tx: SyncSender<InterLinkPacket>,
-    pub reliable_sequenced_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+pub enum TxRx {
+    Initialized {
+        link_id: LinkId,
+        protocol_sid: PrivateIdentityInterface,
+        p2l_tx: SyncSender<InterLinkPacket>,
+        l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        incomplete_responses: Arc<Mutex<HashMap<HBFIExcludeFrame, BTreeMap<u64, NarrowWaistPacket>>>>,
+        unreliable_unordered_response_tx: SyncSender<InterLinkPacket>,
+        unreliable_unordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        unreliable_sequenced_response_tx: SyncSender<InterLinkPacket>,
+        unreliable_sequenced_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        reliable_unordered_response_tx: SyncSender<InterLinkPacket>,
+        reliable_unordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        reliable_ordered_response_tx: SyncSender<InterLinkPacket>,
+        reliable_ordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        reliable_sequenced_response_tx: SyncSender<InterLinkPacket>,
+        reliable_sequenced_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+    },
+    Inert,
 }
 impl TxRx {
-    pub fn new(link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: SyncSender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
+    pub fn inert() -> TxRx {
+        TxRx::Inert
+    }
+    pub fn init(link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: SyncSender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
     {
         let (unreliable_unordered_response_tx, unreliable_unordered_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (unreliable_sequenced_response_tx, unreliable_sequenced_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (reliable_unordered_response_tx, reliable_unordered_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (reliable_ordered_response_tx, reliable_ordered_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (reliable_sequenced_response_tx, reliable_sequenced_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
-        TxRx {
+        TxRx::Initialized {
             link_id,
             protocol_sid,
             p2l_tx,
@@ -90,17 +98,36 @@ impl TxRx {
             reliable_sequenced_response_tx,
          }
     }
-    pub fn register_hbfi(&mut self, hbfi: HBFI) {
-        let incomplete_responses_mutex = self.incomplete_responses.clone();
-        let mut incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
-        let hbfi2 = HBFIExcludeFrame(hbfi);
-        incomplete_responses_ref.insert(hbfi2, BTreeMap::new());
+    pub fn protocol_public_id(&self) -> Result<PublicIdentity> {
+        match self {
+            TxRx::Initialized { protocol_sid, .. } => {
+                Ok(protocol_sid.public_id())
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
+        }
+    }
+    fn register_hbfi(&self, hbfi: HBFI) -> Result<()> {
+        match self {
+            TxRx::Initialized { incomplete_responses, .. } => {
+                let incomplete_responses_mutex = incomplete_responses.clone();
+                let mut incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
+                let hbfi2 = HBFIExcludeFrame(hbfi);
+                incomplete_responses_ref.insert(hbfi2, BTreeMap::new());
+                Ok(())
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
+        }
     }
     pub fn next(self) -> Result<InterLinkPacket> {
-        let l2p_rx_mutex = Arc::clone(&self.l2p_rx);
-        let l2p_rx_ref = l2p_rx_mutex.lock().unwrap();
-        let out = l2p_rx_ref.recv()?;
-        Ok(out)
+        match self {
+            TxRx::Initialized { l2p_rx, .. } => {
+                let l2p_rx_mutex = Arc::clone(&l2p_rx);
+                let l2p_rx_ref = l2p_rx_mutex.lock().unwrap();
+                let out = l2p_rx_ref.recv()?;
+                Ok(out)
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
+        }
     }
     fn send_and_receive(&self
         , nws: &BTreeSet<NarrowWaistPacketReqEqRes>
@@ -108,293 +135,341 @@ impl TxRx {
         , rx_mutex: Arc<Mutex<Receiver<InterLinkPacket>>>
         , window_timeout: Duration
         ) -> Result<AIMD> {
-        let total = nws.len();
-        let hbfi_seek_no_frame = HBFIExcludeFrame(hbfi_seek.clone());
-        for nw in nws.clone() {
-            let lp = LinkPacket::new(self.link_id.reply_to()?, nw.0.clone());
-            let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
-            debug!("\t\t|  protocol-to-link");
-            if let Some(remote_link_pid) = self.link_id.remote_link_pid()? {
-                debug!("{}", LogEntry::protocol_to_link(self.link_id.link_pid()?, remote_link_pid, ""));
-            }
-            let p2l_tx = self.p2l_tx.clone();
-            match p2l_tx.send(ilp) {
-                Ok(_) => { },
-                Err(e) => error!("protocol send error {:?}", e),
-            }
-        }
-        struct Data(pub BTreeSet<NarrowWaistPacketReqEqRes>, pub BTreeSet<NarrowWaistPacketReqEqRes>);
-        let returned: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let unassociated: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let data_mutex: Arc<Mutex<Data>> = Arc::new(Mutex::new(Data(returned, unassociated)));
-        let data_mutex_to_thread = Arc::clone(&data_mutex);
-        let (sender, receiver) = channel(1);
-        std::thread::spawn(move || {
-            let mut counter = 0;
-            while counter < total {
-                let rx_ref = rx_mutex.lock().unwrap();
-                match rx_ref.recv() {
-                    Ok(ilp) => {
-                        let nw = ilp.narrow_waist();
-                        let inbound_hbfi = match nw.clone() {
-                            NarrowWaistPacket::Request {..} => {  continue },
-                            NarrowWaistPacket::Response {hbfi, ..} => { HBFIExcludeFrame(hbfi.clone()) },
-                        };
-                        let mut data = data_mutex_to_thread.lock().unwrap();
-                        if hbfi_seek_no_frame == inbound_hbfi {
-                            data.0.insert(NarrowWaistPacketReqEqRes(nw));
-                            counter += 1;
-                        } else {
-                            data.1.insert(NarrowWaistPacketReqEqRes(nw));
-                        }
-                    },
-                    Err(_e) => {},
+        match self {
+            TxRx::Initialized { link_id, p2l_tx, .. } => {
+                let total = nws.len();
+                let hbfi_seek_no_frame = HBFIExcludeFrame(hbfi_seek.clone());
+                for nw in nws.clone() {
+                    let lp = LinkPacket::new(link_id.reply_to()?, nw.0.clone());
+                    let ilp = InterLinkPacket::new(link_id.clone(), lp);
+                    debug!("\t\t|  protocol-to-link");
+                    if let Some(remote_link_pid) = link_id.remote_link_pid()? {
+                        debug!("{}", LogEntry::protocol_to_link(link_id.link_pid()?, remote_link_pid, ""));
+                    }
+                    let p2l_tx = p2l_tx.clone();
+                    match p2l_tx.send(ilp) {
+                        Ok(_) => { },
+                        Err(e) => error!("protocol send error {:?}", e),
+                    }
                 }
-            }
-            sender.send(());
-        });
-        receiver.recv_timeout(window_timeout);
-        let data = data_mutex.lock().unwrap();
-        let returned = data.0.clone();
-        let unassociated = data.1.clone();
-        let failed: BTreeSet<NarrowWaistPacketReqEqRes> = nws.difference(&returned).cloned().collect();
-        let aimd: AIMD = if failed.len() > 0 {
-            AIMD::MultiplicativeDecrease { returned, failed, unassociated }
-        } else {
-            AIMD::AdditiveIncrease { returned, unassociated }
-        };
-        Ok(aimd)
+                struct Data(pub BTreeSet<NarrowWaistPacketReqEqRes>, pub BTreeSet<NarrowWaistPacketReqEqRes>);
+                let returned: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let unassociated: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let data_mutex: Arc<Mutex<Data>> = Arc::new(Mutex::new(Data(returned, unassociated)));
+                let data_mutex_to_thread = Arc::clone(&data_mutex);
+                let (sender, receiver) = channel(1);
+                std::thread::spawn(move || {
+                    let mut counter = 0;
+                    while counter < total {
+                        let rx_ref = rx_mutex.lock().unwrap();
+                        match rx_ref.recv() {
+                            Ok(ilp) => {
+                                let nw = ilp.narrow_waist();
+                                let inbound_hbfi = match nw.clone() {
+                                    NarrowWaistPacket::Request {..} => {  continue },
+                                    NarrowWaistPacket::Response {hbfi, ..} => { HBFIExcludeFrame(hbfi.clone()) },
+                                };
+                                let mut data = data_mutex_to_thread.lock().unwrap();
+                                if hbfi_seek_no_frame == inbound_hbfi {
+                                    data.0.insert(NarrowWaistPacketReqEqRes(nw));
+                                    counter += 1;
+                                } else {
+                                    data.1.insert(NarrowWaistPacketReqEqRes(nw));
+                                }
+                            },
+                            Err(_e) => {},
+                        }
+                    }
+                    match sender.send(()) {
+                        Ok(_) => {},
+                        Err(_) => {},
+                    }
+                });
+                receiver.recv_timeout(window_timeout)?;
+                let data = data_mutex.lock().unwrap();
+                let returned = data.0.clone();
+                let unassociated = data.1.clone();
+                let failed: BTreeSet<NarrowWaistPacketReqEqRes> = nws.difference(&returned).cloned().collect();
+                let aimd: AIMD = if failed.len() > 0 {
+                    AIMD::MultiplicativeDecrease { returned, failed, unassociated }
+                } else {
+                    AIMD::AdditiveIncrease { returned, unassociated }
+                };
+                Ok(aimd)
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
+        }
     }
     fn process_aimd(&self, aimd: AIMD, hbfi_seek: HBFI, congestion_window_size: &mut u64, pending_queue: &mut BTreeSet<NarrowWaistPacketReqEqRes>) {
-        match aimd {
-            AIMD::AdditiveIncrease { returned, unassociated } => {
-                let incomplete_responses_mutex = self.incomplete_responses.clone();
-                let mut incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
-                for nw in returned {
-                    match nw.clone().0 {
-                        NarrowWaistPacket::Request { .. } => { return },
-                        NarrowWaistPacket::Response { hbfi, .. } => {
-                            if let Some(entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                entry.insert(hbfi.frm.clone(), nw.0.clone());
-                            };
-                        },
+        match self {
+            TxRx::Initialized { incomplete_responses, .. } => {
+                match aimd {
+                    AIMD::AdditiveIncrease { returned, unassociated } => {
+                        let incomplete_responses_mutex = incomplete_responses.clone();
+                        let mut incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
+                        for nw in returned {
+                            match nw.clone().0 {
+                                NarrowWaistPacket::Request { .. } => { return },
+                                NarrowWaistPacket::Response { hbfi, .. } => {
+                                    if let Some(entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
+                                        entry.insert(hbfi.frm.clone(), nw.0.clone());
+                                    };
+                                },
+                            }
+                        }
+                        for nw in unassociated {
+                            match nw.clone().0 {
+                                NarrowWaistPacket::Request { .. } => { return },
+                                NarrowWaistPacket::Response { hbfi, .. } => {
+                                    if let Some(entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
+                                        entry.insert(hbfi.frm.clone(), nw.0.clone());
+                                    };
+                                },
+                            }
+                        }
+                        *congestion_window_size += 1;
+                    },
+                    AIMD::MultiplicativeDecrease { returned, failed, unassociated }=> {
+                        let incomplete_responses_mutex = incomplete_responses.clone();
+                        let mut incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
+                        for nw in returned {
+                            match nw.clone().0 {
+                                NarrowWaistPacket::Request { .. } => { return },
+                                NarrowWaistPacket::Response { hbfi, .. } => {
+                                    if let Some(entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
+                                        entry.insert(hbfi.frm.clone(), nw.0.clone());
+                                    };
+                                },
+                            }
+                        }
+                        for nw in unassociated {
+                            match nw.clone().0 {
+                                NarrowWaistPacket::Request { .. } => { return },
+                                NarrowWaistPacket::Response { hbfi, .. } => {
+                                    if let Some(entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
+                                        entry.insert(hbfi.frm.clone(), nw.0.clone());
+                                    };
+                                },
+                            }
+                        }
+                        *congestion_window_size = 1;
+                        for nw in failed {
+                            pending_queue.insert(nw);
+                        }
                     }
                 }
-                for nw in unassociated {
-                    match nw.clone().0 {
-                        NarrowWaistPacket::Request { .. } => { return },
-                        NarrowWaistPacket::Response { hbfi, .. } => {
-                            if let Some(entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                entry.insert(hbfi.frm.clone(), nw.0.clone());
-                            };
-                        },
-                    }
-                }
-                *congestion_window_size += 1;
             },
-            AIMD::MultiplicativeDecrease { returned, failed, unassociated }=> {
-                let incomplete_responses_mutex = self.incomplete_responses.clone();
-                let mut incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
-                for nw in returned {
-                    match nw.clone().0 {
-                        NarrowWaistPacket::Request { .. } => { return },
-                        NarrowWaistPacket::Response { hbfi, .. } => {
-                            if let Some(entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                                entry.insert(hbfi.frm.clone(), nw.0.clone());
-                            };
-                        },
-                    }
-                }
-                for nw in unassociated {
-                    match nw.clone().0 {
-                        NarrowWaistPacket::Request { .. } => { return },
-                        NarrowWaistPacket::Response { hbfi, .. } => {
-                            if let Some(entry) = incomplete_responses_ref.get_mut(&HBFIExcludeFrame(hbfi.clone())) {
-                                entry.insert(hbfi.frm.clone(), nw.0.clone());
-                            };
-                        },
-                    }
-                }
-                *congestion_window_size = 1;
-                for nw in failed {
-                    pending_queue.insert(nw);
-                }
-            }
+            TxRx::Inert => panic!("{}", anyhow!("You must peer with a link first"))
         }
     }
     fn reconstruct_responses(&self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
-        let mut reconstruct: Vec<Vec<u8>> = vec![];
-        let incomplete_responses_mutex = self.incomplete_responses.clone();
-        let incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
-        if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
-            for (_, nw) in map.range(start..=end) {
-                let chunk = match hbfi_seek.request_pid {
-                    Some(_) => {
-                        nw.data(Some(self.protocol_sid.clone()))?
-                    },
-                    None => {
-                        nw.data(None)?
-                    },
+        match self {
+            TxRx::Initialized { incomplete_responses, protocol_sid, .. } => {
+                let mut reconstruct: Vec<Vec<u8>> = vec![];
+                let incomplete_responses_mutex = incomplete_responses.clone();
+                let incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
+                if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
+                    for (_, nw) in map.range(start..=end) {
+                        let chunk = match hbfi_seek.request_pid {
+                            Some(_) => {
+                                nw.data(Some(protocol_sid.clone()))?
+                            },
+                            None => {
+                                nw.data(None)?
+                            },
+                        };
+                        reconstruct.push(chunk);
+                    }
                 };
-                reconstruct.push(chunk);
-            }
-        };
-        Ok(reconstruct)
+                Ok(reconstruct)
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
+        }
     }
-    pub fn unreliable_unordered_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
-        self.register_hbfi(hbfi_seek.clone());
-        let window_timeout = Duration::new(1,0);
-        let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window_size: u64 = 1;
-        for counter in start..=end {
-            let hbfi_req = hbfi_seek.clone().offset(counter);
-            let nw = NarrowWaistPacket::request(hbfi_req)?;
-            pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
-        }
-        loop {
-            if pending_queue.len() == 0 { break }
-            congestion_window.clear();
-            for _ in 0..congestion_window_size {
-                match pending_queue.pop_first() {
-                    Some(nw) => {
-                        congestion_window.insert(nw);
-                    },
-                    None => continue,
+    pub fn unreliable_unordered_request(&self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
+        match self {
+            TxRx::Initialized { unreliable_unordered_response_rx, .. } => {
+                self.register_hbfi(hbfi_seek.clone())?;
+                let window_timeout = Duration::new(1,0);
+                let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window_size: u64 = 1;
+                for counter in start..=end {
+                    let hbfi_req = hbfi_seek.clone().offset(counter);
+                    let nw = NarrowWaistPacket::request(hbfi_req)?;
+                    pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
                 }
-            }
-            let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.unreliable_unordered_response_rx), window_timeout)?;
-            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                loop {
+                    if pending_queue.len() == 0 { break }
+                    congestion_window.clear();
+                    for _ in 0..congestion_window_size {
+                        match pending_queue.pop_first() {
+                            Some(nw) => {
+                                congestion_window.insert(nw);
+                            },
+                            None => continue,
+                        }
+                    }
+                    let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&unreliable_unordered_response_rx), window_timeout)?;
+                    self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                }
+                let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
+                reconstructed
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
-        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
-        reconstructed
     }
     pub fn unreliable_sequenced_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
-        self.register_hbfi(hbfi_seek.clone());
-        let window_timeout = Duration::new(1,0);
-        let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window_size: u64 = 1;
-        for counter in start..=end {
-            let hbfi_req = hbfi_seek.clone().offset(counter);
-            let nw = NarrowWaistPacket::request(hbfi_req)?;
-            pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
-        }
-        loop {
-            if pending_queue.len() == 0 { break }
-            congestion_window.clear();
-            for _ in 0..congestion_window_size {
-                match pending_queue.pop_first() {
-                    Some(nw) => {
-                        congestion_window.insert(nw);
-                    },
-                    None => continue,
+        match self {
+            TxRx::Initialized { ref unreliable_sequenced_response_rx, .. } => {
+                self.register_hbfi(hbfi_seek.clone())?;
+                let window_timeout = Duration::new(1,0);
+                let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window_size: u64 = 1;
+                for counter in start..=end {
+                    let hbfi_req = hbfi_seek.clone().offset(counter);
+                    let nw = NarrowWaistPacket::request(hbfi_req)?;
+                    pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
                 }
-            }
-            let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.unreliable_sequenced_response_rx), window_timeout)?;
-            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                loop {
+                    if pending_queue.len() == 0 { break }
+                    congestion_window.clear();
+                    for _ in 0..congestion_window_size {
+                        match pending_queue.pop_first() {
+                            Some(nw) => {
+                                congestion_window.insert(nw);
+                            },
+                            None => continue,
+                        }
+                    }
+                    let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&unreliable_sequenced_response_rx), window_timeout)?;
+                    self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                }
+                let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
+                reconstructed
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
-        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
-        reconstructed
     }
 
     pub fn reliable_unordered_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
-        self.register_hbfi(hbfi_seek.clone());
-        let window_timeout = Duration::new(1,0);
-        let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window_size: u64 = 1;
-        for counter in start..=end {
-            let hbfi_req = hbfi_seek.clone().offset(counter);
-            let nw = NarrowWaistPacket::request(hbfi_req)?;
-            pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
-        }
-        loop {
-            if pending_queue.len() == 0 { break }
-            congestion_window.clear();
-            for _ in 0..congestion_window_size {
-                match pending_queue.pop_first() {
-                    Some(nw) => {
-                        congestion_window.insert(nw);
-                    },
-                    None => continue,
+        match self {
+            TxRx::Initialized { ref reliable_unordered_response_rx, .. } => {
+                self.register_hbfi(hbfi_seek.clone())?;
+                let window_timeout = Duration::new(1,0);
+                let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window_size: u64 = 1;
+                for counter in start..=end {
+                    let hbfi_req = hbfi_seek.clone().offset(counter);
+                    let nw = NarrowWaistPacket::request(hbfi_req)?;
+                    pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
                 }
-            }
-            let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.reliable_unordered_response_rx), window_timeout)?;
-            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                loop {
+                    if pending_queue.len() == 0 { break }
+                    congestion_window.clear();
+                    for _ in 0..congestion_window_size {
+                        match pending_queue.pop_first() {
+                            Some(nw) => {
+                                congestion_window.insert(nw);
+                            },
+                            None => continue,
+                        }
+                    }
+                    let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&reliable_unordered_response_rx), window_timeout)?;
+                    self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                }
+                let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
+                reconstructed
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
-        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
-        reconstructed
     }
     pub fn reliable_ordered_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
-        self.register_hbfi(hbfi_seek.clone());
-        let window_timeout = Duration::new(1,0);
-        let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window_size: u64 = 1;
-        for counter in start..=end {
-            let hbfi_req = hbfi_seek.clone().offset(counter);
-            let nw = NarrowWaistPacket::request(hbfi_req)?;
-            pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
-        }
-        loop {
-            if pending_queue.len() == 0 { break }
-            congestion_window.clear();
-            for _ in 0..congestion_window_size {
-                match pending_queue.pop_first() {
-                    Some(nw) => {
-                        congestion_window.insert(nw);
-                    },
-                    None => continue,
+        match self {
+            TxRx::Initialized { ref reliable_ordered_response_rx, .. } => {
+                self.register_hbfi(hbfi_seek.clone())?;
+                let window_timeout = Duration::new(1,0);
+                let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window_size: u64 = 1;
+                for counter in start..=end {
+                    let hbfi_req = hbfi_seek.clone().offset(counter);
+                    let nw = NarrowWaistPacket::request(hbfi_req)?;
+                    pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
                 }
-            }
-            let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.reliable_ordered_response_rx), window_timeout)?;
-            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                loop {
+                    if pending_queue.len() == 0 { break }
+                    congestion_window.clear();
+                    for _ in 0..congestion_window_size {
+                        match pending_queue.pop_first() {
+                            Some(nw) => {
+                                congestion_window.insert(nw);
+                            },
+                            None => continue,
+                        }
+                    }
+                    let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&reliable_ordered_response_rx), window_timeout)?;
+                    self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                }
+                let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
+                reconstructed
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
-        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
-        reconstructed
     }
     pub fn reliable_sequenced_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
-        self.register_hbfi(hbfi_seek.clone());
-        let window_timeout = Duration::new(1,0);
-        let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-        let mut congestion_window_size: u64 = 1;
-        for counter in start..=end {
-            let hbfi_req = hbfi_seek.clone().offset(counter);
-            let nw = NarrowWaistPacket::request(hbfi_req)?;
-            pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
-        }
-        loop {
-            if pending_queue.len() == 0 { break }
-            congestion_window.clear();
-            for _ in 0..congestion_window_size {
-                match pending_queue.pop_first() {
-                    Some(nw) => {
-                        congestion_window.insert(nw);
-                    },
-                    None => continue,
+        match self {
+            TxRx::Initialized { ref reliable_sequenced_response_rx, .. } => {
+                self.register_hbfi(hbfi_seek.clone())?;
+                let window_timeout = Duration::new(1,0);
+                let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+                let mut congestion_window_size: u64 = 1;
+                for counter in start..=end {
+                    let hbfi_req = hbfi_seek.clone().offset(counter);
+                    let nw = NarrowWaistPacket::request(hbfi_req)?;
+                    pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
                 }
-            }
-            let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&self.reliable_sequenced_response_rx), window_timeout)?;
-            self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                loop {
+                    if pending_queue.len() == 0 { break }
+                    congestion_window.clear();
+                    for _ in 0..congestion_window_size {
+                        match pending_queue.pop_first() {
+                            Some(nw) => {
+                                congestion_window.insert(nw);
+                            },
+                            None => continue,
+                        }
+                    }
+                    let aimd = self.send_and_receive(&congestion_window, hbfi_seek.clone(), Arc::clone(&reliable_sequenced_response_rx), window_timeout)?;
+                    self.process_aimd(aimd, hbfi_seek.clone(), &mut congestion_window_size, &mut pending_queue);
+                }
+                let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
+                reconstructed
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
-        let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
-        reconstructed
     }
     pub fn respond(self,
         hbfi: HBFI,
         data: Vec<u8>,
     ) -> Result<()> {
-        debug!("\t\t|  RESPONSE PACKET FOUND");
-        let nw = NarrowWaistPacket::response(self.protocol_sid.clone(), hbfi.clone(), data)?;
-        let lp = LinkPacket::new(self.link_id.reply_to()?, nw);
-        let ilp = InterLinkPacket::new(self.link_id.clone(), lp);
-        debug!("\t\t|  protocol-to-link");
-        match self.p2l_tx.send(ilp) {
-            Ok(_) => {},
-            Err(e) => error!("protocol send error {:?}", e),
+        match self {
+            TxRx::Initialized { ref p2l_tx, ref protocol_sid, ref link_id, .. } => {
+                debug!("\t\t|  RESPONSE PACKET FOUND");
+                let nw = NarrowWaistPacket::response(protocol_sid.clone(), hbfi.clone(), data)?;
+                let lp = LinkPacket::new(link_id.reply_to()?, nw);
+                let ilp = InterLinkPacket::new(link_id.clone(), lp);
+                debug!("\t\t|  protocol-to-link");
+                match p2l_tx.send(ilp) {
+                    Ok(_) => {},
+                    Err(e) => error!("protocol send error {:?}", e),
+                }
+                Ok(())
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
-        Ok(())
     }
 }

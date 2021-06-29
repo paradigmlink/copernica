@@ -1,26 +1,30 @@
 use {
     copernica_protocols::{Echo, Protocol},
     copernica_broker::{Broker},
-    copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface, constants},
+    copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface, constants, Operations},
     copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp},
     log::{debug},
     anyhow::{Result},
 };
 pub fn smoke_test() -> Result<()> {
+    debug!("{}", constants::LOG_ERASE);
+    debug!("{}", constants::LOG_SESSION_START);
+
+    let ops = Operations::turned_off();
     let mut broker0 = Broker::new();
     let mut broker1 = Broker::new();
     let echo_protocol_sid0 = PrivateIdentityInterface::new_key();
     let echo_protocol_sid1 = PrivateIdentityInterface::new_key();
-    let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone());
-    let mut echo_protocol1: Echo = Protocol::new(echo_protocol_sid1.clone());
+    let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone(), ops.label("echo_protocol0"));
+    let mut echo_protocol1: Echo = Protocol::new(echo_protocol_sid1.clone(), ops.label("echo_protocol1"));
 
     // echo_protocol0 to broker0
     let link_sid0 = PrivateIdentityInterface::new_key();
     let link_sid1 = PrivateIdentityInterface::new_key();
     let link_id0 = LinkId::link_with_type(link_sid0.clone(), None, ReplyTo::Mpsc);
     let link_id1 = LinkId::link_with_type(link_sid1.clone(), None, ReplyTo::Mpsc);
-    let mut link0: MpscChannel = Link::new(link_id0.clone(), broker0.peer_with_link(link_id0.clone())?)?;
-    let mut link1: MpscChannel = Link::new(link_id1.clone(), echo_protocol0.peer_with_link(link_id0.clone())?)?;
+    let mut link0: MpscChannel = Link::new(link_id0.clone(), ops.label("link0"), broker0.peer_with_link(link_id0.clone())?)?;
+    let mut link1: MpscChannel = Link::new(link_id1.clone(), ops.label("link1"), echo_protocol0.peer_with_link(link_id0.clone())?)?;
     link0.female(link1.male());
     link1.female(link0.male());
 
@@ -29,8 +33,8 @@ pub fn smoke_test() -> Result<()> {
     let link_sid3 = PrivateIdentityInterface::new_key();
     let link_id2 = LinkId::link_with_type(link_sid2.clone(), Some(link_sid3.public_id()), ReplyTo::Mpsc);
     let link_id3 = LinkId::link_with_type(link_sid3.clone(), Some(link_sid2.public_id()), ReplyTo::Mpsc);
-    let mut link2: MpscCorruptor = Link::new(link_id2.clone(), broker0.peer_with_link(link_id2.clone())?)?;
-    let mut link3: MpscCorruptor = Link::new(link_id3.clone(), broker1.peer_with_link(link_id3.clone())?)?;
+    let mut link2: MpscCorruptor = Link::new(link_id2.clone(), ops.label("link2"), broker0.peer_with_link(link_id2.clone())?)?;
+    let mut link3: MpscCorruptor = Link::new(link_id3.clone(), ops.label("link3"), broker1.peer_with_link(link_id3.clone())?)?;
     link2.female(link3.male());
     link3.female(link2.male());
 
@@ -41,8 +45,9 @@ pub fn smoke_test() -> Result<()> {
     let address5 = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), Some(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), Some(link_sid4.public_id()), address5.clone());
-    let link4: UdpIp = Link::new(link_id4.clone(), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
-    let link5: UdpIp = Link::new(link_id5.clone(), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+    let link4: UdpIp = Link::new(link_id4.clone(), ops.label("link4"), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
+    let link5: UdpIp = Link::new(link_id5.clone(), ops.label("link5"), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+
 
     echo_protocol0.run()?;    // echo0 service is connected to link0
     link0.run()?;    // link0 link is connected to link1
@@ -55,11 +60,10 @@ pub fn smoke_test() -> Result<()> {
     link5.run()?;
     echo_protocol1.run()?;
 
-    debug!("{}", constants::SESSION_START);
     debug!("unreliable unordered cleartext ping");
     let pong: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
     debug!("unreliable unordered cleartext {:?}", pong);
-
+/*
     debug!("unreliable unordered cyphertext ping");
     let pong: String = echo_protocol0.unreliable_unordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
     debug!("unreliable unordered cyphertext {:?}", pong);
@@ -95,6 +99,6 @@ pub fn smoke_test() -> Result<()> {
     debug!("reliable sequenced cyphertext ping");
     let pong: String = echo_protocol0.reliable_sequenced_cyphertext_ping(echo_protocol_sid1.public_id())?;
     debug!("reliable sequenced cyphertext {:?}", pong);
-
+*/
     Ok(())
 }

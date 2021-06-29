@@ -1,7 +1,6 @@
 use {
     crate::{Link, encode, decode},
-    copernica_common::{ InterLinkPacket, LinkId, ReplyTo },
-    copernica_monitor::{LogEntry},
+    copernica_common::{ InterLinkPacket, LinkId, ReplyTo, Operations },
     anyhow::{anyhow, Result},
     std::sync::mpsc::{Receiver, SyncSender},
     futures_lite::{future},
@@ -12,19 +11,20 @@ use {
 };
 pub struct UdpIp {
     link_id: LinkId,
+    ops: Operations,
     l2bs_tx: SyncSender<InterLinkPacket>,
     bs2l_rx: Receiver<InterLinkPacket>,
 }
 impl Link<'_> for UdpIp {
     fn new(link_id: LinkId
-        , label: &str
+        , (label, ops): (String, Operations)
         , (l2bs_tx, bs2l_rx): ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<UdpIp>
     {
         trace!("LISTEN ON {:?}:", link_id);
-        debug!("{}", LogEntry::link(link_id.link_pid()?, label));
+        ops.register_link(link_id.link_pid()?, label);
         match link_id.reply_to()? {
-            ReplyTo::UdpIp(_) => return Ok(UdpIp { link_id, l2bs_tx, bs2l_rx }),
+            ReplyTo::UdpIp(_) => return Ok(UdpIp { link_id, ops, l2bs_tx, bs2l_rx }),
             _ => return Err(anyhow!("UdpIp Link expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
         }
     }

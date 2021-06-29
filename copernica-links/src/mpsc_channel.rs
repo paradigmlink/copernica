@@ -1,16 +1,15 @@
 use {
     crate::{Link, decode, encode},
     copernica_common::{
-        InterLinkPacket, LinkId, ReplyTo, constants
+        InterLinkPacket, LinkId, ReplyTo, constants, Operations
     },
-    copernica_monitor::{LogEntry},
     anyhow::{anyhow, Result},
     std::sync::mpsc::{Receiver, SyncSender, sync_channel as channel},
     log::{debug, trace, error },
 };
-
 pub struct MpscChannel {
     link_id: LinkId,
+    ops: Operations,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
     l2bs_tx: SyncSender<InterLinkPacket>,
     bs2l_rx: Receiver<InterLinkPacket>,
@@ -18,7 +17,6 @@ pub struct MpscChannel {
     l2l0_rx: Receiver<Vec<u8>>,      // keep
     l2l1_tx: Option<Vec<SyncSender<Vec<u8>>>>,
 }
-
 impl MpscChannel {
     pub fn male(&self) -> SyncSender<Vec<u8>> {
         self.l2l0_tx.clone()
@@ -32,19 +30,19 @@ impl MpscChannel {
         }
     }
 }
-
 impl<'a> Link<'a> for MpscChannel {
     fn new(link_id: LinkId
-        , label: &str
+        , (label, ops): (String, Operations)
         , (l2bs_tx, bs2l_rx): ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<MpscChannel> {
-        debug!("{}", LogEntry::link(link_id.link_pid()?, label));
+        ops.register_link(link_id.link_pid()?, label);
         match link_id.reply_to()? {
             ReplyTo::Mpsc => {
                 let (l2l0_tx, l2l0_rx) = channel::<Vec<u8>>(constants::BOUNDED_BUFFER_SIZE);
                 return Ok(
                     MpscChannel {
                         link_id,
+                        ops,
                         l2bs_tx,
                         bs2l_rx,
                         l2l0_tx,

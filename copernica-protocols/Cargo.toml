@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 copernica-common= { path = "../copernica-common" }
 copernica-links = { path = "../copernica-links" }
+copernica-monitor = { path = "../copernica-monitor" }
 log = "0.4"
 bincode = "1.3"
 anyhow = "1.0"

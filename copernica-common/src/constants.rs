@@ -75,5 +75,6 @@ pub const BOUNDED_BUFFER_SIZE: usize = 25;
 pub const RESPONSE_STORE_SIZE: usize = 250;
 pub const CONGESTION_CONTROL_SIZE: usize = 100;
 
-pub const LOG_SESSION_START: &str = "session start";
-pub const LOG_UNIQUE_SEQUENCE: &str = "!!!";
+pub const LOG_SESSION_START: &str = "Log Session Start";
+pub const LOG_ERASE: &str = "Erase Log";
+pub const LINE_TO_INCH: f32 = 0.0833; // graphviz uses inches ffs
