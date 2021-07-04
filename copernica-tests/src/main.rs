@@ -2,7 +2,6 @@
 mod router;
 mod common;
 mod protocols;
-mod crypto;
 mod netsim;
 use {
     anyhow::{Result},

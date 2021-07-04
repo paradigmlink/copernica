@@ -11,8 +11,8 @@ pub fn smoke_test() -> Result<()> {
     debug!("{}", constants::LOG_SESSION_START);
 
     let ops = Operations::turned_off();
-    let mut broker0 = Broker::new();
-    let mut broker1 = Broker::new();
+    let mut broker0 = Broker::new(ops.clone());
+    let mut broker1 = Broker::new(ops.clone());
     let echo_protocol_sid0 = PrivateIdentityInterface::new_key();
     let echo_protocol_sid1 = PrivateIdentityInterface::new_key();
     let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone(), ops.label("echo_protocol0"));
@@ -63,11 +63,11 @@ pub fn smoke_test() -> Result<()> {
     debug!("unreliable unordered cleartext ping");
     let pong: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
     debug!("unreliable unordered cleartext {:?}", pong);
-/*
+
     debug!("unreliable unordered cyphertext ping");
     let pong: String = echo_protocol0.unreliable_unordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
     debug!("unreliable unordered cyphertext {:?}", pong);
-
+/*
     debug!("unreliable sequenced cleartext ping");
     let pong: String = echo_protocol1.unreliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id())?;
     debug!("unreliable sequenced cleartext {:?}", pong);

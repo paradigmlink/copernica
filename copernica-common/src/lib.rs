@@ -20,7 +20,7 @@ pub use crate::{
     inter_link_packet::{InterLinkPacket},
     narrow_waist_packet::{NarrowWaistPacket, NarrowWaistPacketReqEqRes},
     log::setup_logging,
-    identity::{PublicIdentity, PrivateIdentityInterface},
+    identity::{PublicIdentity, PrivateIdentityInterface, RequestPublicIdentity},
 };
 pub use keynesis::{
     key::{ed25519::Signature, SharedSecret},

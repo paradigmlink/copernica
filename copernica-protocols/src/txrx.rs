@@ -2,7 +2,7 @@ use {
     copernica_common::{
         LinkId, NarrowWaistPacket, NarrowWaistPacketReqEqRes,
         LinkPacket, InterLinkPacket, HBFI, HBFIExcludeFrame,
-        PrivateIdentityInterface, PublicIdentity, constants, LogEntry
+        PrivateIdentityInterface, PublicIdentity, constants, Operations
     },
     log::{debug, error},
     anyhow::{anyhow, Result},
@@ -51,6 +51,7 @@ enum AIMD {
 #[derive(Clone)]
 pub enum TxRx {
     Initialized {
+        ops: Operations,
         link_id: LinkId,
         protocol_sid: PrivateIdentityInterface,
         p2l_tx: SyncSender<InterLinkPacket>,
@@ -73,7 +74,7 @@ impl TxRx {
     pub fn inert() -> TxRx {
         TxRx::Inert
     }
-    pub fn init(link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: SyncSender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
+    pub fn init(ops: Operations, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: SyncSender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
     {
         let (unreliable_unordered_response_tx, unreliable_unordered_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (unreliable_sequenced_response_tx, unreliable_sequenced_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
@@ -81,6 +82,7 @@ impl TxRx {
         let (reliable_ordered_response_tx, reliable_ordered_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (reliable_sequenced_response_tx, reliable_sequenced_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         TxRx::Initialized {
+            ops,
             link_id,
             protocol_sid,
             p2l_tx,
@@ -136,7 +138,7 @@ impl TxRx {
         , window_timeout: Duration
         ) -> Result<AIMD> {
         match self {
-            TxRx::Initialized { link_id, p2l_tx, .. } => {
+            TxRx::Initialized { ops, link_id, p2l_tx, .. } => {
                 let total = nws.len();
                 let hbfi_seek_no_frame = HBFIExcludeFrame(hbfi_seek.clone());
                 for nw in nws.clone() {
@@ -144,7 +146,7 @@ impl TxRx {
                     let ilp = InterLinkPacket::new(link_id.clone(), lp);
                     debug!("\t\t|  protocol-to-link");
                     if let Some(remote_link_pid) = link_id.remote_link_pid()? {
-                        debug!("{}", LogEntry::protocol_to_link(link_id.link_pid()?, remote_link_pid, ""));
+                        ops.protocol_to_link(link_id.link_pid()?, remote_link_pid);
                     }
                     let p2l_tx = p2l_tx.clone();
                     match p2l_tx.send(ilp) {
@@ -270,14 +272,7 @@ impl TxRx {
                 let incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
                 if let Some(map) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
                     for (_, nw) in map.range(start..=end) {
-                        let chunk = match hbfi_seek.request_pid {
-                            Some(_) => {
-                                nw.data(Some(protocol_sid.clone()))?
-                            },
-                            None => {
-                                nw.data(None)?
-                            },
-                        };
+                        let chunk = nw.data(protocol_sid.clone())?;
                         reconstruct.push(chunk);
                     }
                 };

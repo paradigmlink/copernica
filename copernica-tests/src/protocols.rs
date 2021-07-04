@@ -10,8 +10,8 @@ use {
 };
 pub fn smoke_test() -> Result<()> {
     let ops = Operations::turned_off();
-    let mut broker0 = Broker::new();
-    let mut broker1 = Broker::new();
+    let mut broker0 = Broker::new(ops.clone());
+    let mut broker1 = Broker::new(ops.clone());
     let echo_protocol_sid0 = PrivateIdentityInterface::new_key();
     let echo_protocol_sid1 = PrivateIdentityInterface::new_key();
     let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone(), ops.label("echo_protocol0"));

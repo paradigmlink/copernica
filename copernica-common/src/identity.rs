@@ -8,8 +8,8 @@ use {
         },
         Seed,
     },
-    crate::{ Nonce },
-    anyhow::{anyhow},
+    crate::{ Nonce, bloom_filter_index, BFI, constants },
+    anyhow::{Result, anyhow},
     serde::{Deserialize, Serialize},
     std::{
         convert::{TryFrom, TryInto as _},
@@ -41,6 +41,28 @@ struct PrivateIdentity(ed25519_hd::SecretKey);
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct PublicIdentity(ed25519_hd::PublicKey);
+
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RequestPublicIdentity {
+    Present { request_pid: PublicIdentity },
+    Absent,
+}
+impl RequestPublicIdentity {
+    pub fn new(pid: Option<PublicIdentity>) -> Self {
+        match pid {
+            Some(request_pid) => {
+                Self::Present { request_pid }
+            },
+            None => Self::Absent
+        }
+    }
+    pub fn bloom_filter_index(&self) -> Result<BFI> {
+        match self {
+            RequestPublicIdentity::Present { request_pid } => Ok(bloom_filter_index(&format!("{}", request_pid))?),
+            RequestPublicIdentity::Absent => Ok([0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]),
+        }
+    }
+}
 
 /// The Signing Key associated to your `PrivateIdentity`.
 ///

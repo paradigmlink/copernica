@@ -26,9 +26,10 @@ impl Operations {
         (label.to_string(), self.clone())
     }
     pub fn register_protocol(&self, id: PublicIdentity, label: String) {
+        let attrs = "".into();
         match self {
             Operations::On { tx } => {
-                match tx.send(LogEntry::protocol(id, label)) {
+                match tx.send(LogEntry::protocol(id, label, attrs)) {
                     Ok(_) => {},
                     Err(_) => {},
                 }
@@ -38,9 +39,95 @@ impl Operations {
     }
     pub fn register_link(&self, id: PublicIdentity, label: String) {
         //debug!("{}", LogEntry::link(link_id.link_pid()?, label));
+        let attrs = "".into();
         match self {
             Operations::On { tx } => {
-                match tx.send(LogEntry::link(id, label)) {
+                match tx.send(LogEntry::link(id, label, attrs)) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn register_router(&self, ids: Vec<u32>, label: u32) {
+        let attrs = "".into();
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::router(ids, label, attrs)) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn link_to_link(&self, from: PublicIdentity, to: PublicIdentity, label: String) {
+        let attrs = "".into();
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::pid_to_pid(from, to, label, attrs)) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn protocol_to_link(&self, from: PublicIdentity, to: PublicIdentity) {
+        let attrs = "".into();
+        let label = "".into();
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::pid_to_pid(from, to, label, attrs)) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn link_to_protocol(&self, from: PublicIdentity, to: PublicIdentity, label: String) {
+        let attrs = "".into();
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::pid_to_pid(from, to, label, attrs)) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn link_to_router(&self, from: PublicIdentity, to: u32, face: u32,label: String) {
+        let attrs = "".into();
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::pid_to_id(from, to, face, label, attrs)) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn router_to_link(&self, from: u32, face: u32, to: PublicIdentity, label: String) {
+        let attrs = "".into();
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::id_to_pid(from, face, to, label, attrs)) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn router_to_router(&self, from: u32, from_face:u32, to: u32, to_face: u32, label: String) {
+        let attrs = "".into();
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::id_to_id(from, from_face, to, to_face, label, attrs)) {
                     Ok(_) => {},
                     Err(_) => {},
                 }
@@ -75,63 +162,40 @@ pub enum LogEntry {
     },
 }
 impl LogEntry {
-    pub fn protocol(pid: PublicIdentity, label: String) -> Self {
-        let attrs = "".into();
+    pub fn protocol(pid: PublicIdentity, label: String, attrs: String) -> Self {
         LogEntry::Protocol { label, pid, attrs}
     }
-    pub fn router(label: u32, ids: Vec<u32>) -> Self {
-        let attrs = "".into();
+    pub fn router(ids: Vec<u32>, label: u32, attrs: String) -> Self {
         LogEntry::Router { ids, label, attrs}
     }
-    pub fn link(pid: PublicIdentity, label: String) -> Self {
-        let attrs = "".into();
+    pub fn link(pid: PublicIdentity, label: String, attrs: String) -> Self {
         LogEntry::Link { pid, label, attrs}
     }
-    pub fn link_to_link(from: PublicIdentity, to: PublicIdentity, label: String) -> Self {
-        let attrs = "".into();
+    pub fn pid_to_pid(from: PublicIdentity, to: PublicIdentity, label: String, attrs: String) -> Self {
         LogEntry::Arrow {
             from: ArrowDestination::Identity { id: from },
             to: ArrowDestination::Identity { id: to },
             label, attrs
         }
     }
-    pub fn protocol_to_link(from: PublicIdentity, to: PublicIdentity, label: &str) -> Self {
-        let attrs = "".into();
+    pub fn id_to_pid(from: u32, face: u32, to: PublicIdentity, label: String, attrs: String) -> Self {
+        LogEntry::Arrow {
+            from: ArrowDestination::Router { id: from, face },
+            to: ArrowDestination::Identity { id: to },
+            label, attrs
+        }
+    }
+    pub fn pid_to_id(from: PublicIdentity, to: u32, face: u32, label: String, attrs: String) -> Self {
         LogEntry::Arrow {
             from: ArrowDestination::Identity { id: from },
-            to: ArrowDestination::Identity { id: to },
+            to: ArrowDestination::Router { id: to, face },
             label: label.to_string(), attrs
         }
     }
-    pub fn link_to_protocol(from: PublicIdentity, to: PublicIdentity, label: String) -> Self {
-        let attrs = "".into();
+    pub fn id_to_id(from: u32, from_face: u32, to: u32, to_face: u32, label: String, attrs: String) -> Self {
         LogEntry::Arrow {
-            from: ArrowDestination::Identity { id: from },
-            to: ArrowDestination::Identity { id: to },
-            label, attrs
-        }
-    }
-    pub fn link_to_router(from: PublicIdentity, to: u32, face: u32,label: String) -> Self {
-        let attrs = "".into();
-        LogEntry::Arrow {
-            from: ArrowDestination::Identity { id: from },
-            to: ArrowDestination::Router{ id: to, face },
-            label, attrs
-        }
-    }
-    pub fn router_to_link(from: u32, face: u32, to: PublicIdentity, label: String) -> Self {
-        let attrs = "".into();
-        LogEntry::Arrow {
-            from: ArrowDestination::Router{ id: from, face },
-            to: ArrowDestination::Identity { id: to },
-            label, attrs
-        }
-    }
-    pub fn router_to_router(from: u32, from_face:u32, to: u32, to_face: u32, label: String) -> Self {
-        let attrs = "".into();
-        LogEntry::Arrow {
-            from: ArrowDestination::Router{ id: to, face: to_face },
-            to: ArrowDestination::Router { id: from, face: from_face },
+            from: ArrowDestination::Router { id: from, face: from_face  },
+            to: ArrowDestination::Router { id: to, face: to_face },
             label, attrs
         }
     }

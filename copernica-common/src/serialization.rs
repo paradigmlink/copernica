@@ -4,7 +4,7 @@ use {
         common::*,
         HBFI, ReplyTo, LinkId,
         NarrowWaistPacket, ResponseData, LinkPacket, BFI,
-        PublicIdentity, Signature
+        RequestPublicIdentity, PublicIdentity, Signature
     },
     macaddr::{MacAddr6, MacAddr8},
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
@@ -86,13 +86,13 @@ pub fn serialize_hbfi(hbfi: &HBFI) -> Result<(u8, Vec<u8>)> {
     let frm = &u64_to_u8(hbfi.frm);
     let mut ids_buf: Vec<u8> = vec![];
     match &hbfi.request_pid {
-        Some(request_pid) => {
+        RequestPublicIdentity::Present { request_pid } => {
             ids_buf.extend_from_slice(hbfi.response_pid.key().as_ref());
             ids_buf.extend_from_slice(hbfi.response_pid.chain_code().as_ref());
             ids_buf.extend_from_slice(request_pid.key().as_ref());
             ids_buf.extend_from_slice(request_pid.chain_code().as_ref());
         },
-        None => {
+        RequestPublicIdentity::Absent => {
             ids_buf.extend_from_slice(hbfi.response_pid.key().as_ref());
             ids_buf.extend_from_slice(hbfi.response_pid.chain_code().as_ref());
         },
@@ -137,7 +137,7 @@ pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     req_key.clone_from_slice(&data[HBFI_REQUEST_KEY_START..HBFI_REQUEST_KEY_END]);
     //trace!("des \treq_key: \t\t{:?}", req_key);
     Ok(HBFI { response_pid: PublicIdentity::from(res_key)
-            , request_pid: Some(PublicIdentity::from(req_key))
+            , request_pid: RequestPublicIdentity::Present { request_pid: PublicIdentity::from(req_key) }
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
             , frm})
 }
@@ -159,7 +159,7 @@ pub fn deserialize_cleartext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
     //trace!("des \tres_key: \t\t{:?}", res_key);
     Ok(HBFI { response_pid: PublicIdentity::from(res_key)
-            , request_pid: None
+            , request_pid: RequestPublicIdentity::Absent
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
             , frm})
 }

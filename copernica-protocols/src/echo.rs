@@ -2,7 +2,7 @@ use {
     anyhow::{Result, anyhow},
     bincode,
     copernica_common::{
-        bloom_filter_index as bfi, NarrowWaistPacket, HBFI, PublicIdentity, PrivateIdentityInterface, Operations
+        bloom_filter_index as bfi, NarrowWaistPacket, HBFI, PublicIdentity, RequestPublicIdentity, PrivateIdentityInterface, Operations
     },
     crate::{Protocol, TxRx},
     log::debug,
@@ -20,7 +20,7 @@ pub struct Echo {
 }
 impl<'a> Echo {
     pub fn unreliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(None), response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.unreliable_unordered_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -30,7 +30,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn unreliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(Some(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(Some(self.txrx.protocol_public_id()?)), response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.unreliable_unordered_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -40,7 +40,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn unreliable_sequenced_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(None), response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -50,7 +50,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn unreliable_sequenced_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(Some(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(Some(self.txrx.protocol_public_id()?)), response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -60,7 +60,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn reliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(None), response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.reliable_unordered_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -70,7 +70,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn reliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(Some(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(Some(self.txrx.protocol_public_id()?)), response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.reliable_unordered_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -80,7 +80,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn reliable_ordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(None), response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.reliable_ordered_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -90,7 +90,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn reliable_ordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(Some(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(Some(self.txrx.protocol_public_id()?)), response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.reliable_ordered_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -100,7 +100,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn reliable_sequenced_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(None, response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(None), response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.reliable_sequenced_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -110,7 +110,7 @@ impl<'a> Echo {
         Ok(result)
     }
     pub fn reliable_sequenced_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(Some(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
+        let hbfi = HBFI::new(RequestPublicIdentity::new(Some(self.txrx.protocol_public_id()?)), response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
         let echo: Vec<Vec<u8>> = self.txrx.reliable_sequenced_request(hbfi.clone(), 0, 3)?;
         let mut result: String = "".into();
         for s in &echo {
@@ -308,5 +308,8 @@ impl<'a> Protocol<'a> for Echo {
     }
     fn get_protocol_sid(&mut self) -> PrivateIdentityInterface {
         self.protocol_sid.clone()
+    }
+    fn get_ops(&self) -> Operations {
+        self.ops.clone()
     }
 }

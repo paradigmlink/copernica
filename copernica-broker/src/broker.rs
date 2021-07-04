@@ -4,7 +4,7 @@ use {
         router::Router,
         Bayes,
     },
-    copernica_common::{LinkId, InterLinkPacket, NarrowWaistPacket, constants, LogEntry },
+    copernica_common::{LinkId, InterLinkPacket, NarrowWaistPacket, constants, Operations },
     anyhow::{anyhow, Result},
     std::sync::mpsc::{Receiver, SyncSender, sync_channel as channel},
     uluru::LRUCache,
@@ -52,9 +52,10 @@ pub struct Broker {
     r2b_tx: SyncSender<InterLinkPacket>,                // give to router
     r2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,  // keep in broker
     blooms: HashMap<LinkId, Blooms>,
+    ops: Operations,
 }
 impl Broker {
-    pub fn new() -> Self {
+    pub fn new(ops: Operations) -> Self {
         let (l2b_tx, l2b_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (r2b_tx, r2b_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let b2l = HashMap::new();
@@ -71,6 +72,7 @@ impl Broker {
             r2b_rx: Arc::new(Mutex::new(r2b_rx)),
             b2l,
             blooms,
+            ops,
         }
     }
     pub fn peer_with_link(
@@ -87,7 +89,7 @@ impl Broker {
             }
         };
         let ids: Vec<u32> = self.b2l.keys().cloned().collect();
-        debug!("{}", LogEntry::router(self.id, ids));
+        self.ops.register_router(ids, self.id);
         channel_pair
 
     }
