@@ -48,13 +48,8 @@ pub enum PublicIdentityInterface {
     Absent,
 }
 impl PublicIdentityInterface {
-    pub fn new(pid: Option<PublicIdentity>) -> Self {
-        match pid {
-            Some(public_identity) => {
-                Self::Present { public_identity }
-            },
-            None => Self::Absent
-        }
+    pub fn new(public_identity: PublicIdentity) -> Self {
+        Self::Present { public_identity }
     }
     pub fn bloom_filter_index(&self) -> Result<BFI> {
         match self {
