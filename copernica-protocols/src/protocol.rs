@@ -28,7 +28,7 @@ use {
     +-----------+               +-----------+               |           Broker           |   +-----------+   +-----------+
                                                             +----------------------------+
 */
-pub trait Protocol<'a> {
+pub trait Protocol {
     fn get_protocol_sid(&mut self) -> PrivateIdentityInterface;
     fn get_ops(&self) -> Operations;
     fn set_txrx(&mut self, txrx: TxRx);

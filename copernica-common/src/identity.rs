@@ -43,24 +43,44 @@ struct PrivateIdentity(ed25519_hd::SecretKey);
 pub struct PublicIdentity(ed25519_hd::PublicKey);
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum RequestPublicIdentity {
-    Present { request_pid: PublicIdentity },
+pub enum PublicIdentityInterface {
+    Present { public_identity: PublicIdentity },
     Absent,
 }
-impl RequestPublicIdentity {
+impl PublicIdentityInterface {
     pub fn new(pid: Option<PublicIdentity>) -> Self {
         match pid {
-            Some(request_pid) => {
-                Self::Present { request_pid }
+            Some(public_identity) => {
+                Self::Present { public_identity }
             },
             None => Self::Absent
         }
     }
     pub fn bloom_filter_index(&self) -> Result<BFI> {
         match self {
-            RequestPublicIdentity::Present { request_pid } => Ok(bloom_filter_index(&format!("{}", request_pid))?),
-            RequestPublicIdentity::Absent => Ok([0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]),
+            PublicIdentityInterface::Present { public_identity } => Ok(bloom_filter_index(&format!("{}", public_identity))?),
+            PublicIdentityInterface::Absent => Ok([0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]),
         }
+    }
+    pub fn public_identity(&self) -> Result<PublicIdentity> {
+        match self {
+            PublicIdentityInterface::Present { public_identity } => Ok(public_identity.clone()),
+            PublicIdentityInterface::Absent => Err(anyhow!("PublicIdentity is Absent")),
+        }
+    }
+}
+
+impl fmt::Display for PublicIdentityInterface {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let out = match self {
+            PublicIdentityInterface::Present { public_identity } => {
+                format!("{}", public_identity)
+            }
+            PublicIdentityInterface::Absent => {
+                format!("Absent_Key")
+            }
+        };
+        write!(f, "{}", out)
     }
 }
 

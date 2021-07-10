@@ -32,7 +32,7 @@ pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
     }
     Ok(merged)
 }
-pub trait Link<'a> {
-    fn run(self) -> Result<()>;
+pub trait Link {
+    fn run(&mut self) -> Result<()>;
     fn new(link: LinkId, ops: (String, Operations), router_in_and_out: ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
 }

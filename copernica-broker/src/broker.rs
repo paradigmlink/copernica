@@ -47,7 +47,7 @@ pub struct Broker {
     id:     u32,
     rs:     ResponseStore,
     l2b_tx: SyncSender<InterLinkPacket>,                         // give to link
-    l2b_rx: Receiver<InterLinkPacket>,                       // keep in broker
+    l2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,                       // keep in broker
     b2l:    HashMap<u32, SyncSender<InterLinkPacket>>,           // keep in broker
     r2b_tx: SyncSender<InterLinkPacket>,                // give to router
     r2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,  // keep in broker
@@ -67,13 +67,16 @@ impl Broker {
             id,
             rs,
             l2b_tx,
-            l2b_rx,
+            l2b_rx: Arc::new(Mutex::new(l2b_rx)),
             r2b_tx,
             r2b_rx: Arc::new(Mutex::new(r2b_rx)),
             b2l,
             blooms,
             ops,
         }
+    }
+    pub fn id(&self) -> u32 {
+        self.id.clone()
     }
     pub fn peer_with_link(
         &mut self,
@@ -88,14 +91,13 @@ impl Broker {
                 Ok((self.l2b_tx.clone(), b2l_rx))
             }
         };
-        let ids: Vec<u32> = self.b2l.keys().cloned().collect();
-        self.ops.register_router(ids, self.id);
+        self.ops.register_router(self.id);
         channel_pair
 
     }
     #[allow(unreachable_code)]
-    pub fn run(self) -> Result<()> {
-        let l2b_rx = self.l2b_rx;
+    pub fn run(&mut self) -> Result<()> {
+        let l2b_rx = self.l2b_rx.clone();
         let mut blooms = self.blooms.clone();
         let choke = LinkId::choke();
         let mut b2l = self.b2l.clone();
@@ -107,6 +109,7 @@ impl Broker {
         }
         let rs = self.rs.clone();
         std::thread::spawn(move || {
+            let l2b_rx = l2b_rx.lock().unwrap();
             loop {
                 match l2b_rx.recv() {
                     Ok(ilp) => {

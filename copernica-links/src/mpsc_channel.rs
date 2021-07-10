@@ -4,17 +4,18 @@ use {
         InterLinkPacket, LinkId, ReplyTo, constants, Operations
     },
     anyhow::{anyhow, Result},
-    std::sync::mpsc::{Receiver, SyncSender, sync_channel as channel},
+    std::sync::{Arc, Mutex, mpsc::{Receiver, SyncSender, sync_channel as channel}},
     log::{debug, trace, error },
 };
+#[allow(dead_code)]
 pub struct MpscChannel {
     link_id: LinkId,
     ops: Operations,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
     l2bs_tx: SyncSender<InterLinkPacket>,
-    bs2l_rx: Receiver<InterLinkPacket>,
+    bs2l_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
     l2l0_tx: SyncSender<Vec<u8>>,        // give
-    l2l0_rx: Receiver<Vec<u8>>,      // keep
+    l2l0_rx: Arc<Mutex<Receiver<Vec<u8>>>>,      // keep
     l2l1_tx: Option<Vec<SyncSender<Vec<u8>>>>,
 }
 impl MpscChannel {
@@ -30,7 +31,7 @@ impl MpscChannel {
         }
     }
 }
-impl<'a> Link<'a> for MpscChannel {
+impl Link for MpscChannel {
     fn new(link_id: LinkId
         , (label, ops): (String, Operations)
         , (l2bs_tx, bs2l_rx): ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket> )
@@ -44,25 +45,25 @@ impl<'a> Link<'a> for MpscChannel {
                         link_id,
                         ops,
                         l2bs_tx,
-                        bs2l_rx,
+                        bs2l_rx: Arc::new(Mutex::new(bs2l_rx)),
                         l2l0_tx,
-                        l2l0_rx,
+                        l2l0_rx: Arc::new(Mutex::new(l2l0_rx)),
                         l2l1_tx: None,
                     })
             }
             _ => return Err(anyhow!("MpscChannel Link expects a LinkId of type LinkId::Mpsc")),
         }
     }
-
     #[allow(unreachable_code)]
-    fn run(self) -> Result<()> {
+    fn run(&mut self) -> Result<()> {
         let this_link = self.link_id.clone();
         trace!("Started {:?}:", this_link);
-        let l2l0_rx = self.l2l0_rx;
-        let l2bs_tx = self.l2bs_tx;
+        let l2l0_rx = self.l2l0_rx.clone();
+        let l2bs_tx = self.l2bs_tx.clone();
         std::thread::spawn(move || {
             match this_link.reply_to()? {
                 ReplyTo::Mpsc => {
+                    let l2l0_rx = l2l0_rx.lock().unwrap();
                     loop {
                         match l2l0_rx.recv() {
                             Ok(msg) => {
@@ -85,9 +86,10 @@ impl<'a> Link<'a> for MpscChannel {
             Ok::<(), anyhow::Error>(())
         });
         let this_link = self.link_id.clone();
-        let bs2l_rx = self.bs2l_rx;
+        let bs2l_rx = self.bs2l_rx.clone();
         if let Some(l2l1_tx) = self.l2l1_tx.clone() {
             std::thread::spawn(move || {
+                let bs2l_rx = bs2l_rx.lock().unwrap();
                 loop {
                     match bs2l_rx.recv() {
                         Ok(ilp) => {

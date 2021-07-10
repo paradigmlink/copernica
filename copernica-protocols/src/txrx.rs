@@ -145,9 +145,7 @@ impl TxRx {
                     let lp = LinkPacket::new(link_id.reply_to()?, nw.0.clone());
                     let ilp = InterLinkPacket::new(link_id.clone(), lp);
                     debug!("\t\t|  protocol-to-link");
-                    if let Some(remote_link_pid) = link_id.remote_link_pid()? {
-                        ops.protocol_to_link(link_id.link_pid()?, remote_link_pid);
-                    }
+                    ops.protocol_to_link(link_id.link_pid()?, link_id.remote_link_pid()?);
                     let p2l_tx = p2l_tx.clone();
                     match p2l_tx.send(ilp) {
                         Ok(_) => { },

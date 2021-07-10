@@ -2,7 +2,7 @@ use {
     serde::{Deserialize, Serialize},
     std::{fmt, net::SocketAddr},
     crate::{
-        PrivateIdentityInterface, PublicIdentity, SharedSecret, Nonce,
+        PrivateIdentityInterface, PublicIdentity, PublicIdentityInterface, SharedSecret, Nonce,
     },
     anyhow::{Result, anyhow},
     macaddr::{MacAddr6, MacAddr8},
@@ -22,16 +22,16 @@ pub enum LinkId {
     Identity {
         lookup_id: u32,
         link_sid: PrivateIdentityInterface,
-        remote_link_pid: Option<PublicIdentity>,
+        remote_link_pid: PublicIdentityInterface,
         reply_to: ReplyTo,
     },
     Choke,
 }
 impl LinkId {
-    pub fn new(lookup_id: u32, link_sid: PrivateIdentityInterface, remote_link_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
+    pub fn new(lookup_id: u32, link_sid: PrivateIdentityInterface, remote_link_pid: PublicIdentityInterface, reply_to: ReplyTo) -> Self {
         LinkId::Identity { lookup_id, link_sid, remote_link_pid, reply_to }
     }
-    pub fn link_with_type(link_sid: PrivateIdentityInterface, remote_link_pid: Option<PublicIdentity>, reply_to: ReplyTo) -> Self {
+    pub fn link_with_type(link_sid: PrivateIdentityInterface, remote_link_pid: PublicIdentityInterface, reply_to: ReplyTo) -> Self {
         let mut rng = rand::thread_rng();
         let i: u32 = rng.gen();
         LinkId::Identity { lookup_id: i,  link_sid, remote_link_pid, reply_to }
@@ -97,7 +97,7 @@ impl LinkId {
             }
         }
     }
-    pub fn remote_link_pid(&self) -> Result<Option<PublicIdentity>> {
+    pub fn remote_link_pid(&self) -> Result<PublicIdentityInterface> {
         match self {
             LinkId::Identity { remote_link_pid, ..} => {
                 Ok(remote_link_pid.clone())

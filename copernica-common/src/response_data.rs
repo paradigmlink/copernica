@@ -1,6 +1,6 @@
 use {
     crate::{
-        constants, Data, PublicIdentity, RequestPublicIdentity, PrivateIdentityInterface, Tag, Nonce
+        constants, Data, PublicIdentity, PublicIdentityInterface, PrivateIdentityInterface, Tag, Nonce
     },
     std::fmt,
     serde::{Deserialize, Serialize},
@@ -42,9 +42,9 @@ impl ResponseData {
     pub fn reconstitute_clear_text(data: Data) -> Self {
         ResponseData::ClearText { data }
     }
-    pub fn insert(response_sid: PrivateIdentityInterface, request_pid: RequestPublicIdentity, data: Vec<u8>, nonce: Nonce) -> Result<Self> {
+    pub fn insert(response_sid: PrivateIdentityInterface, request_pid: PublicIdentityInterface, data: Vec<u8>, nonce: Nonce) -> Result<Self> {
         match request_pid {
-            RequestPublicIdentity::Present { request_pid } => {
+            PublicIdentityInterface::Present { public_identity } => {
                 if data.len() > constants::DATA_SIZE {
                     return Err(anyhow!("Ensure data.len() passed into ResponseData::cypher_text() is not greater than {}", constants::DATA_SIZE))
                 }
@@ -62,7 +62,7 @@ impl ResponseData {
                 data.copy_from_slice(&flattened[0..constants::FRAGMENT_SIZE]);
                 let mut nonce_reverse = nonce.clone();
                 nonce_reverse.0.reverse();
-                let shared_secret = response_sid.shared_secret(nonce_reverse, request_pid);
+                let shared_secret = response_sid.shared_secret(nonce_reverse, public_identity);
                 let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
                 let mut encrypted: Vec<u8> = vec![0; data.len()];
                 let mut tag = Tag([0; constants::TAG_SIZE]);
@@ -70,7 +70,7 @@ impl ResponseData {
                 let data = Data::new(encrypted)?;
                 Ok(ResponseData::CypherText { data, tag })
             },
-            RequestPublicIdentity::Absent => {
+            PublicIdentityInterface::Absent => {
                 if data.len() > constants::DATA_SIZE {
                     return Err(anyhow!("Ensure data.len()({}) passed into ResponseData::clear_text() is not greater than {}", data.len(), constants::DATA_SIZE))
                 }
@@ -88,15 +88,15 @@ impl ResponseData {
             },
         }
     }
-    pub fn extract(&self, request_sid: PrivateIdentityInterface, request_pid: RequestPublicIdentity, response_pid: PublicIdentity, nonce: Nonce) -> Result<Vec<u8>> {
+    pub fn extract(&self, request_sid: PrivateIdentityInterface, request_pid: PublicIdentityInterface, response_pid: PublicIdentity, nonce: Nonce) -> Result<Vec<u8>> {
         match self {
             ResponseData::ClearText { data } => {
                 data.data()
             },
             ResponseData::CypherText { data, tag } => {
                 match request_pid {
-                    RequestPublicIdentity::Present { request_pid } => {
-                        if request_pid != request_sid.public_id() {
+                    PublicIdentityInterface::Present { public_identity } => {
+                        if public_identity != request_sid.public_id() {
                             let err_msg = "The Response's Request_PublicIdentity doesn't match the Public Identity used to sign or decypt the Response";
                             error!("{}", err_msg);
                             return Err(anyhow!(err_msg));
@@ -113,7 +113,7 @@ impl ResponseData {
                             Err(anyhow!("Couldn't decrypt the data"))
                         }
                     },
-                    RequestPublicIdentity::Absent => Err(anyhow!("Cannot determine if the Request's PublicIdentity matches the PublicIdentity used to sign or decrypt the encrypted Response"))
+                    PublicIdentityInterface::Absent => Err(anyhow!("Cannot determine if the Request's PublicIdentity matches the PublicIdentity used to sign or decrypt the encrypted Response"))
                 }
             },
         }

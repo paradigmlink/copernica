@@ -1,25 +1,46 @@
 use {
     anyhow::{anyhow, Result},
     core::hash::{Hash, Hasher},
-    itertools::join,
     std::{
-        sync::mpsc::SyncSender,
+        sync::mpsc::Sender,
         str::FromStr,
         fmt::{self},
     },
-    crate::PublicIdentity,
+    crate::{PublicIdentity, PublicIdentityInterface },
 };
 #[derive(Clone, Debug)]
 pub enum Operations {
-    On { tx: SyncSender<LogEntry> },
+    On { tx: Sender<LogEntry> },
     Off,
 }
 impl Operations {
-    pub fn turned_on(tx: SyncSender<LogEntry>) -> Self {
+    pub fn turned_on(tx: Sender<LogEntry>) -> Self {
         Operations::On { tx }
     }
     pub fn turned_off() -> Self {
         Operations::Off
+    }
+    pub fn start(&self) {
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::start()) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn end(&self) {
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::end()) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
     }
     // convenience function to reduce typing on Protocol, Link, Router API
     pub fn label(&self, label: &str) -> (String, Self) {
@@ -50,11 +71,11 @@ impl Operations {
             Operations::Off => {}
         }
     }
-    pub fn register_router(&self, ids: Vec<u32>, label: u32) {
+    pub fn register_router(&self, id: u32) {
         let attrs = "".into();
         match self {
             Operations::On { tx } => {
-                match tx.send(LogEntry::router(ids, label, attrs)) {
+                match tx.send(LogEntry::router(id, attrs)) {
                     Ok(_) => {},
                     Err(_) => {},
                 }
@@ -62,7 +83,7 @@ impl Operations {
             Operations::Off => {}
         }
     }
-    pub fn link_to_link(&self, from: PublicIdentity, to: PublicIdentity, label: String) {
+    pub fn link_to_link(&self, from: PublicIdentity, to: PublicIdentityInterface, label: String) {
         let attrs = "".into();
         match self {
             Operations::On { tx } => {
@@ -74,7 +95,7 @@ impl Operations {
             Operations::Off => {}
         }
     }
-    pub fn protocol_to_link(&self, from: PublicIdentity, to: PublicIdentity) {
+    pub fn protocol_to_link(&self, from: PublicIdentity, to: PublicIdentityInterface) {
         let attrs = "".into();
         let label = "".into();
         match self {
@@ -87,7 +108,7 @@ impl Operations {
             Operations::Off => {}
         }
     }
-    pub fn link_to_protocol(&self, from: PublicIdentity, to: PublicIdentity, label: String) {
+    pub fn link_to_protocol(&self, from: PublicIdentity, to: PublicIdentityInterface, label: String) {
         let attrs = "".into();
         match self {
             Operations::On { tx } => {
@@ -137,16 +158,17 @@ impl Operations {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LogEntry {
+    Start,
+    End,
     Protocol {
         label: String,
         pid: PublicIdentity,
         attrs: String,
     },
     Router {
-        label: u32,
-        ids: Vec<u32>,
+        id: u32,
         attrs: String,
     },
     Link {
@@ -162,18 +184,24 @@ pub enum LogEntry {
     },
 }
 impl LogEntry {
+    pub fn start() -> Self {
+        LogEntry::Start
+    }
+    pub fn end() -> Self {
+        LogEntry::End
+    }
     pub fn protocol(pid: PublicIdentity, label: String, attrs: String) -> Self {
         LogEntry::Protocol { label, pid, attrs}
     }
-    pub fn router(ids: Vec<u32>, label: u32, attrs: String) -> Self {
-        LogEntry::Router { ids, label, attrs}
+    pub fn router(id: u32, attrs: String) -> Self {
+        LogEntry::Router { id, attrs}
     }
     pub fn link(pid: PublicIdentity, label: String, attrs: String) -> Self {
         LogEntry::Link { pid, label, attrs}
     }
-    pub fn pid_to_pid(from: PublicIdentity, to: PublicIdentity, label: String, attrs: String) -> Self {
+    pub fn pid_to_pid(from: PublicIdentity, to: PublicIdentityInterface, label: String, attrs: String) -> Self {
         LogEntry::Arrow {
-            from: ArrowDestination::Identity { id: from },
+            from: ArrowDestination::Identity { id: PublicIdentityInterface::Present { public_identity: from }},
             to: ArrowDestination::Identity { id: to },
             label, attrs
         }
@@ -181,13 +209,13 @@ impl LogEntry {
     pub fn id_to_pid(from: u32, face: u32, to: PublicIdentity, label: String, attrs: String) -> Self {
         LogEntry::Arrow {
             from: ArrowDestination::Router { id: from, face },
-            to: ArrowDestination::Identity { id: to },
+            to: ArrowDestination::Identity { id: PublicIdentityInterface::Present { public_identity: to}},
             label, attrs
         }
     }
     pub fn pid_to_id(from: PublicIdentity, to: u32, face: u32, label: String, attrs: String) -> Self {
         LogEntry::Arrow {
-            from: ArrowDestination::Identity { id: from },
+            from: ArrowDestination::Identity { id: PublicIdentityInterface::Present { public_identity: from }},
             to: ArrowDestination::Router { id: to, face },
             label: label.to_string(), attrs
         }
@@ -206,9 +234,8 @@ impl fmt::Display for LogEntry {
             LogEntry::Protocol { label, pid, attrs } => {
                 format!("|(P,{},{},{})", label, pid, attrs)
             }
-            LogEntry::Router { label, ids, attrs } => {
-                let ids: String = "{".to_owned() + &join (ids, "/") + "}";
-                format!("|(R,{},{},{})", label, ids, attrs)
+            LogEntry::Router { id, attrs } => {
+                format!("|(R,{},{})", id, attrs)
             }
             LogEntry::Link { label, pid, attrs } => {
                 format!("|(L,{},{},{})", label, pid, attrs)
@@ -216,6 +243,12 @@ impl fmt::Display for LogEntry {
             LogEntry::Arrow { label, from, to, attrs } => {
                 format!("|(A,{},{},{},{})", label, from, to, attrs)
             },
+            LogEntry::Start=> {
+                format!("|(S)")
+            }
+            LogEntry::End=> {
+                format!("|(E)")
+            }
         };
         write!(f, "{}", out)
     }
@@ -229,9 +262,7 @@ impl FromStr for LogEntry {
         let o = match e[0] {
             "P" => LogEntry::Protocol { label: e[1].into(), pid: PublicIdentity::from_str(e[2])?, attrs: e[3].into() },
             "R" => {
-                let ids: Vec<&str> = e[2].trim_matches(|p| p == '{' || p == '}').split('/').collect();
-                let ids = ids.into_iter().map(|i| i.parse::<u32>().unwrap()).collect();
-                LogEntry::Router { label: e[1].parse::<u32>()?, ids, attrs: e[3].into() }
+                LogEntry::Router { id: e[1].parse::<u32>()?, attrs: e[2].into() }
                 },
             "L" => LogEntry::Link { label: e[1].into(), pid: PublicIdentity::from_str(e[2])?, attrs: e[3].into() },
             "A" => LogEntry::Arrow {
@@ -240,14 +271,16 @@ impl FromStr for LogEntry {
                       to: ArrowDestination::from_str(e[2])?,
                       attrs: e[3].into()
             },
+            "S" => LogEntry::Start,
+            "E" => LogEntry::End,
             _ => return Err(anyhow!("Could not parse log entry format")),
         };
         Ok(o)
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ArrowDestination {
-    Identity { id: PublicIdentity },
+    Identity { id: PublicIdentityInterface },
     Router{ id: u32, face: u32 },
 }
 impl fmt::Display for ArrowDestination {
@@ -270,7 +303,7 @@ impl FromStr for ArrowDestination {
         let e = match e[0] {
             "I" => {
                 println!("{:?} {:?}", e, s );
-                ArrowDestination::Identity { id: PublicIdentity::from_str(e[1])? }
+                ArrowDestination::Identity { id: PublicIdentityInterface::Present { public_identity: PublicIdentity::from_str(e[1])? } }
             },
             "R" => ArrowDestination::Router { id: e[1].parse::<u32>()?, face: e[2].parse::<u32>()? },
             _ => return Err(anyhow!("Could not parse ArrowDestination format")),

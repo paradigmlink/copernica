@@ -1,5 +1,5 @@
 use {
-    crate::{constants, PublicIdentity, RequestPublicIdentity},
+    crate::{constants, PublicIdentity, PublicIdentityInterface},
     anyhow::{Result},
     serde::{Deserialize, Serialize},
     std::fmt,
@@ -12,7 +12,7 @@ pub type BFIS = [BFI; constants::BFI_COUNT]; // Bloom Filter Index
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct HBFI {
     // Hierarchical Bloom Filter Index
-    pub request_pid: RequestPublicIdentity,
+    pub request_pid: PublicIdentityInterface,
     pub response_pid: PublicIdentity,
     pub req: BFI, // request PublicIdentity, when set indicates Response will be encrypted.
     pub res: BFI, // response PublicIdentity
@@ -50,7 +50,7 @@ impl PartialEq for HBFIExcludeFrame {
 }
 impl Eq for HBFIExcludeFrame {}
 impl HBFI {
-    pub fn new(request_pid: RequestPublicIdentity
+    pub fn new(request_pid: PublicIdentityInterface
         ,response_pid: PublicIdentity
         , app: &str
         , m0d: &str
@@ -94,7 +94,7 @@ impl HBFI {
 }
 
 impl HBFI {
-    pub fn encrypt_for(&self, request_pid: RequestPublicIdentity) -> Result<Self> {
+    pub fn encrypt_for(&self, request_pid: PublicIdentityInterface) -> Result<Self> {
         Ok(HBFI { request_pid: request_pid.clone()
             , response_pid: self.response_pid.clone()
             , req: request_pid.bloom_filter_index()?
@@ -107,7 +107,7 @@ impl HBFI {
         })
     }
     pub fn cleartext_repr(&self) -> Result<Self> {
-        let absent_request_pid = RequestPublicIdentity::Absent;
+        let absent_request_pid = PublicIdentityInterface::Absent;
         Ok(HBFI { request_pid: absent_request_pid.clone()
             , response_pid: self.response_pid.clone()
             , req: absent_request_pid.bloom_filter_index()?

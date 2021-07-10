@@ -4,7 +4,7 @@ use {
         common::*,
         HBFI, ReplyTo, LinkId,
         NarrowWaistPacket, ResponseData, LinkPacket, BFI,
-        RequestPublicIdentity, PublicIdentity, Signature
+        PublicIdentityInterface, PublicIdentity, Signature
     },
     macaddr::{MacAddr6, MacAddr8},
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
@@ -86,13 +86,13 @@ pub fn serialize_hbfi(hbfi: &HBFI) -> Result<(u8, Vec<u8>)> {
     let frm = &u64_to_u8(hbfi.frm);
     let mut ids_buf: Vec<u8> = vec![];
     match &hbfi.request_pid {
-        RequestPublicIdentity::Present { request_pid } => {
+        PublicIdentityInterface::Present { public_identity } => {
             ids_buf.extend_from_slice(hbfi.response_pid.key().as_ref());
             ids_buf.extend_from_slice(hbfi.response_pid.chain_code().as_ref());
-            ids_buf.extend_from_slice(request_pid.key().as_ref());
-            ids_buf.extend_from_slice(request_pid.chain_code().as_ref());
+            ids_buf.extend_from_slice(public_identity.key().as_ref());
+            ids_buf.extend_from_slice(public_identity.chain_code().as_ref());
         },
-        RequestPublicIdentity::Absent => {
+        PublicIdentityInterface::Absent => {
             ids_buf.extend_from_slice(hbfi.response_pid.key().as_ref());
             ids_buf.extend_from_slice(hbfi.response_pid.chain_code().as_ref());
         },
@@ -137,7 +137,7 @@ pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     req_key.clone_from_slice(&data[HBFI_REQUEST_KEY_START..HBFI_REQUEST_KEY_END]);
     //trace!("des \treq_key: \t\t{:?}", req_key);
     Ok(HBFI { response_pid: PublicIdentity::from(res_key)
-            , request_pid: RequestPublicIdentity::Present { request_pid: PublicIdentity::from(req_key) }
+            , request_pid: PublicIdentityInterface::Present { public_identity: PublicIdentity::from(req_key) }
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
             , frm})
 }
@@ -159,7 +159,7 @@ pub fn deserialize_cleartext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
     //trace!("des \tres_key: \t\t{:?}", res_key);
     Ok(HBFI { response_pid: PublicIdentity::from(res_key)
-            , request_pid: RequestPublicIdentity::Absent
+            , request_pid: PublicIdentityInterface::Absent
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
             , frm})
 }
@@ -327,7 +327,7 @@ pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>
     let mut buf: Vec<u8> = vec![];
     let lnk_tx_pid = link_id.link_pid()?;
     match link_id.remote_link_pid()? {
-        None => {
+        PublicIdentityInterface::Absent => {
             let reply_to = lp.reply_to();
             let nw = lp.narrow_waist();
             buf.extend_from_slice(lnk_tx_pid.key().as_ref());
@@ -344,7 +344,8 @@ pub fn serialize_link_packet(lp: &LinkPacket, link_id: LinkId) -> Result<Vec<u8>
             buf.extend_from_slice(&reply_to);
             buf.extend_from_slice(&nw);
         },
-        Some(lnk_rx_pid) => {
+        PublicIdentityInterface::Present { public_identity: lnk_rx_pid } => {
+
             let reply_to = lp.reply_to();
             let nw = lp.narrow_waist();
     // Link Pid
@@ -521,10 +522,10 @@ pub fn deserialize_cleartext_link_packet(data: &Vec<u8>) -> Result<(PublicIdenti
 }
 pub fn deserialize_link_packet(data: &Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
     match link_id.remote_link_pid()? {
-        Some(_) => {
+        PublicIdentityInterface::Present { .. } => {
             deserialize_cyphertext_link_packet(data, link_id)
         },
-        None => {
+        PublicIdentityInterface::Absent => {
             deserialize_cleartext_link_packet(data)
         },
     }
