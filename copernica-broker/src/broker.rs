@@ -14,7 +14,7 @@ use {
     },
     log::{
         error, trace,
-        debug
+        //debug
     },
 };
 
@@ -107,7 +107,8 @@ impl Broker {
             loop {
                 match l2b_rx.recv() {
                     Ok(ilp) => {
-                        debug!("\t\t|  |  |  broker-to-router");
+                        trace!("\t\t|  |  |  broker-to-router");
+                        ops.message_from(label.clone());
                         if !blooms.contains_key(&ilp.link_id()) {
                             trace!("ADDING {:?} to BLOOMS", ilp);
                             blooms.insert(ilp.link_id(), Blooms::new());
@@ -120,6 +121,8 @@ impl Broker {
             }
             Ok::<(), anyhow::Error>(())
         });
+        let ops = self.ops.clone();
+        let label = self.label.clone();
         std::thread::spawn(move || {
             loop {
                 let r2b_rx_mutex = r2b_rx_mutex.clone();
@@ -129,7 +132,8 @@ impl Broker {
                         Ok(id) => {
                             match b2l.get_mut(id) {
                                 Some(b2l_tx) => {
-                                    debug!("\t\t|  |  |  router-to-broker");
+                                    trace!("\t\t|  |  |  router-to-broker");
+                                    ops.message_from(label.clone());
                                     match b2l_tx.send(ilp) {
                                         Ok(_) => {},
                                         Err(e) => error!("broker {:?}", e),

@@ -4,7 +4,7 @@ use {
     anyhow::{anyhow, Result},
     std::sync::mpsc::{Receiver, SyncSender},
     futures_lite::{future},
-    log::{debug, error, trace},
+    log::{error, trace},
     std::{
       net::{SocketAddr, UdpSocket},
       sync::{Arc, Mutex},
@@ -47,7 +47,7 @@ impl Link for UdpIp {
                                 let data = future::block_on(async{ socket.recv_from(&mut buf).await });
                                 match data {
                                     Ok((n, _peer)) => {
-                                        debug!("\t\t\t|  |  link-to-broker-or-protocol");
+                                        trace!("\t\t\t|  |  link-to-broker-or-protocol");
                                         trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
                                         ops.message_from(label.clone());
                                         let (_lnk_tx_pid, lp) = decode(buf[..n].to_vec(), this_link.clone())?;
@@ -84,7 +84,7 @@ impl Link for UdpIp {
                                 match ilp.reply_to()? {
                                     ReplyTo::UdpIp(remote_addr) => {
                                         let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
-                                        debug!("\t\t\t|  |  broker-or-protocol-to-link");
+                                        trace!("\t\t\t|  |  broker-or-protocol-to-link");
                                         trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
                                         ops.message_from(label.clone());
                                         let enc = encode(lp, this_link.clone())?;

@@ -5,7 +5,7 @@ use {
     },
     anyhow::{anyhow, Result},
     std::sync::{Arc, Mutex, mpsc::{Receiver, SyncSender, sync_channel as channel}},
-    log::{debug, trace, error },
+    log::{trace, error },
 };
 #[allow(dead_code)]
 pub struct MpscChannel {
@@ -74,7 +74,7 @@ impl Link for MpscChannel {
                                 let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp.clone());
-                                debug!("\t\t|  |  link-to-broker-or-protocol");
+                                trace!("\t\t|  |  link-to-broker-or-protocol");
                                 trace!("\t|  |  {}", this_link.lookup_id()?);
                                 ops.message_from(label.clone());
                                 match l2bs_tx.send(ilp) {
@@ -103,7 +103,7 @@ impl Link for MpscChannel {
                             let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
                             let enc = encode(lp, this_link.clone())?;
                             for s in l2l1_tx.clone() {
-                                debug!("\t\t|  |  broker-or-protocol-to-link");
+                                trace!("\t\t|  |  broker-or-protocol-to-link");
                                 trace!("\t\t|  |  {}", this_link.lookup_id()?);
                                 ops.message_from(label.clone());
                                 match s.send(enc.clone()) {

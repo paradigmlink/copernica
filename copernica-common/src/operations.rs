@@ -75,10 +75,21 @@ impl Operations {
             Operations::Off => {}
         }
     }
-    pub fn found_response(&self, label: String) {
+    pub fn found_response_upstream(&self, label: String) {
         match self {
             Operations::On { tx } => {
-                match tx.send(LogEntry::found_response(&label)) {
+                match tx.send(LogEntry::found_response_upstream(&label)) {
+                    Ok(_) => {},
+                    Err(_) => {},
+                }
+            },
+            Operations::Off => {}
+        }
+    }
+    pub fn response_arrived_downstream(&self, label: String) {
+        match self {
+            Operations::On { tx } => {
+                match tx.send(LogEntry::response_arrived_downstream(&label)) {
                     Ok(_) => {},
                     Err(_) => {},
                 }
@@ -119,7 +130,10 @@ pub enum LogEntry {
     Message {
         label: String,
     },
-    FoundResponse {
+    FoundResponseUpstream {
+        label: String,
+    },
+    ResponseArrivedDownstream {
         label: String,
     },
     ForwardResponseDownstream {
@@ -139,14 +153,17 @@ impl LogEntry {
     pub fn message(label: &str) -> Self {
         LogEntry::Message { label: format!("message sent from node: {}", &label)  }
     }
-    pub fn found_response(label: &str) -> Self {
-        LogEntry::FoundResponse { label: format!("found response in node: {}", &label)  }
+    pub fn found_response_upstream(label: &str) -> Self {
+        LogEntry::FoundResponseUpstream { label: format!("found response in node: {}", &label)  }
     }
-    pub fn forward_response_downstream(label: &str) -> Self {
-        LogEntry::ForwardResponseDownstream { label: format!("forwarded response from node: {}", &label)  }
+    pub fn response_arrived_downstream(label: &str) -> Self {
+        LogEntry::ResponseArrivedDownstream { label: format!("response arrived at requesting node: {}", &label)  }
     }
     pub fn forward_request_upstream(label: &str) -> Self {
         LogEntry::ForwardRequestUpstream { label: format!("forwarded request from node: {}", &label)  }
+    }
+    pub fn forward_response_downstream(label: &str) -> Self {
+        LogEntry::ForwardResponseDownstream { label: format!("forwarded response from node: {}", &label)  }
     }
 }
 impl fmt::Display for LogEntry {
@@ -158,7 +175,10 @@ impl fmt::Display for LogEntry {
             LogEntry::Message { label } => {
                 format!("{}", label)
             },
-            LogEntry::FoundResponse { label } => {
+            LogEntry::FoundResponseUpstream { label } => {
+                format!("{}", label)
+            },
+            LogEntry::ResponseArrivedDownstream { label } => {
                 format!("{}", label)
             },
             LogEntry::ForwardResponseDownstream { label } => {

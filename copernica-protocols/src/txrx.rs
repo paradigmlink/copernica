@@ -4,7 +4,7 @@ use {
         LinkPacket, InterLinkPacket, HBFI, HBFIExcludeFrame,
         PrivateIdentityInterface, PublicIdentity, constants, Operations
     },
-    log::{debug, error},
+    log::{trace, error},
     anyhow::{anyhow, Result},
     std::{
         time::{Duration},
@@ -154,7 +154,7 @@ impl TxRx {
                 for nw in nws.clone() {
                     let lp = LinkPacket::new(link_id.reply_to()?, nw.0.clone());
                     let ilp = InterLinkPacket::new(link_id.clone(), lp);
-                    debug!("\t\t|  protocol-to-link");
+                    trace!("\t\t|  protocol-to-link");
                     ops.message_from(self.label()?);
                     let p2l_tx = p2l_tx.clone();
                     match p2l_tx.send(ilp) {
@@ -460,12 +460,14 @@ impl TxRx {
         data: Vec<u8>,
     ) -> Result<()> {
         match self {
-            TxRx::Initialized { ref p2l_tx, ref protocol_sid, ref link_id, .. } => {
-                debug!("\t\t|  RESPONSE PACKET FOUND");
+            TxRx::Initialized { ref p2l_tx, ref protocol_sid, ref link_id, ref ops, ref label, .. } => {
+                trace!("\t\t|  RESPONSE PACKET FOUND");
+                ops.found_response_upstream(label.clone());
                 let nw = NarrowWaistPacket::response(protocol_sid.clone(), hbfi.clone(), data)?;
                 let lp = LinkPacket::new(link_id.reply_to()?, nw);
                 let ilp = InterLinkPacket::new(link_id.clone(), lp);
-                debug!("\t\t|  protocol-to-link");
+                trace!("\t\t|  protocol-to-link");
+                ops.message_from(label.clone());
                 match p2l_tx.send(ilp) {
                     Ok(_) => {},
                     Err(e) => error!("protocol send error {:?}", e),

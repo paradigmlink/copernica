@@ -4,6 +4,7 @@ use {
     copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface, PublicIdentityInterface, Operations, LogEntry},
     copernica_broker::{Broker},
     copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp},
+    crate::process_network,
     scaffolding::{ group, single, Ordering, TestTree},
     std::sync::mpsc::{channel},
     std::collections::HashMap,
@@ -18,21 +19,31 @@ pub fn network_echo(ordering: Ordering) -> TestTree {
     )
 }
 pub fn ping_pong() -> Result<()> {
+    let router_0 = "router0";
+    let router_1 = "router1";
+    let echo_protocol_0 = "echo_protocol0";
+    let echo_protocol_1 = "echo_protocol1";
+    let link_0 = "link0";
+    let link_1 = "link1";
+    let link_2 = "link2";
+    let link_3 = "link3";
+    let link_4 = "link4";
+    let link_5 = "link5";
     let (sender, receiver) = channel::<LogEntry>();
     let actual_behaviour = Operations::turned_on(sender);
-    let mut broker0 = Broker::new(actual_behaviour.label("router0"));
-    let mut broker1 = Broker::new(actual_behaviour.label("router1"));
+    let mut broker0 = Broker::new(actual_behaviour.label(router_0.clone()));
+    let mut broker1 = Broker::new(actual_behaviour.label(router_1.clone()));
     let echo_protocol_sid0 = PrivateIdentityInterface::new_key();
     let echo_protocol_sid1 = PrivateIdentityInterface::new_key();
-    let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone(), actual_behaviour.label("echo_protocol0"));
-    let mut echo_protocol1: Echo = Protocol::new(echo_protocol_sid1.clone(), actual_behaviour.label("echo_protocol1"));
+    let mut echo_protocol0: Echo = Protocol::new(echo_protocol_sid0.clone(), actual_behaviour.label(echo_protocol_0.clone()));
+    let mut echo_protocol1: Echo = Protocol::new(echo_protocol_sid1.clone(), actual_behaviour.label(echo_protocol_1.clone()));
     // echo_protocol0 to broker0
     let link_sid0 = PrivateIdentityInterface::new_key();
     let link_sid1 = PrivateIdentityInterface::new_key();
     let link_id0 = LinkId::link_with_type(link_sid0.clone(), PublicIdentityInterface::Absent, ReplyTo::Mpsc);
     let link_id1 = LinkId::link_with_type(link_sid1.clone(), PublicIdentityInterface::Absent, ReplyTo::Mpsc);
-    let mut link0: MpscChannel = Link::new(link_id0.clone(), actual_behaviour.label("link0"), broker0.peer_with_link(link_id0.clone())?)?;
-    let mut link1: MpscChannel = Link::new(link_id1.clone(), actual_behaviour.label("link1"), echo_protocol0.peer_with_link(link_id0.clone())?)?;
+    let mut link0: MpscChannel = Link::new(link_id0.clone(), actual_behaviour.label(link_0.clone()), broker0.peer_with_link(link_id0.clone())?)?;
+    let mut link1: MpscChannel = Link::new(link_id1.clone(), actual_behaviour.label(link_1.clone()), echo_protocol0.peer_with_link(link_id0.clone())?)?;
     link0.female(link1.male());
     link1.female(link0.male());
     // broker0 to broker1
@@ -40,8 +51,8 @@ pub fn ping_pong() -> Result<()> {
     let link_sid3 = PrivateIdentityInterface::new_key();
     let link_id2 = LinkId::link_with_type(link_sid2.clone(), PublicIdentityInterface::new(link_sid3.public_id()), ReplyTo::Mpsc);
     let link_id3 = LinkId::link_with_type(link_sid3.clone(), PublicIdentityInterface::new(link_sid2.public_id()), ReplyTo::Mpsc);
-    let mut link2: MpscCorruptor = Link::new(link_id2.clone(), actual_behaviour.label("link2"), broker0.peer_with_link(link_id2.clone())?)?;
-    let mut link3: MpscCorruptor = Link::new(link_id3.clone(), actual_behaviour.label("link3"), broker1.peer_with_link(link_id3.clone())?)?;
+    let mut link2: MpscCorruptor = Link::new(link_id2.clone(), actual_behaviour.label(link_2.clone()), broker0.peer_with_link(link_id2.clone())?)?;
+    let mut link3: MpscCorruptor = Link::new(link_id3.clone(), actual_behaviour.label(link_3.clone()), broker1.peer_with_link(link_id3.clone())?)?;
     link2.female(link3.male());
     link3.female(link2.male());
     // broker1 to echo_protocol1
@@ -51,8 +62,37 @@ pub fn ping_pong() -> Result<()> {
     let address5 = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
-    let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label("link4"), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
-    let mut link5: UdpIp = Link::new(link_id5.clone(), actual_behaviour.label("link5"), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+    let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
+    let mut link5: UdpIp = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+    let mut expected_behaviour: HashMap<LogEntry, i32> = HashMap::new();
+    expected_behaviour.insert(LogEntry::register(router_0.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(router_1.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(echo_protocol_0.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(echo_protocol_1.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(link_0.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(link_1.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(link_2.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(link_3.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(link_4.clone()), 1);
+    expected_behaviour.insert(LogEntry::register(link_5.clone()), 1);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_0.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_1.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_0.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_1.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_2.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_3.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_4.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_5.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(router_0.clone()), 16);
+    expected_behaviour.insert(LogEntry::message(router_1.clone()), 16);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_0.clone()), 4);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_1.clone()), 0);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_1.clone()), 4);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_0.clone()), 4);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_1.clone()), 4);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_0.clone()), 4);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_1.clone()), 4);
     echo_protocol0.run()?;
     link0.run()?;
     link1.run()?;
@@ -63,89 +103,16 @@ pub fn ping_pong() -> Result<()> {
     link4.run()?;
     link5.run()?;
     echo_protocol1.run()?;
-    let echo_protocol_sid0_in_thread = echo_protocol_sid0.clone();
-    let data = std::thread::spawn(move || {
-        let data: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0_in_thread.clone().public_id()).unwrap();
+    let response = std::thread::spawn(move || {
+        let data: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id()).unwrap();
         actual_behaviour.end();
         data
     });
-    let mut expected_behaviour: HashMap<LogEntry, i32> = HashMap::new();
-    expected_behaviour.insert(LogEntry::register("router0"), 1);
-    expected_behaviour.insert(LogEntry::register("router1"), 1);
-    expected_behaviour.insert(LogEntry::register("echo_protocol0"), 1);
-    expected_behaviour.insert(LogEntry::register("echo_protocol1"), 1);
-    expected_behaviour.insert(LogEntry::register("link0"), 1);
-    expected_behaviour.insert(LogEntry::register("link1"), 1);
-    expected_behaviour.insert(LogEntry::register("link2"), 1);
-    expected_behaviour.insert(LogEntry::register("link3"), 1);
-    expected_behaviour.insert(LogEntry::register("link4"), 1);
-    expected_behaviour.insert(LogEntry::register("link5"), 1);
-    expected_behaviour.insert(LogEntry::message("echo_protocol0"), 0);
-    expected_behaviour.insert(LogEntry::message("echo_protocol1"), 4);
-    expected_behaviour.insert(LogEntry::message("link0"), 8);
-    expected_behaviour.insert(LogEntry::message("link1"), 8);
-    expected_behaviour.insert(LogEntry::message("link2"), 8);
-    expected_behaviour.insert(LogEntry::message("link3"), 8);
-    expected_behaviour.insert(LogEntry::message("link4"), 8);
-    expected_behaviour.insert(LogEntry::message("link5"), 8);
-    expected_behaviour.insert(LogEntry::found_response("router0"), 0);
-    expected_behaviour.insert(LogEntry::found_response("router1"), 0);
-    expected_behaviour.insert(LogEntry::forward_response_downstream("router0"), 4);
-    expected_behaviour.insert(LogEntry::forward_response_downstream("router1"), 4);
-    expected_behaviour.insert(LogEntry::forward_request_upstream("router0"), 4);
-    expected_behaviour.insert(LogEntry::forward_request_upstream("router1"), 4);
-    loop {
-        let log_entry = receiver.recv()?;
-        match log_entry {
-            LogEntry::Register { ref label } => {
-                if let Some(count) = expected_behaviour.get_mut(&log_entry) {
-                    *count -= 1;
-                } else {
-                    return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
-                }
-            },
-            LogEntry::Message { ref label } => {
-                if let Some(count) = expected_behaviour.get_mut(&log_entry) {
-                    *count -= 1;
-                } else {
-                    return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
-                }
-            },
-            LogEntry::FoundResponse { ref label } => {
-                if let Some(count) = expected_behaviour.get_mut(&log_entry) {
-                    *count -= 1;
-                } else {
-                    return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
-                }
-            },
-            LogEntry::ForwardResponseDownstream { ref label } => {
-                if let Some(count) = expected_behaviour.get_mut(&log_entry) {
-                    *count -= 1;
-                } else {
-                    return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
-                }
-            },
-            LogEntry::ForwardRequestUpstream { ref label } => {
-                if let Some(count) = expected_behaviour.get_mut(&log_entry) {
-                    *count -= 1;
-                } else {
-                    return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
-                }
-            },
-            LogEntry::End => {
-                for (key, value) in &expected_behaviour {
-                    if value != &0 {
-                        return Err(anyhow!("Node \"{}\" has an unexpected amount of messages sent: {}", key, value))
-                    }
-                }
-                break;
-            },
-        }
-    }
-    let actual_data = data.join().expect("failed to extract data from JoinHandle");
-    let expected_data = "pong".to_string();
-    if actual_data != expected_data {
-        Err(anyhow!("actual returned data (1st under) didn't match expected returned data (2nd under):\n{}\n{}", actual_data, expected_data))
+    process_network(expected_behaviour, receiver)?;
+    let actual_response = response.join().expect("failed to extract data from JoinHandle");
+    let expected_response = "pong".to_string();
+    if actual_response != expected_response{
+        Err(anyhow!("actual returned data (1st under) didn't match expected returned data (2nd under):\n{}\n{}", actual_response, expected_response))
     } else {
         Ok(())
     }

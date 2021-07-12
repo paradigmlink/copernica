@@ -5,7 +5,7 @@ use {
         bloom_filter_index as bfi, NarrowWaistPacket, HBFI, PublicIdentity, PublicIdentityInterface, PrivateIdentityInterface, Operations
     },
     crate::{Protocol, TxRx},
-    log::debug,
+    log::{trace},
 };
 static UNRELIABLE_UNORDERED_ECHO: &str = "unreliable_unordered_echo";
 static UNRELIABLE_SEQUENCED_ECHO: &str = "unreliable_sequenced_echo";
@@ -134,6 +134,8 @@ impl Protocol for Echo {
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()> {
         let txrx = self.txrx.clone();
+        let ops = self.ops.clone();
+        let label = self.label.clone();
         std::thread::spawn(move || {
             match txrx {
                 TxRx::Initialized {
@@ -150,7 +152,8 @@ impl Protocol for Echo {
                     loop {
                         match txrx.clone().next() {
                             Ok(ilp) => {
-                                debug!("\t\t|  link-to-protocol");
+                                ops.message_from(label.clone());
+                                trace!("\t\t|  link-to-protocol");
                                 let nw: NarrowWaistPacket = ilp.narrow_waist();
                                 match nw.clone() {
                                     NarrowWaistPacket::Request { hbfi, .. } => match hbfi {
@@ -269,23 +272,28 @@ impl Protocol for Echo {
                                             => {
                                                 match arg {
                                                     arg if arg == bfi(UNRELIABLE_UNORDERED_ECHO)? => {
-                                                        debug!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        trace!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        ops.response_arrived_downstream(label.clone());
                                                         unreliable_unordered_response_tx.send(ilp)?;
                                                     },
                                                     arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
-                                                        debug!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        trace!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        ops.response_arrived_downstream(label.clone());
                                                         unreliable_sequenced_response_tx.send(ilp)?;
                                                     },
                                                     arg if arg == bfi(RELIABLE_UNORDERED_ECHO)? => {
-                                                        debug!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        trace!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        ops.response_arrived_downstream(label.clone());
                                                         reliable_unordered_response_tx.send(ilp)?;
                                                     },
                                                     arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
-                                                        debug!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        trace!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        ops.response_arrived_downstream(label.clone());
                                                         reliable_ordered_response_tx.send(ilp)?;
                                                     },
                                                     arg if arg == bfi(RELIABLE_SEQUENCED_ECHO)? => {
-                                                        debug!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        trace!("\t\t|  RESPONSE PACKET ARRIVED");
+                                                        ops.response_arrived_downstream(label.clone());
                                                         reliable_sequenced_response_tx.send(ilp)?;
                                                     },
                                                     _ => {}

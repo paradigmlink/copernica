@@ -5,7 +5,7 @@ use {
     },
     anyhow::{anyhow, Result},
     std::sync::{Arc, Mutex, mpsc::{Receiver, SyncSender, sync_channel as channel}},
-    log::{debug, trace, error},
+    log::{trace, error},
 };
 #[allow(dead_code)]
 pub struct MpscCorruptor {
@@ -75,7 +75,7 @@ impl Link for MpscCorruptor {
                                 let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
                                 let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
                                 let ilp = InterLinkPacket::new(link_id, lp);
-                                debug!("\t|  |  link-to-broker-or-protocol");
+                                trace!("\t|  |  link-to-broker-or-protocol");
                                 trace!("\t|  |  {}", this_link.lookup_id()?);
                                 ops.message_from(label.clone());
                                 match l2bs_tx.send(ilp) {
@@ -108,7 +108,7 @@ impl Link for MpscCorruptor {
                                 corrupted[i] = 0x0;
                             }
                             for s in l2l1_tx.clone() {
-                                debug!("\t|  |  broker-or-protocol-to-link");
+                                trace!("\t|  |  broker-or-protocol-to-link");
                                 trace!("\t|  |  {}", this_link.lookup_id()?);
                                 ops.message_from(label.clone());
                                 match s.send(corrupted.clone()) {
