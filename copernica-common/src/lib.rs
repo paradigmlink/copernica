@@ -14,7 +14,7 @@ pub use crate::{
     hbfi::{HBFIExcludeFrame, HBFI, BFI, BFIS,bloom_filter_index},
     link::{LinkId, ReplyTo},
     common::{Data, Nonce, Tag, generate_nonce, manifest},
-    operations::{Operations, LogEntry, ArrowDestination},
+    operations::{Operations, LogEntry},
     response_data::{ResponseData},
     link_packet::{LinkPacket},
     inter_link_packet::{InterLinkPacket},

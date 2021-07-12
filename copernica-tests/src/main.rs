@@ -1,8 +1,4 @@
-#![allow(dead_code)]
-mod router;
 mod common;
-mod protocols;
-mod netsim;
 use {
     anyhow::{Result},
     scaffolding::{ group, scaffold, Ordering},

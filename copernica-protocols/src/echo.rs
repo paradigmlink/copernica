@@ -14,6 +14,7 @@ static RELIABLE_ORDERED_ECHO: &str = "reliable_ordered_echo";
 static RELIABLE_SEQUENCED_ECHO: &str = "reliable_sequenced_echo";
 #[derive(Clone)]
 pub struct Echo {
+    label: String,
     protocol_sid: PrivateIdentityInterface,
     txrx: TxRx,
     ops: Operations,
@@ -122,8 +123,9 @@ impl Echo {
 }
 impl Protocol for Echo {
     fn new(protocol_sid: PrivateIdentityInterface, (label, ops): (String, Operations)) -> Echo {
-        ops.register_protocol(protocol_sid.public_id(), label);
+        ops.register_protocol(label.clone());
         Echo {
+            label,
             protocol_sid,
             txrx: TxRx::Inert,
             ops,
@@ -311,5 +313,8 @@ impl Protocol for Echo {
     }
     fn get_ops(&self) -> Operations {
         self.ops.clone()
+    }
+    fn get_label(&self) -> String {
+        self.label.clone()
     }
 }

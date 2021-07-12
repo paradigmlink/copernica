@@ -3,9 +3,8 @@ use {
         bloom_filter::{Blooms},
         Bayes, LinkWeight, ResponseStore
     },
-    copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket},
+    copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket, Operations},
     anyhow::Result,
-    //log::{trace},
     std::sync::mpsc::{SyncSender},
     log::{debug, warn},
     std::collections::HashMap,
@@ -14,6 +13,8 @@ use {
 pub struct Router {}
 impl Router {
     pub fn handle_packet(
+        label: &String,
+        ops: &Operations,
         ilp: &InterLinkPacket,
         r2b_tx: SyncSender<InterLinkPacket>,
         rs: &mut ResponseStore,
@@ -34,6 +35,7 @@ impl Router {
 
                         Some(nw) => {
                             debug!("\t\t|  |  |  |  RESPONSE PACKET FOUND");
+                            ops.found_response(label.clone());
                             let lp = LinkPacket::new(this_link.reply_to()?, nw.clone());
                             let ilp = InterLinkPacket::new(this_link.clone(), lp);
                             r2b_tx.send(ilp)?;
@@ -41,6 +43,7 @@ impl Router {
                         }
                         None => {
                             debug!("\t\t|  |  |  |  FORWARD REQUEST UPSTREAM");
+                            ops.forward_request_upstream(label.clone());
                             this_bloom.create_pending_request(hbfi.clone());
                             let link_weights = bayes.classify(&hbfi.to_bfis());
                             bayes.train(&hbfi.to_bfis(), choke);
@@ -102,6 +105,7 @@ impl Router {
                             }
                             if that_bloom.contains_pending_request(hbfi.clone()) {
                                 debug!("\t\t|  |  |  |  FORWARD RESPONSE DOWNSTREAM");
+                                ops.forward_response_downstream(label.clone());
                                 r2b_tx.send(ilp.change_destination(that_link.clone()))?;
                             }
                         }

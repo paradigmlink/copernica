@@ -137,7 +137,7 @@ pub fn deserialize_cyphertext_hbfi(data: &Vec<u8>) -> Result<HBFI> {
     req_key.clone_from_slice(&data[HBFI_REQUEST_KEY_START..HBFI_REQUEST_KEY_END]);
     //trace!("des \treq_key: \t\t{:?}", req_key);
     Ok(HBFI { response_pid: PublicIdentity::from(res_key)
-            , request_pid: PublicIdentityInterface::Present { public_identity: PublicIdentity::from(req_key) }
+            , request_pid: PublicIdentityInterface::new(PublicIdentity::from(req_key))
             , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
             , frm})
 }

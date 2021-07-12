@@ -8,7 +8,6 @@ use {
     anyhow::{anyhow, Result},
     std::sync::mpsc::{Receiver, SyncSender, sync_channel as channel},
     uluru::LRUCache,
-    rand::Rng,
     std::{
         collections::HashMap,
         sync::{Arc, Mutex},
@@ -44,7 +43,8 @@ use {
 */
 pub type ResponseStore = LRUCache<NarrowWaistPacket, { constants::RESPONSE_STORE_SIZE }>;
 pub struct Broker {
-    id:     u32,
+    label:  String,
+    ops: Operations,
     rs:     ResponseStore,
     l2b_tx: SyncSender<InterLinkPacket>,                         // give to link
     l2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,                       // keep in broker
@@ -52,19 +52,17 @@ pub struct Broker {
     r2b_tx: SyncSender<InterLinkPacket>,                // give to router
     r2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,  // keep in broker
     blooms: HashMap<LinkId, Blooms>,
-    ops: Operations,
 }
 impl Broker {
-    pub fn new(ops: Operations) -> Self {
+    pub fn new((label, ops): (String, Operations)) -> Self {
         let (l2b_tx, l2b_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (r2b_tx, r2b_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let b2l = HashMap::new();
         let blooms = HashMap::new();
         let rs = ResponseStore::default();
-        let mut rng = rand::thread_rng();
-        let id = rng.gen::<u32>();
+        ops.register_router(label.clone());
         Self {
-            id,
+            label,
             rs,
             l2b_tx,
             l2b_rx: Arc::new(Mutex::new(l2b_rx)),
@@ -75,14 +73,11 @@ impl Broker {
             ops,
         }
     }
-    pub fn id(&self) -> u32 {
-        self.id.clone()
-    }
     pub fn peer_with_link(
         &mut self,
         link_id: LinkId,
     ) -> Result<(SyncSender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
-        let channel_pair = match self.blooms.get(&link_id) {
+        match self.blooms.get(&link_id) {
             Some(_) => Err(anyhow!("Channel already initialized")),
             None => {
                 let (b2l_tx, b2l_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
@@ -90,10 +85,7 @@ impl Broker {
                 self.blooms.insert(link_id, Blooms::new());
                 Ok((self.l2b_tx.clone(), b2l_rx))
             }
-        };
-        self.ops.register_router(self.id);
-        channel_pair
-
+        }
     }
     #[allow(unreachable_code)]
     pub fn run(&mut self) -> Result<()> {
@@ -108,6 +100,8 @@ impl Broker {
             bayes.add_link(&link_id);
         }
         let rs = self.rs.clone();
+        let ops = self.ops.clone();
+        let label = self.label.clone();
         std::thread::spawn(move || {
             let l2b_rx = l2b_rx.lock().unwrap();
             loop {
@@ -119,7 +113,7 @@ impl Broker {
                             blooms.insert(ilp.link_id(), Blooms::new());
                             bayes.add_link(&ilp.link_id());
                         }
-                        Router::handle_packet(&ilp, r2b_tx.clone(), &mut rs.clone(), &mut blooms, &mut bayes, &choke)?;
+                        Router::handle_packet(&label, &ops, &ilp, r2b_tx.clone(), &mut rs.clone(), &mut blooms, &mut bayes, &choke)?;
                     }
                     Err(error) => error!("{}", error),
                 }

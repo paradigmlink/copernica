@@ -51,6 +51,7 @@ enum AIMD {
 #[derive(Clone)]
 pub enum TxRx {
     Initialized {
+        label: String,
         ops: Operations,
         link_id: LinkId,
         protocol_sid: PrivateIdentityInterface,
@@ -74,7 +75,7 @@ impl TxRx {
     pub fn inert() -> TxRx {
         TxRx::Inert
     }
-    pub fn init(ops: Operations, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: SyncSender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
+    pub fn init(label: String, ops: Operations, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: SyncSender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
     {
         let (unreliable_unordered_response_tx, unreliable_unordered_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (unreliable_sequenced_response_tx, unreliable_sequenced_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
@@ -82,6 +83,7 @@ impl TxRx {
         let (reliable_ordered_response_tx, reliable_ordered_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let (reliable_sequenced_response_tx, reliable_sequenced_response_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         TxRx::Initialized {
+            label,
             ops,
             link_id,
             protocol_sid,
@@ -99,6 +101,14 @@ impl TxRx {
             reliable_sequenced_response_rx: Arc::new(Mutex::new(reliable_sequenced_response_rx)),
             reliable_sequenced_response_tx,
          }
+    }
+    fn label(&self) -> Result<String> {
+        match self {
+            TxRx::Initialized { label, .. } => {
+                Ok(label.clone())
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
+        }
     }
     pub fn protocol_public_id(&self) -> Result<PublicIdentity> {
         match self {
@@ -145,7 +155,7 @@ impl TxRx {
                     let lp = LinkPacket::new(link_id.reply_to()?, nw.0.clone());
                     let ilp = InterLinkPacket::new(link_id.clone(), lp);
                     debug!("\t\t|  protocol-to-link");
-                    ops.protocol_to_link(link_id.link_pid()?, link_id.remote_link_pid()?);
+                    ops.message_from(self.label()?);
                     let p2l_tx = p2l_tx.clone();
                     match p2l_tx.send(ilp) {
                         Ok(_) => { },

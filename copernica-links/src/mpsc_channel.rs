@@ -9,6 +9,7 @@ use {
 };
 #[allow(dead_code)]
 pub struct MpscChannel {
+    label: String,
     link_id: LinkId,
     ops: Operations,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
@@ -36,12 +37,13 @@ impl Link for MpscChannel {
         , (label, ops): (String, Operations)
         , (l2bs_tx, bs2l_rx): ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<MpscChannel> {
-        ops.register_link(link_id.link_pid()?, label);
+        ops.register_link(label.clone());
         match link_id.reply_to()? {
             ReplyTo::Mpsc => {
                 let (l2l0_tx, l2l0_rx) = channel::<Vec<u8>>(constants::BOUNDED_BUFFER_SIZE);
                 return Ok(
                     MpscChannel {
+                        label,
                         link_id,
                         ops,
                         l2bs_tx,
@@ -60,6 +62,8 @@ impl Link for MpscChannel {
         trace!("Started {:?}:", this_link);
         let l2l0_rx = self.l2l0_rx.clone();
         let l2bs_tx = self.l2bs_tx.clone();
+        let ops = self.ops.clone();
+        let label = self.label.clone();
         std::thread::spawn(move || {
             match this_link.reply_to()? {
                 ReplyTo::Mpsc => {
@@ -72,6 +76,7 @@ impl Link for MpscChannel {
                                 let ilp = InterLinkPacket::new(link_id, lp.clone());
                                 debug!("\t\t|  |  link-to-broker-or-protocol");
                                 trace!("\t|  |  {}", this_link.lookup_id()?);
+                                ops.message_from(label.clone());
                                 match l2bs_tx.send(ilp) {
                                     Ok(_) => {},
                                     Err(e) => error!("mpsc_channel {:?}", e),
@@ -87,6 +92,8 @@ impl Link for MpscChannel {
         });
         let this_link = self.link_id.clone();
         let bs2l_rx = self.bs2l_rx.clone();
+        let ops = self.ops.clone();
+        let label = self.label.clone();
         if let Some(l2l1_tx) = self.l2l1_tx.clone() {
             std::thread::spawn(move || {
                 let bs2l_rx = bs2l_rx.lock().unwrap();
@@ -98,6 +105,7 @@ impl Link for MpscChannel {
                             for s in l2l1_tx.clone() {
                                 debug!("\t\t|  |  broker-or-protocol-to-link");
                                 trace!("\t\t|  |  {}", this_link.lookup_id()?);
+                                ops.message_from(label.clone());
                                 match s.send(enc.clone()) {
                                     Ok(_) => {},
                                     Err(e) => error!("mpsc_channel outbound: {:?}", e),
