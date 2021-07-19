@@ -3,17 +3,21 @@ use {
     copernica_protocols::{Echo, Protocol},
     copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface, PublicIdentityInterface, Operations, LogEntry},
     copernica_broker::{Broker},
-    copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp},
+    copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp, Corruption},
     crate::process_network,
-    scaffolding::{ group, single, Ordering, TestTree},
-    std::sync::mpsc::{channel},
-    std::collections::HashMap,
+    scaffolding::{ group, single, Ordering, TestTree, setting, settings::Timeout},
+    std::{
+        time::Duration,
+        sync::mpsc::{channel},
+        collections::HashMap,
+    },
 };
 pub fn network_echo(ordering: Ordering) -> TestTree {
     group!(
         format!("Unit tests, ordering with {:?}", ordering),
         ordering,
         [
+            setting!(Timeout(Duration::from_secs(2))),
             single!(|| { ping_pong() }),
         ]
     )
@@ -55,7 +59,7 @@ pub fn ping_pong() -> Result<()> {
     let mut link3: MpscCorruptor = Link::new(link_id3.clone(), actual_behaviour.label(link_3.clone()), broker1.peer_with_link(link_id3.clone())?)?;
     link2.female(link3.male());
     link3.female(link2.male());
-    // broker1 to echo_protocol1
+    // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
     let address4 = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
@@ -75,6 +79,8 @@ pub fn ping_pong() -> Result<()> {
     expected_behaviour.insert(LogEntry::register(link_3.clone()), 1);
     expected_behaviour.insert(LogEntry::register(link_4.clone()), 1);
     expected_behaviour.insert(LogEntry::register(link_5.clone()), 1);
+/*
+    link3.corrupt(Corruption::Immune);
     expected_behaviour.insert(LogEntry::message(echo_protocol_0.clone()), 8);
     expected_behaviour.insert(LogEntry::message(echo_protocol_1.clone()), 8);
     expected_behaviour.insert(LogEntry::message(link_0.clone()), 8);
@@ -93,6 +99,67 @@ pub fn ping_pong() -> Result<()> {
     expected_behaviour.insert(LogEntry::forward_response_downstream(router_1.clone()), 4);
     expected_behaviour.insert(LogEntry::forward_request_upstream(router_0.clone()), 4);
     expected_behaviour.insert(LogEntry::forward_request_upstream(router_1.clone()), 4);
+
+    link3.corrupt(Corruption::Integrity);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_1.clone()), 4);
+    expected_behaviour.insert(LogEntry::message(link_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::message(link_1.clone()), 0);
+    expected_behaviour.insert(LogEntry::message(link_2.clone()), 0);
+    expected_behaviour.insert(LogEntry::message(link_3.clone()), 4);
+    expected_behaviour.insert(LogEntry::message(link_4.clone()), 4);
+    expected_behaviour.insert(LogEntry::message(link_5.clone()), 4);
+    expected_behaviour.insert(LogEntry::message(router_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::message(router_1.clone()), 8);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_1.clone()), 0);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_1.clone()), 0);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_1.clone()), 0);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_1.clone()), 4);
+*/
+    link3.corrupt(Corruption::Order);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_0.clone()), 10);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_1.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_0.clone()), 10);
+    expected_behaviour.insert(LogEntry::message(link_1.clone()), 10);
+    expected_behaviour.insert(LogEntry::message(link_2.clone()), 10);
+    expected_behaviour.insert(LogEntry::message(link_3.clone()), 10);
+    expected_behaviour.insert(LogEntry::message(link_4.clone()), 9);
+    expected_behaviour.insert(LogEntry::message(link_5.clone()), 9);
+    expected_behaviour.insert(LogEntry::message(router_0.clone()), 20);
+    expected_behaviour.insert(LogEntry::message(router_1.clone()), 18);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_0.clone()), 5);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_1.clone()), 0);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_1.clone()), 4);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_0.clone()), 5);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_1.clone()), 5);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_0.clone()), 5);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_1.clone()), 4);
+/*
+    link3.corrupt(Corruption::Presence);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_0.clone()), 6);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_1.clone()), 7);
+    expected_behaviour.insert(LogEntry::message(link_0.clone()), 6);
+    expected_behaviour.insert(LogEntry::message(link_1.clone()), 6);
+    expected_behaviour.insert(LogEntry::message(link_2.clone()), 6);
+    expected_behaviour.insert(LogEntry::message(link_3.clone()), 6);
+    expected_behaviour.insert(LogEntry::message(link_4.clone()), 7);
+    expected_behaviour.insert(LogEntry::message(link_5.clone()), 7);
+    expected_behaviour.insert(LogEntry::message(router_0.clone()), 12);
+    expected_behaviour.insert(LogEntry::message(router_1.clone()), 14);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_0.clone()), 3);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_1.clone()), 0);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_0.clone()), 0);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_1.clone()), 3);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_0.clone()), 3);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_1.clone()), 3);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_0.clone()), 3);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_1.clone()), 4);
+*/
     echo_protocol0.run()?;
     link0.run()?;
     link1.run()?;
@@ -104,7 +171,7 @@ pub fn ping_pong() -> Result<()> {
     link5.run()?;
     echo_protocol1.run()?;
     let response = std::thread::spawn(move || {
-        let data: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id()).unwrap();
+        let data: String = echo_protocol1.unreliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id()).unwrap();
         actual_behaviour.end();
         data
     });

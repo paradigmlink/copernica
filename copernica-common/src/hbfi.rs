@@ -22,7 +22,7 @@ pub struct HBFI {
     pub arg: BFI, // Argument
     pub frm: u64, // Frame Count: current 1024 byte chunk of data in a range.
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HBFIExcludeFrame(pub HBFI);
 impl Hash for HBFIExcludeFrame {
     fn hash<H: Hasher>(&self, state: &mut H) {

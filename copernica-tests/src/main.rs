@@ -2,7 +2,7 @@ mod common;
 use {
     anyhow::{Result},
     scaffolding::{ group, scaffold, Ordering},
-    copernica_tests::{network_echo},
+    copernica_tests::{unreliable_sequenced_ping_pong, reliable_sequenced_ping_pong, reliable_ordered_ping_pong},
 };
 
 fn main() -> Result<()> {
@@ -13,7 +13,9 @@ fn main() -> Result<()> {
             group!(
                 "Basic Echo",
                 [
-                    network_echo(Ordering::Any),
+                    unreliable_sequenced_ping_pong(Ordering::Any),
+                    reliable_sequenced_ping_pong(Ordering::Any),
+                    reliable_ordered_ping_pong(Ordering::Any)
                 ]
             ),
         ]

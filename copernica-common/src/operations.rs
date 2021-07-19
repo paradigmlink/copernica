@@ -148,22 +148,28 @@ impl LogEntry {
         LogEntry::End
     }
     pub fn register(label: &str) -> Self {
-        LogEntry::Register { label: format!("registering node: {}", label) }
+        //LogEntry::Register { label: format!("register\t\t\t| {}", label) }
+        LogEntry::Register { label: format!("expected_behaviour.insert(LogEntry::register({}.clone()),", label) }
     }
     pub fn message(label: &str) -> Self {
-        LogEntry::Message { label: format!("message sent from node: {}", &label)  }
+        //LogEntry::Message { label: format!("message\t\t\t\t| {}", &label)  }
+        LogEntry::Message { label: format!("expected_behaviour.insert(LogEntry::message({}.clone()),", &label)  }
     }
     pub fn found_response_upstream(label: &str) -> Self {
-        LogEntry::FoundResponseUpstream { label: format!("found response in node: {}", &label)  }
+        //LogEntry::FoundResponseUpstream { label: format!("found_response_upstream\t\t| {}", &label)  }
+        LogEntry::FoundResponseUpstream { label: format!("expected_behaviour.insert(LogEntry::found_response_upstream({}.clone()),", &label)  }
     }
     pub fn response_arrived_downstream(label: &str) -> Self {
-        LogEntry::ResponseArrivedDownstream { label: format!("response arrived at requesting node: {}", &label)  }
+        //LogEntry::ResponseArrivedDownstream { label: format!("response_arrived_downstream\t| {}", &label)  }
+        LogEntry::ResponseArrivedDownstream { label: format!("expected_behaviour.insert(LogEntry::response_arrived_downstream({}.clone()),", &label)  }
     }
     pub fn forward_request_upstream(label: &str) -> Self {
-        LogEntry::ForwardRequestUpstream { label: format!("forwarded request from node: {}", &label)  }
+        //LogEntry::ForwardRequestUpstream { label: format!("forward_request_upstream\t| {}", &label)  }
+        LogEntry::ForwardRequestUpstream { label: format!("expected_behaviour.insert(LogEntry::forward_request_upstream({}.clone()),", &label)  }
     }
     pub fn forward_response_downstream(label: &str) -> Self {
-        LogEntry::ForwardResponseDownstream { label: format!("forwarded response from node: {}", &label)  }
+        //LogEntry::ForwardResponseDownstream { label: format!("forward_response_downstream\t| {}", &label)  }
+        LogEntry::ForwardResponseDownstream { label: format!("expected_behaviour.insert(LogEntry::forward_response_downstream({}.clone()),", &label)  }
     }
 }
 impl fmt::Display for LogEntry {

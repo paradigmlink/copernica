@@ -18,7 +18,7 @@ pub use crate::{
     response_data::{ResponseData},
     link_packet::{LinkPacket},
     inter_link_packet::{InterLinkPacket},
-    narrow_waist_packet::{NarrowWaistPacket, NarrowWaistPacketReqEqRes},
+    narrow_waist_packet::{NarrowWaistPacket, NarrowWaistPacketReqEqRes, NarrowWaistPacketReqEqResBounds},
     log::setup_logging,
     identity::{PublicIdentity, PrivateIdentityInterface, PublicIdentityInterface},
 };

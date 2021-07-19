@@ -7,9 +7,7 @@ use {
     crate::{Protocol, TxRx},
     log::{trace},
 };
-static UNRELIABLE_UNORDERED_ECHO: &str = "unreliable_unordered_echo";
 static UNRELIABLE_SEQUENCED_ECHO: &str = "unreliable_sequenced_echo";
-static RELIABLE_UNORDERED_ECHO: &str = "reliable_unordered_echo";
 static RELIABLE_ORDERED_ECHO: &str = "reliable_ordered_echo";
 static RELIABLE_SEQUENCED_ECHO: &str = "reliable_sequenced_echo";
 #[derive(Clone)]
@@ -20,29 +18,10 @@ pub struct Echo {
     ops: Operations,
 }
 impl Echo {
-    pub fn unreliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(PublicIdentityInterface::Absent, response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.unreliable_unordered_request(hbfi.clone(), 0, 3)?;
-        let mut result: String = "".into();
-        for s in &echo {
-            let data: &str = bincode::deserialize(&s)?;
-            result.push_str(data);
-        }
-        Ok(result)
-    }
-    pub fn unreliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(PublicIdentityInterface::new(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", UNRELIABLE_UNORDERED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.unreliable_unordered_request(hbfi.clone(), 0, 3)?;
-        let mut result: String = "".into();
-        for s in &echo {
-            let data: &str = bincode::deserialize(&s)?;
-            result.push_str(data);
-        }
-        Ok(result)
-    }
     pub fn unreliable_sequenced_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         let hbfi = HBFI::new(PublicIdentityInterface::Absent, response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3)?;
+        let mut retries = 5;
+        let echo: Vec<Vec<u8>> = self.txrx.unreliable_sequenced_request(hbfi.clone(), 0, 7, &mut retries)?;
         let mut result: String = "".into();
         for s in &echo {
             let data: &str = bincode::deserialize(&s)?;
@@ -52,27 +31,8 @@ impl Echo {
     }
     pub fn unreliable_sequenced_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         let hbfi = HBFI::new(PublicIdentityInterface::new(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", UNRELIABLE_SEQUENCED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.unreliable_sequenced_request(hbfi.clone(), 0, 3)?;
-        let mut result: String = "".into();
-        for s in &echo {
-            let data: &str = bincode::deserialize(&s)?;
-            result.push_str(data);
-        }
-        Ok(result)
-    }
-    pub fn reliable_unordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(PublicIdentityInterface::Absent, response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.reliable_unordered_request(hbfi.clone(), 0, 3)?;
-        let mut result: String = "".into();
-        for s in &echo {
-            let data: &str = bincode::deserialize(&s)?;
-            result.push_str(data);
-        }
-        Ok(result)
-    }
-    pub fn reliable_unordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
-        let hbfi = HBFI::new(PublicIdentityInterface::new(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", RELIABLE_UNORDERED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.reliable_unordered_request(hbfi.clone(), 0, 3)?;
+        let mut retries = 5;
+        let echo: Vec<Vec<u8>> = self.txrx.unreliable_sequenced_request(hbfi.clone(), 0, 7, &mut retries)?;
         let mut result: String = "".into();
         for s in &echo {
             let data: &str = bincode::deserialize(&s)?;
@@ -82,7 +42,8 @@ impl Echo {
     }
     pub fn reliable_ordered_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         let hbfi = HBFI::new(PublicIdentityInterface::Absent, response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.reliable_ordered_request(hbfi.clone(), 0, 3)?;
+        let mut retries = 5;
+        let echo: Vec<Vec<u8>> = self.txrx.reliable_ordered_request(hbfi.clone(), 0, 7, &mut retries)?;
         let mut result: String = "".into();
         for s in &echo {
             let data: &str = bincode::deserialize(&s)?;
@@ -92,7 +53,8 @@ impl Echo {
     }
     pub fn reliable_ordered_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         let hbfi = HBFI::new(PublicIdentityInterface::new(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", RELIABLE_ORDERED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.reliable_ordered_request(hbfi.clone(), 0, 3)?;
+        let mut retries = 5;
+        let echo: Vec<Vec<u8>> = self.txrx.reliable_ordered_request(hbfi.clone(), 0, 7, &mut retries)?;
         let mut result: String = "".into();
         for s in &echo {
             let data: &str = bincode::deserialize(&s)?;
@@ -102,7 +64,8 @@ impl Echo {
     }
     pub fn reliable_sequenced_cleartext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         let hbfi = HBFI::new(PublicIdentityInterface::Absent, response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.reliable_sequenced_request(hbfi.clone(), 0, 3)?;
+        let mut retries = 5;
+        let echo: Vec<Vec<u8>> = self.txrx.reliable_sequenced_request(hbfi.clone(), 0, 7, &mut retries)?;
         let mut result: String = "".into();
         for s in &echo {
             let data: &str = bincode::deserialize(&s)?;
@@ -112,7 +75,8 @@ impl Echo {
     }
     pub fn reliable_sequenced_cyphertext_ping(&mut self, response_pid: PublicIdentity) -> Result<String> {
         let hbfi = HBFI::new(PublicIdentityInterface::new(self.txrx.protocol_public_id()?), response_pid, "echo", "echo", "echo", RELIABLE_SEQUENCED_ECHO)?;
-        let echo: Vec<Vec<u8>> = self.txrx.reliable_sequenced_request(hbfi.clone(), 0, 3)?;
+        let mut retries = 5;
+        let echo: Vec<Vec<u8>> = self.txrx.reliable_sequenced_request(hbfi.clone(), 0, 7, &mut retries)?;
         let mut result: String = "".into();
         for s in &echo {
             let data: &str = bincode::deserialize(&s)?;
@@ -132,6 +96,7 @@ impl Protocol for Echo {
         }
     }
     #[allow(unreachable_code)]
+    #[allow(unused_assignments)]
     fn run(&self) -> Result<()> {
         let txrx = self.txrx.clone();
         let ops = self.ops.clone();
@@ -139,9 +104,7 @@ impl Protocol for Echo {
         std::thread::spawn(move || {
             match txrx {
                 TxRx::Initialized {
-                    ref unreliable_unordered_response_tx,
                     ref unreliable_sequenced_response_tx,
-                    ref reliable_unordered_response_tx,
                     ref reliable_ordered_response_tx,
                     ref reliable_sequenced_response_tx,
                     ref protocol_sid, .. } => {
@@ -164,33 +127,14 @@ impl Protocol for Echo {
                                                 && (fun == fun_check)
                                             => {
                                                 match arg {
-                                                    arg if arg == bfi(UNRELIABLE_UNORDERED_ECHO)? => {
-                                                        let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
-                                                        match frm {
-                                                            frm if frm == 0 => {
-                                                                echo = bincode::serialize(&"p")?;
-                                                            }
-                                                            frm if frm == 1 => {
-                                                                echo = bincode::serialize(&"o")?;
-                                                            }
-                                                            frm if frm == 2 => {
-                                                                echo = bincode::serialize(&"n")?;
-                                                            }
-                                                            frm if frm == 3 => {
-                                                                echo = bincode::serialize(&"g")?;
-                                                            }
-                                                            _ => {}
-                                                        }
-                                                        txrx.clone().respond(hbfi.clone(), echo)?;
-                                                    },
                                                     arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
-                                                        let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
+                                                        let mut echo: Vec<u8> = vec![];
                                                         match frm {
                                                             frm if frm == 0 => {
                                                                 echo = bincode::serialize(&"p")?;
                                                             }
                                                             frm if frm == 1 => {
-                                                                echo = bincode::serialize(&"o")?;
+                                                                echo = bincode::serialize(&"i")?;
                                                             }
                                                             frm if frm == 2 => {
                                                                 echo = bincode::serialize(&"n")?;
@@ -198,37 +142,32 @@ impl Protocol for Echo {
                                                             frm if frm == 3 => {
                                                                 echo = bincode::serialize(&"g")?;
                                                             }
-                                                            _ => {}
-                                                        }
-                                                        txrx.clone().respond(hbfi.clone(), echo)?;
-                                                    },
-                                                    arg if arg == bfi(RELIABLE_UNORDERED_ECHO)? => {
-                                                        let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
-                                                        match frm {
-                                                            frm if frm == 0 => {
+                                                            frm if frm == 4 => {
                                                                 echo = bincode::serialize(&"p")?;
                                                             }
-                                                            frm if frm == 1 => {
+                                                            frm if frm == 5 => {
                                                                 echo = bincode::serialize(&"o")?;
                                                             }
-                                                            frm if frm == 2 => {
+                                                            frm if frm == 6 => {
                                                                 echo = bincode::serialize(&"n")?;
                                                             }
-                                                            frm if frm == 3 => {
+                                                            frm if frm == 7 => {
                                                                 echo = bincode::serialize(&"g")?;
                                                             }
-                                                            _ => {}
+                                                            _ => {
+                                                                echo = bincode::serialize(&"pang")?;
+                                                            }
                                                         }
-                                                        txrx.clone().respond(hbfi.clone(), echo)?;
+                                                        txrx.clone().respond(hbfi, echo)?;
                                                     },
                                                     arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
-                                                        let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
+                                                        let mut echo: Vec<u8> = vec![];
                                                         match frm {
                                                             frm if frm == 0 => {
                                                                 echo = bincode::serialize(&"p")?;
                                                             }
                                                             frm if frm == 1 => {
-                                                                echo = bincode::serialize(&"o")?;
+                                                                echo = bincode::serialize(&"i")?;
                                                             }
                                                             frm if frm == 2 => {
                                                                 echo = bincode::serialize(&"n")?;
@@ -236,18 +175,32 @@ impl Protocol for Echo {
                                                             frm if frm == 3 => {
                                                                 echo = bincode::serialize(&"g")?;
                                                             }
-                                                            _ => {}
+                                                            frm if frm == 4 => {
+                                                                echo = bincode::serialize(&"p")?;
+                                                            }
+                                                            frm if frm == 5 => {
+                                                                echo = bincode::serialize(&"o")?;
+                                                            }
+                                                            frm if frm == 6 => {
+                                                                echo = bincode::serialize(&"n")?;
+                                                            }
+                                                            frm if frm == 7 => {
+                                                                echo = bincode::serialize(&"g")?;
+                                                            }
+                                                            _ => {
+                                                                echo = bincode::serialize(&"pang")?;
+                                                            }
                                                         }
-                                                        txrx.clone().respond(hbfi.clone(), echo)?;
+                                                        txrx.clone().respond(hbfi, echo)?;
                                                     },
                                                     arg if arg == bfi(RELIABLE_SEQUENCED_ECHO)? => {
-                                                        let mut echo: Vec<u8> = bincode::serialize(&"pang")?;
+                                                        let mut echo: Vec<u8> = vec![];
                                                         match frm {
                                                             frm if frm == 0 => {
                                                                 echo = bincode::serialize(&"p")?;
                                                             }
                                                             frm if frm == 1 => {
-                                                                echo = bincode::serialize(&"o")?;
+                                                                echo = bincode::serialize(&"i")?;
                                                             }
                                                             frm if frm == 2 => {
                                                                 echo = bincode::serialize(&"n")?;
@@ -255,9 +208,23 @@ impl Protocol for Echo {
                                                             frm if frm == 3 => {
                                                                 echo = bincode::serialize(&"g")?;
                                                             }
-                                                            _ => {}
+                                                            frm if frm == 4 => {
+                                                                echo = bincode::serialize(&"p")?;
+                                                            }
+                                                            frm if frm == 5 => {
+                                                                echo = bincode::serialize(&"o")?;
+                                                            }
+                                                            frm if frm == 6 => {
+                                                                echo = bincode::serialize(&"n")?;
+                                                            }
+                                                            frm if frm == 7 => {
+                                                                echo = bincode::serialize(&"g")?;
+                                                            }
+                                                            _ => {
+                                                                echo = bincode::serialize(&"pang")?;
+                                                            }
                                                         }
-                                                        txrx.clone().respond(hbfi.clone(), echo)?;
+                                                        txrx.clone().respond(hbfi, echo)?;
                                                     },
                                                     _ => {}
                                                 }
@@ -271,20 +238,10 @@ impl Protocol for Echo {
                                                 && (fun == fun_check)
                                             => {
                                                 match arg {
-                                                    arg if arg == bfi(UNRELIABLE_UNORDERED_ECHO)? => {
-                                                        trace!("\t\t|  RESPONSE PACKET ARRIVED");
-                                                        ops.response_arrived_downstream(label.clone());
-                                                        unreliable_unordered_response_tx.send(ilp)?;
-                                                    },
                                                     arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
                                                         trace!("\t\t|  RESPONSE PACKET ARRIVED");
                                                         ops.response_arrived_downstream(label.clone());
                                                         unreliable_sequenced_response_tx.send(ilp)?;
-                                                    },
-                                                    arg if arg == bfi(RELIABLE_UNORDERED_ECHO)? => {
-                                                        trace!("\t\t|  RESPONSE PACKET ARRIVED");
-                                                        ops.response_arrived_downstream(label.clone());
-                                                        reliable_unordered_response_tx.send(ilp)?;
                                                     },
                                                     arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
                                                         trace!("\t\t|  RESPONSE PACKET ARRIVED");

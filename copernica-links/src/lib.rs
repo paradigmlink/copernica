@@ -4,7 +4,7 @@ mod mpsc_corruptor;
 pub use {
     udp::{UdpIp},
     mpsc_channel::{MpscChannel},
-    mpsc_corruptor::{MpscCorruptor},
+    mpsc_corruptor::{MpscCorruptor, Corruption},
 };
 use {
     copernica_common::{

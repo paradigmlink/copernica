@@ -8,6 +8,7 @@ use {
     },
     core::hash::{Hash, Hasher},
     std::{
+        ops::{RangeBounds},
         cmp::Ordering,
         fmt,
     },
@@ -77,6 +78,30 @@ impl NarrowWaistPacket {
 }
 #[derive(Clone)]
 pub struct NarrowWaistPacketReqEqRes(pub NarrowWaistPacket);
+impl NarrowWaistPacketReqEqResBounds for NarrowWaistPacketReqEqRes {
+    fn contains(&self, v: &NarrowWaistPacketReqEqRes) -> bool {
+        let self_frm = match &self.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi.frm },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi.frm }
+        };
+        let other_frm = match &v.0 {
+            NarrowWaistPacket::Request { hbfi, .. } => { hbfi.frm },
+            NarrowWaistPacket::Response { hbfi, .. } => { hbfi.frm }
+        };
+        self_frm == other_frm
+    }
+}
+pub trait NarrowWaistPacketReqEqResBounds {
+    fn contains(&self, v: &NarrowWaistPacketReqEqRes) -> bool;
+}
+impl<T> NarrowWaistPacketReqEqResBounds for T
+where
+    T: RangeBounds<NarrowWaistPacketReqEqRes>,
+{
+    fn contains(&self, v: &NarrowWaistPacketReqEqRes) -> bool {
+        RangeBounds::contains(self, v)
+    }
+}
 impl Hash for NarrowWaistPacketReqEqRes {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match &self.0 {

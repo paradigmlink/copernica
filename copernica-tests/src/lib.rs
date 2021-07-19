@@ -1,7 +1,11 @@
 mod common;
-mod network;
+mod unreliable_sequenced;
+mod reliable_sequenced;
+mod reliable_ordered;
 pub use {
-    network::network_echo,
+    unreliable_sequenced::{unreliable_sequenced_ping_pong},
+    reliable_sequenced::{reliable_sequenced_ping_pong},
+    reliable_ordered::{reliable_ordered_ping_pong},
 };
 use {
     anyhow::{Result, anyhow},
@@ -10,6 +14,8 @@ use {
     std::collections::HashMap,
 };
 pub fn process_network(mut expected_behaviour: HashMap<LogEntry, i32>, receiver: Receiver<LogEntry>) -> Result<()> {
+    let ref_expected_behaviour = expected_behaviour.clone();
+    let mut error: String = "Corrections below:\n".into();
     loop {
         let log_entry = receiver.recv()?;
         match log_entry {
@@ -58,10 +64,16 @@ pub fn process_network(mut expected_behaviour: HashMap<LogEntry, i32>, receiver:
             LogEntry::End => {
                 for (key, value) in &expected_behaviour {
                     if value != &0 {
-                        return Err(anyhow!("Node \"{}\" has an unexpected amount of messages sent: {}", key, value))
+                        if let Some(ref_value) = ref_expected_behaviour.get(key) {
+                            error.push_str(&format!("{} {});\n", key, ref_value - value))
+                        }
                     }
                 }
-                break;
+                if error == "Corrections below:\n".to_string() {
+                    break
+                } else {
+                    return Err(anyhow!("{}", error))
+                }
             },
         }
     }

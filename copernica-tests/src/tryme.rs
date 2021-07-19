@@ -1,35 +1,39 @@
-use reed_solomon::Encoder;
-use reed_solomon::Decoder;
-
+use std::thread;
+use std::time::Duration;
+use std::sync::mpsc;
+enum Action {
+    Timeout,
+    Complete,
+}
+fn loop_it(actions: Vec<Action>) {
+    let (send, recv) = mpsc::sync_channel(0);
+    thread::spawn(move || {
+        let mut counter = 0;
+        loop {
+            match actions[counter] {
+                Action::Timeout => {
+                    println!("Timeout");
+                    thread::sleep(Duration::from_millis(210));
+                },
+                Action::Complete => {
+                    println!("Complete");
+                }
+            }
+            if counter > 2 {
+                send.send(()).unwrap();
+                break
+            }
+            counter += 1;
+        }
+    });
+    let out = recv.recv_timeout(Duration::from_millis(200));
+    println!("{:?}", out);
+}
 fn main() {
-    let data = b"1111111111111111111111111111";
-
-    // Length of error correction code
-    let ecc_len = 8;
-
-    // Create encoder and decoder with
-    let enc = Encoder::new(ecc_len);
-    let dec = Decoder::new(ecc_len);
-
-    // Encode data
-    let encoded = enc.encode(&data[..]);
-
-    // Simulate some transmission errors
-    let mut corrupted = *encoded;
-    for i in 0..4 {
-        corrupted[i] = 0x0;
-    }
-
-    // Try to recover data
-    let known_erasures = [0];
-    let recovered = dec.correct(&mut corrupted, Some(&known_erasures)).unwrap();
-
-    let orig_str = std::str::from_utf8(data).unwrap();
-    let recv_str = std::str::from_utf8(recovered.data()).unwrap();
-
-    println!("message:               {:?}", orig_str);
-    println!("original data:         {:?}", data);
-    println!("error correction code: {:?}", encoded.ecc());
-    println!("corrupted:             {:?}", corrupted);
-    println!("repaired:              {:?}", recv_str);
+    let actions0 = vec![Action::Complete, Action::Timeout, Action::Complete];
+    loop_it(actions0);
+    let actions1 = vec![Action::Complete, Action::Complete, Action::Complete];
+    loop_it(actions1);
+    let actions2 = vec![Action::Complete, Action::Complete, Action::Complete];
+    loop_it(actions2);
 }

@@ -9,7 +9,7 @@ use {
     rand::Rng,
 };
 pub type Hertz = u32;
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ReplyTo {
     Mpsc,
     UdpIp(SocketAddr),
@@ -117,6 +117,27 @@ impl fmt::Debug for LinkId {
             LinkId::Choke => {
                 write!(f, "LinkId: CHOKED")
             }
+        }
+    }
+}
+impl fmt::Debug for ReplyTo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ReplyTo::UdpIp(addr) => {
+                write!(f, "ReplyTo::UdpIp({})", addr)
+            },
+            ReplyTo::Mpsc => {
+                write!(f, "ReplyTo::Mpsc")
+            },
+            ReplyTo::MacAddr6(addr) => {
+                write!(f, "ReplyTo::MacAddr6({})", addr)
+            },
+            ReplyTo::MacAddr8(addr) => {
+                write!(f, "ReplyTo::MacAddr8({})", addr)
+            },
+            ReplyTo::Rf(hertz) => {
+                write!(f, "ReplyTo::Rf({})", hertz)
+            },
         }
     }
 }
