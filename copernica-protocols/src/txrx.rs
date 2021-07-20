@@ -41,8 +41,9 @@ use {
 */
 #[derive(Debug)]
 enum Reliability {
-    Unreliable,
-    Reliable,
+    UnreliableSequenced,
+    ReliableSequenced,
+    ReliableOrdered,
 }
 #[derive(Debug)]
 enum AIMD {
@@ -133,6 +134,63 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
+    fn reconstruct_responses(&self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
+        match self {
+            TxRx::Initialized { incomplete_responses, protocol_sid, .. } => {
+                let mut reconstruct: Vec<Vec<u8>> = vec![];
+                let incomplete_responses_mutex = incomplete_responses.clone();
+                let incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
+                //debug!("{:#?}", incomplete_responses_ref);
+                if let Some(set) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
+                    let start_nw = NarrowWaistPacket::request(hbfi_seek.clone().offset(start))?;
+                    let end_nw = NarrowWaistPacket::request(hbfi_seek.clone().offset(end))?;
+                    for nw in set.range(&NarrowWaistPacketReqEqRes(start_nw)..=&NarrowWaistPacketReqEqRes(end_nw)) {
+                        let chunk = nw.0.data(protocol_sid.clone())?;
+                        reconstruct.push(chunk);
+                    }
+                };
+                Ok(reconstruct)
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
+        }
+    }
+    fn process_aimd(&self, aimd: AIMD, reliability: &Reliability, congestion_window_size: &mut u64, pending_queue: &mut BTreeSet<NarrowWaistPacketReqEqRes>) {
+        match self {
+            TxRx::Initialized { .. } => {
+                match aimd {
+                    AIMD::AdditiveIncrease => {
+                        *congestion_window_size += 1;
+                    },
+                    AIMD::MultiplicativeDecrease { failed }=> {
+                        match reliability {
+                            Reliability::ReliableOrdered => {
+                                *congestion_window_size = 1;
+                                for nw in failed {
+                                    pending_queue.insert(nw);
+                                }
+                            },
+                            Reliability::ReliableSequenced => {
+                                *congestion_window_size = 1;
+                                for nw in failed {
+                                    pending_queue.insert(nw);
+                                }
+                            },
+                            Reliability::UnreliableSequenced => {
+                                *congestion_window_size = 1;
+                                /*
+                                match *congestion_window_size / 2 {
+                                    0 => *congestion_window_size = 1,
+                                    i => *congestion_window_size = i,
+                                }
+                                */
+                            },
+                        }
+                    }
+                }
+            },
+            TxRx::Inert => panic!("{}", anyhow!("You must peer with a link first"))
+        }
+    }
     fn send_and_receive(&self
         , congestion_window: Arc<Mutex<BTreeSet<NarrowWaistPacketReqEqRes>>>
         , hbfi_seek: HBFI
@@ -201,10 +259,13 @@ impl TxRx {
                     let failed: BTreeSet<NarrowWaistPacketReqEqRes> = congestion_window_ref.difference(&entry).cloned().collect();
                     let aimd: AIMD = if failed.len() > 0 {
                         match reliability {
-                            Reliability::Reliable => {
+                            Reliability::ReliableOrdered => {
                                 AIMD::MultiplicativeDecrease { failed }
                             },
-                            Reliability::Unreliable => {
+                            Reliability::ReliableSequenced => {
+                                AIMD::MultiplicativeDecrease { failed }
+                            },
+                            Reliability::UnreliableSequenced => {
                                 AIMD::MultiplicativeDecrease { failed: BTreeSet::new() }
                             },
                         }
@@ -219,91 +280,57 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
-    fn process_aimd(&self, aimd: AIMD, reliability: &Reliability, congestion_window_size: &mut u64, pending_queue: &mut BTreeSet<NarrowWaistPacketReqEqRes>) {
-        match self {
-            TxRx::Initialized { .. } => {
-                match aimd {
-                    AIMD::AdditiveIncrease => {
-                        *congestion_window_size += 1;
-                    },
-                    AIMD::MultiplicativeDecrease { failed }=> {
-                        match reliability {
-                            Reliability::Reliable => {
-                                *congestion_window_size = 1;
-                                for nw in failed {
-                                    pending_queue.insert(nw);
-                                }
-                            },
-                            Reliability::Unreliable => {
-                                *congestion_window_size = 1;
-                                /*
-                                match *congestion_window_size / 2 {
-                                    0 => *congestion_window_size = 1,
-                                    i => *congestion_window_size = i,
-                                }
-                                */
-                            },
-                        }
+    fn request(&mut self,
+        reliability: &Reliability,
+        rx_mutex: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        hbfi_seek: HBFI,
+        start: u64,
+        end: u64,
+        retries: &mut u64,
+        window_timeout: &mut u64) -> Result<Vec<Vec<u8>>> {
+            self.register_hbfi(hbfi_seek.clone())?;
+            let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
+            let congestion_window: Arc<Mutex<BTreeSet<NarrowWaistPacketReqEqRes>>> = Arc::new(Mutex::new(BTreeSet::new()));
+            let mut congestion_window_size: u64 = 1;
+            for counter in start..=end {
+                let hbfi_req = hbfi_seek.clone().offset(counter);
+                let nw = NarrowWaistPacket::request(hbfi_req)?;
+                pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
+            }
+            loop {
+                if retries <= &mut 0 { break } else { *retries -= &1 }
+                if pending_queue.len() <= 0 { break }
+                let congestion_window_guard = Arc::clone(&congestion_window);
+                let mut congestion_window_ref = congestion_window_guard.lock().unwrap();
+                congestion_window_ref.clear();
+                for _ in 0..congestion_window_size {
+                    match pending_queue.pop_first() {
+                        Some(nw) => {
+                            congestion_window_ref.insert(nw);
+                        },
+                        None => continue,
                     }
                 }
-            },
-            TxRx::Inert => panic!("{}", anyhow!("You must peer with a link first"))
-        }
-    }
-    fn reconstruct_responses(&self, hbfi_seek: HBFI, start: u64, end: u64) -> Result<Vec<Vec<u8>>> {
-        match self {
-            TxRx::Initialized { incomplete_responses, protocol_sid, .. } => {
-                let mut reconstruct: Vec<Vec<u8>> = vec![];
-                let incomplete_responses_mutex = incomplete_responses.clone();
-                let incomplete_responses_ref = incomplete_responses_mutex.lock().unwrap();
-                //debug!("{:#?}", incomplete_responses_ref);
-                if let Some(set) = incomplete_responses_ref.get(&HBFIExcludeFrame(hbfi_seek.clone())) {
-                    let start_nw = NarrowWaistPacket::request(hbfi_seek.clone().offset(start))?;
-                    let end_nw = NarrowWaistPacket::request(hbfi_seek.clone().offset(end))?;
-                    for nw in set.range(&NarrowWaistPacketReqEqRes(start_nw)..=&NarrowWaistPacketReqEqRes(end_nw)) {
-                        let chunk = nw.0.data(protocol_sid.clone())?;
-                        reconstruct.push(chunk);
-                    }
-                };
-                Ok(reconstruct)
-            },
-            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
-        }
+                drop(congestion_window_ref);
+                let aimd = self.send_and_receive(Arc::clone(&congestion_window), hbfi_seek.clone(), &reliability, rx_mutex.clone(), window_timeout)?;
+                self.process_aimd(aimd, &reliability, &mut congestion_window_size, &mut pending_queue);
+            }
+            self.reconstruct_responses(hbfi_seek, start, end)
     }
     pub fn unreliable_sequenced_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64, retries: &mut u64) -> Result<Vec<Vec<u8>>> {
         match self {
             TxRx::Initialized { ref unreliable_sequenced_response_rx, .. } => {
-                self.register_hbfi(hbfi_seek.clone())?;
                 let mut window_timeout = 300;
-                let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-                let congestion_window: Arc<Mutex<BTreeSet<NarrowWaistPacketReqEqRes>>> = Arc::new(Mutex::new(BTreeSet::new()));
-                let mut congestion_window_size: u64 = 1;
-                let reliability = Reliability::Unreliable;
-                for counter in start..=end {
-                    let hbfi_req = hbfi_seek.clone().offset(counter);
-                    let nw = NarrowWaistPacket::request(hbfi_req)?;
-                    pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
-                }
-                loop {
-                    if retries <= &mut 0 { break } else { *retries -= &1 }
-                    if pending_queue.len() <= 0 { break }
-                    let congestion_window_guard = Arc::clone(&congestion_window);
-                    let mut congestion_window_ref = congestion_window_guard.lock().unwrap();
-                    congestion_window_ref.clear();
-                    for _ in 0..congestion_window_size {
-                        match pending_queue.pop_first() {
-                            Some(nw) => {
-                                congestion_window_ref.insert(nw);
-                            },
-                            None => continue,
-                        }
-                    }
-                    drop(congestion_window_ref);
-                    let aimd = self.send_and_receive(Arc::clone(&congestion_window), hbfi_seek.clone(), &reliability, Arc::clone(&unreliable_sequenced_response_rx), &mut window_timeout)?;
-                    self.process_aimd(aimd, &reliability, &mut congestion_window_size, &mut pending_queue);
-                }
-                let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
-                reconstructed
+                let rx_mutex = Arc::clone(&unreliable_sequenced_response_rx);
+                self.request(
+                    &Reliability::UnreliableSequenced,
+                    rx_mutex,
+                    hbfi_seek,
+                    start,
+                    end,
+                    retries,
+                    &mut window_timeout
+                )
             },
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
@@ -311,37 +338,17 @@ impl TxRx {
     pub fn reliable_sequenced_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64, retries: &mut u64) -> Result<Vec<Vec<u8>>> {
         match self {
             TxRx::Initialized { ref reliable_sequenced_response_rx, .. } => {
-                self.register_hbfi(hbfi_seek.clone())?;
-                let mut window_timeout = 500;
-                let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-                let congestion_window: Arc<Mutex<BTreeSet<NarrowWaistPacketReqEqRes>>> = Arc::new(Mutex::new(BTreeSet::new()));
-                let mut congestion_window_size: u64 = 1;
-                let reliability = Reliability::Reliable;
-                for counter in start..=end {
-                    let hbfi_req = hbfi_seek.clone().offset(counter);
-                    let nw = NarrowWaistPacket::request(hbfi_req)?;
-                    pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
-                }
-                loop {
-                    if retries == &0 { break } else { *retries -= &1 }
-                    if pending_queue.len() == 0 { break }
-                    let congestion_window_guard = Arc::clone(&congestion_window);
-                    let mut congestion_window_ref = congestion_window_guard.lock().unwrap();
-                    congestion_window_ref.clear();
-                    for _ in 0..congestion_window_size {
-                        match pending_queue.pop_first() {
-                            Some(nw) => {
-                                congestion_window_ref.insert(nw);
-                            },
-                            None => continue,
-                        }
-                    }
-                    drop(congestion_window_ref);
-                    let aimd = self.send_and_receive(Arc::clone(&congestion_window), hbfi_seek.clone(), &reliability, Arc::clone(&reliable_sequenced_response_rx), &mut window_timeout)?;
-                    self.process_aimd(aimd, &reliability, &mut congestion_window_size, &mut pending_queue);
-                }
-                let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
-                reconstructed
+                let mut window_timeout = 300;
+                let rx_mutex = Arc::clone(&reliable_sequenced_response_rx);
+                self.request(
+                    &Reliability::ReliableSequenced,
+                    rx_mutex,
+                    hbfi_seek,
+                    start,
+                    end,
+                    retries,
+                    &mut window_timeout
+                )
             },
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
@@ -349,37 +356,17 @@ impl TxRx {
     pub fn reliable_ordered_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64, retries: &mut u64) -> Result<Vec<Vec<u8>>> {
         match self {
             TxRx::Initialized { ref reliable_ordered_response_rx, .. } => {
-                self.register_hbfi(hbfi_seek.clone())?;
-                let mut window_timeout = 500;
-                let mut pending_queue: BTreeSet<NarrowWaistPacketReqEqRes> = BTreeSet::new();
-                let congestion_window: Arc<Mutex<BTreeSet<NarrowWaistPacketReqEqRes>>> = Arc::new(Mutex::new(BTreeSet::new()));
-                let mut congestion_window_size: u64 = 1;
-                let reliability = Reliability::Reliable;
-                for counter in start..=end {
-                    let hbfi_req = hbfi_seek.clone().offset(counter);
-                    let nw = NarrowWaistPacket::request(hbfi_req)?;
-                    pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
-                }
-                loop {
-                    if retries == &0 { break } else { *retries -= &1 }
-                    if pending_queue.len() == 0 { break }
-                    let congestion_window_guard = Arc::clone(&congestion_window);
-                    let mut congestion_window_ref = congestion_window_guard.lock().unwrap();
-                    congestion_window_ref.clear();
-                    for _ in 0..congestion_window_size {
-                        match pending_queue.pop_first() {
-                            Some(nw) => {
-                                congestion_window_ref.insert(nw);
-                            },
-                            None => continue,
-                        }
-                    }
-                    drop(congestion_window_ref);
-                    let aimd = self.send_and_receive(Arc::clone(&congestion_window), hbfi_seek.clone(), &reliability, Arc::clone(&reliable_ordered_response_rx), &mut window_timeout)?;
-                    self.process_aimd(aimd, &reliability, &mut congestion_window_size, &mut pending_queue);
-                }
-                let reconstructed = self.reconstruct_responses(hbfi_seek, start, end);
-                reconstructed
+                let mut window_timeout = 300;
+                let rx_mutex = Arc::clone(&reliable_ordered_response_rx);
+                self.request(
+                    &Reliability::ReliableOrdered,
+                    rx_mutex,
+                    hbfi_seek,
+                    start,
+                    end,
+                    retries,
+                    &mut window_timeout
+                )
             },
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
