@@ -47,14 +47,18 @@ impl Link for UdpIp {
                                 let data = future::block_on(async{ socket.recv_from(&mut buf).await });
                                 match data {
                                     Ok((n, _peer)) => {
-                                        trace!("\t\t\t|  |  link-to-broker-or-protocol");
-                                        trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
-                                        ops.message_from(label.clone());
-                                        let (_lnk_tx_pid, lp) = decode(buf[..n].to_vec(), this_link.clone())?;
-                                        let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
-                                        let ilp = InterLinkPacket::new(link_id, lp);
-                                        match l2bs_tx.send(ilp) {
-                                            Ok(_) => {},
+                                        match decode(buf[..n].to_vec(), this_link.clone()) {
+                                            Ok((_lnk_tx_pid, lp)) => {
+                                                trace!("\t\t\t|  |  link-to-broker-or-protocol");
+                                                trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
+                                                ops.message_from(label.clone());
+                                                let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
+                                                let ilp = InterLinkPacket::new(link_id, lp);
+                                                match l2bs_tx.send(ilp) {
+                                                    Ok(_) => {},
+                                                    Err(e) => error!("udp_ip link {:?}", e),
+                                                }
+                                            },
                                             Err(e) => error!("udp_ip link {:?}", e),
                                         }
                                     },

@@ -85,15 +85,19 @@ impl Link for MpscCorruptor {
                     loop {
                         match l2l0_rx.recv() {
                             Ok(msg) => {
-                                let (_lnk_tx_pid, lp) = decode(msg, this_link.clone())?;
-                                let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
-                                let ilp = InterLinkPacket::new(link_id, lp.clone());
-                                trace!("\t|  |  link-to-broker-or-protocol");
-                                trace!("\t|  |  {}", this_link.lookup_id()?);
-                                ops.message_from(label.clone());
-                                match l2bs_tx.send(ilp) {
-                                    Ok(_) => {},
-                                    Err(e) => error!("mpsc_corruptor {:?}", e),
+                                match decode(msg, this_link.clone()) {
+                                    Ok((_lnk_tx_pid, lp)) => {
+                                        let link_id = LinkId::new(this_link.lookup_id()?, this_link.link_sid()?, this_link.remote_link_pid()?, lp.reply_to());
+                                        let ilp = InterLinkPacket::new(link_id, lp.clone());
+                                        trace!("\t|  |  link-to-broker-or-protocol");
+                                        trace!("\t|  |  {}", this_link.lookup_id()?);
+                                        ops.message_from(label.clone());
+                                        match l2bs_tx.send(ilp) {
+                                            Ok(_) => {},
+                                            Err(e) => error!("mpsc_corruptor {:?}", e),
+                                        }
+                                    },
+                                    Err(e) => error!("{:?}", e),
                                 }
                             },
                             Err(error) => error!("{:?}: {}", this_link, error),
@@ -182,7 +186,7 @@ impl Link for MpscCorruptor {
                                         } else {
                                             memory = corrupted;
                                             has_order_been_corrupted = true;
-                                            //debug!("Corrupt Order");
+                                            debug!("Corrupt Order");
                                             continue
                                         }
                                     } else {
@@ -202,7 +206,7 @@ impl Link for MpscCorruptor {
                                             }
                                         } else {
                                             has_presence_been_corrupted = true;
-                                            //debug!("Corrupt Presence");
+                                            debug!("Corrupt Presence");
                                             continue
                                         }
                                     } else {
