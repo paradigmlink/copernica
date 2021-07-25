@@ -2,7 +2,7 @@ use {
     crate::{Link, encode, decode},
     copernica_common::{ InterLinkPacket, LinkId, ReplyTo, Operations },
     anyhow::{anyhow, Result},
-    std::sync::mpsc::{Receiver, SyncSender},
+    crossbeam_channel::{Receiver, Sender},
     futures_lite::{future},
     log::{error, trace},
     std::{
@@ -15,13 +15,13 @@ pub struct UdpIp {
     label: String,
     link_id: LinkId,
     ops: Operations,
-    l2bs_tx: SyncSender<InterLinkPacket>,
+    l2bs_tx: Sender<InterLinkPacket>,
     bs2l_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
 }
 impl Link for UdpIp {
     fn new(link_id: LinkId
         , (label, ops): (String, Operations)
-        , (l2bs_tx, bs2l_rx): ( SyncSender<InterLinkPacket> , Receiver<InterLinkPacket> )
+        , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<UdpIp>
     {
         trace!("LISTEN ON {:?}:", link_id);

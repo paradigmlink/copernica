@@ -1,8 +1,6 @@
 use {
-    std::{
-        sync::mpsc::Sender,
-        fmt::{self},
-    },
+    crossbeam_channel::{Sender},
+    std::fmt::{self},
 };
 #[derive(Clone, Debug)]
 pub enum Operations {

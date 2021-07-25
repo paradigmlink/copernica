@@ -6,7 +6,7 @@ use {
     },
     copernica_common::{LinkId, InterLinkPacket, NarrowWaistPacket, constants, Operations },
     anyhow::{anyhow, Result},
-    std::sync::mpsc::{Receiver, SyncSender, sync_channel as channel},
+    crossbeam_channel::{bounded, Receiver, Sender},
     uluru::LRUCache,
     std::{
         collections::HashMap,
@@ -46,17 +46,17 @@ pub struct Broker {
     label:  String,
     ops: Operations,
     rs:     ResponseStore,
-    l2b_tx: SyncSender<InterLinkPacket>,                         // give to link
+    l2b_tx: Sender<InterLinkPacket>,                         // give to link
     l2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,                       // keep in broker
-    b2l:    HashMap<u32, SyncSender<InterLinkPacket>>,           // keep in broker
-    r2b_tx: SyncSender<InterLinkPacket>,                // give to router
+    b2l:    HashMap<u32, Sender<InterLinkPacket>>,           // keep in broker
+    r2b_tx: Sender<InterLinkPacket>,                // give to router
     r2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,  // keep in broker
     blooms: HashMap<LinkId, Blooms>,
 }
 impl Broker {
     pub fn new((label, ops): (String, Operations)) -> Self {
-        let (l2b_tx, l2b_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
-        let (r2b_tx, r2b_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let (l2b_tx, l2b_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let (r2b_tx, r2b_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         let b2l = HashMap::new();
         let blooms = HashMap::new();
         let rs = ResponseStore::default();
@@ -76,11 +76,11 @@ impl Broker {
     pub fn peer_with_link(
         &mut self,
         link_id: LinkId,
-    ) -> Result<(SyncSender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
+    ) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
         match self.blooms.get(&link_id) {
             Some(_) => Err(anyhow!("Channel already initialized")),
             None => {
-                let (b2l_tx, b2l_rx) = channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+                let (b2l_tx, b2l_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
                 self.b2l.insert(link_id.lookup_id()?, b2l_tx.clone());
                 self.blooms.insert(link_id, Blooms::new());
                 Ok((self.l2b_tx.clone(), b2l_rx))

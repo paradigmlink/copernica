@@ -10,7 +10,7 @@ pub use {
 use {
     anyhow::{Result, anyhow},
     copernica_common::{LogEntry},
-    std::sync::mpsc::{Receiver},
+    crossbeam_channel::{Receiver},
     std::collections::HashMap,
 };
 pub fn process_network(mut expected_behaviour: HashMap<LogEntry, i32>, receiver: Receiver<LogEntry>) -> Result<()> {

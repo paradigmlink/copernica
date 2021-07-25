@@ -9,9 +9,10 @@ use {
         error
     },
     anyhow::{anyhow, Result},
+    crossbeam_channel::{Receiver, Sender, bounded, unbounded, RecvTimeoutError, SendError},
     std::{
         time::{Duration},
-        sync::{mpsc::{sync_channel, channel, Receiver, SyncSender, RecvTimeoutError, SendError}, Arc, Mutex},
+        sync::{Arc, Mutex},
         collections::{BTreeSet, HashMap},
     },
 };
@@ -59,14 +60,14 @@ pub enum TxRx {
         ops: Operations,
         link_id: LinkId,
         protocol_sid: PrivateIdentityInterface,
-        p2l_tx: SyncSender<InterLinkPacket>,
+        p2l_tx: Sender<InterLinkPacket>,
         l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
         responses: Arc<Mutex<HashMap<HBFIExcludeFrame, BTreeSet<NarrowWaistPacketReqEqRes>>>>,
-        unreliable_sequenced_response_tx: SyncSender<InterLinkPacket>,
+        unreliable_sequenced_response_tx: Sender<InterLinkPacket>,
         unreliable_sequenced_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-        reliable_sequenced_response_tx: SyncSender<InterLinkPacket>,
+        reliable_sequenced_response_tx: Sender<InterLinkPacket>,
         reliable_sequenced_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-        reliable_ordered_response_tx: SyncSender<InterLinkPacket>,
+        reliable_ordered_response_tx: Sender<InterLinkPacket>,
         reliable_ordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
     },
     Inert,
@@ -75,11 +76,11 @@ impl TxRx {
     pub fn inert() -> TxRx {
         TxRx::Inert
     }
-    pub fn init(label: String, ops: Operations, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: SyncSender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
+    pub fn init(label: String, ops: Operations, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: Sender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
     {
-        let (unreliable_sequenced_response_tx, unreliable_sequenced_response_rx) = sync_channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
-        let (reliable_sequenced_response_tx, reliable_sequenced_response_rx) = sync_channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
-        let (reliable_ordered_response_tx, reliable_ordered_response_rx) = sync_channel::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let (unreliable_sequenced_response_tx, unreliable_sequenced_response_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let (reliable_sequenced_response_tx, reliable_sequenced_response_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let (reliable_ordered_response_tx, reliable_ordered_response_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
         TxRx::Initialized {
             label,
             ops,
@@ -198,6 +199,7 @@ impl TxRx {
         , rx_mutex: Arc<Mutex<Receiver<InterLinkPacket>>>
         , retries: &mut u64
         , window_timeout: &mut u64
+        , (timeout_tx, timeout_rx): (Sender<()>, Receiver<()>)
         ) -> Result<AIMD> {
         match self {
             TxRx::Initialized { ops, link_id, p2l_tx, responses, .. } => {
@@ -219,7 +221,6 @@ impl TxRx {
                 drop(congestion_window_ref);
                 let responses_to_thread = Arc::clone(&responses);
                 let congestion_window_to_thread = Arc::clone(&congestion_window);
-                let (sender, receiver) = channel();
                 std::thread::spawn(move || {
                     loop {
                         let rx_ref = rx_mutex.lock().unwrap();
@@ -237,7 +238,7 @@ impl TxRx {
                                             let outstanding: BTreeSet<NarrowWaistPacketReqEqRes> = congestion_window_ref.difference(&entry).cloned().collect();
                                             //debug!("\nCONGESTION {:#?}\nRETURNED {:#?}\nOUTSTANDING {:#?}", congestion_window_ref, nw, outstanding);
                                             if outstanding.is_empty() {
-                                                match sender.send(()) {
+                                                match timeout_tx.send(()) {
                                                     Ok(_) => {},
                                                     Err(SendError(_)) => { debug!("TxRx timeout mechanism is broken <- this error needs fixing") },
                                                 }
@@ -252,7 +253,7 @@ impl TxRx {
                         drop(rx_ref);
                     }
                 });
-                let out = receiver.recv_timeout(Duration::from_millis(*window_timeout));
+                let out = timeout_rx.recv_timeout(Duration::from_millis(*window_timeout));
                 match out {
                     Err(RecvTimeoutError::Timeout) => *retries -= &1,
                     Err(RecvTimeoutError::Disconnected) => { debug!("TxRx.send_and_receive receiver has disconnected"); *retries -= &1 },
@@ -303,6 +304,7 @@ impl TxRx {
                 let nw = NarrowWaistPacket::request(hbfi_req)?;
                 pending_queue.insert(NarrowWaistPacketReqEqRes(nw));
             }
+            let timeout_txrx = unbounded::<()>();
             loop {
                 if retries <= &mut 0 { break }
                 if pending_queue.len() <= 0 { break }
@@ -318,7 +320,7 @@ impl TxRx {
                     }
                 }
                 drop(congestion_window_ref);
-                let aimd = self.send_and_receive(Arc::clone(&congestion_window), hbfi_seek.clone(), &reliability, rx_mutex.clone(), retries, window_timeout)?;
+                let aimd = self.send_and_receive(Arc::clone(&congestion_window), hbfi_seek.clone(), &reliability, rx_mutex.clone(), retries, window_timeout, timeout_txrx.clone())?;
                 self.process_aimd(aimd, &reliability, &mut congestion_window_size, &mut pending_queue);
             }
             self.reconstruct_responses(hbfi_seek, start, end)

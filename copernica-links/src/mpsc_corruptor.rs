@@ -4,7 +4,8 @@ use {
         InterLinkPacket, LinkId, ReplyTo, constants, Operations
     },
     anyhow::{anyhow, Result},
-    std::sync::{Arc, Mutex, mpsc::{Receiver, SyncSender, sync_channel as channel}},
+    crossbeam_channel::{Receiver, Sender, bounded},
+    std::sync::{Arc, Mutex},
     log::{trace, error, debug},
 };
 #[derive(Clone)]
@@ -21,17 +22,17 @@ pub struct MpscCorruptor {
     link_id: LinkId,
     ops: Operations,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
-    l2bs_tx: SyncSender<InterLinkPacket>,
+    l2bs_tx: Sender<InterLinkPacket>,
     bs2l_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
-    l2l0_tx: SyncSender<Vec<u8>>,
+    l2l0_tx: Sender<Vec<u8>>,
     l2l0_rx: Arc<Mutex<Receiver<Vec<u8>>>>,
-    l2l1_tx: Option<Vec<SyncSender<Vec<u8>>>>,
+    l2l1_tx: Option<Vec<Sender<Vec<u8>>>>,
 }
 impl MpscCorruptor {
-    pub fn male(&self) -> SyncSender<Vec<u8>> {
+    pub fn male(&self) -> Sender<Vec<u8>> {
         self.l2l0_tx.clone()
     }
-    pub fn female(&mut self, new_l2l1_tx: SyncSender<Vec<u8>>) {
+    pub fn female(&mut self, new_l2l1_tx: Sender<Vec<u8>>) {
         if let None = self.l2l1_tx {
             self.l2l1_tx = Some(vec![]);
         }
@@ -47,12 +48,12 @@ impl MpscCorruptor {
 impl Link for MpscCorruptor {
     fn new(link_id: LinkId
         , (label, ops): (String, Operations)
-        , (l2bs_tx, bs2l_rx): ( SyncSender<InterLinkPacket>, Receiver<InterLinkPacket> )
+        , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket>, Receiver<InterLinkPacket> )
         ) -> Result<MpscCorruptor> {
         ops.register_link(label.clone());
         match link_id.reply_to()? {
             ReplyTo::Mpsc => {
-                let (l2l0_tx, l2l0_rx) = channel::<Vec<u8>>(constants::BOUNDED_BUFFER_SIZE);
+                let (l2l0_tx, l2l0_rx) = bounded::<Vec<u8>>(constants::BOUNDED_BUFFER_SIZE);
                 return Ok(
                     MpscCorruptor {
                         label,

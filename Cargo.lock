@@ -130,6 +130,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "copernica-common",
+ "crossbeam-channel",
  "log",
  "uluru",
 ]
@@ -142,6 +143,7 @@ dependencies = [
  "bech32",
  "bincode",
  "chrono",
+ "crossbeam-channel",
  "cryptoxide",
  "fern",
  "hex",
@@ -159,6 +161,7 @@ dependencies = [
  "anyhow",
  "async-io",
  "copernica-common",
+ "crossbeam-channel",
  "futures-lite",
  "log",
  "reed-solomon",
@@ -171,6 +174,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "copernica-common",
+ "crossbeam-channel",
  "log",
 ]
 
@@ -196,9 +200,30 @@ dependencies = [
  "copernica-common",
  "copernica-links",
  "copernica-protocols",
+ "crossbeam-channel",
  "log",
  "rand",
  "scaffolding",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d82cfc11ce7f2c3faef78d8a684447b40d503d9681acebed6cb728d45940c4db"
+dependencies = [
+ "cfg-if",
+ "lazy_static",
 ]
 
 [[package]]

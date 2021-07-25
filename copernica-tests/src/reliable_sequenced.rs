@@ -6,9 +6,9 @@ use {
     copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp, Corruption},
     crate::process_network,
     scaffolding::{ group, single, Ordering, TestTree, setting, settings::Timeout},
+    crossbeam_channel::{unbounded},
     std::{
         time::Duration,
-        sync::mpsc::{channel},
         collections::HashMap,
     },
 };
@@ -36,7 +36,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_immune() -> Result<()> {
     let link_3 = "link_3";
     let link_4 = "link_4";
     let link_5 = "link_5";
-    let (sender, receiver) = channel::<LogEntry>();
+    let (sender, receiver) = unbounded::<LogEntry>();
     let actual_behaviour = Operations::turned_on(sender);
     let mut broker0 = Broker::new(actual_behaviour.label(router_0.clone()));
     let mut broker1 = Broker::new(actual_behaviour.label(router_1.clone()));
@@ -134,7 +134,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_integrity() -> Result<()> 
     let link_3 = "link_3";
     let link_4 = "link_4";
     let link_5 = "link_5";
-    let (sender, receiver) = channel::<LogEntry>();
+    let (sender, receiver) = unbounded::<LogEntry>();
     let actual_behaviour = Operations::turned_on(sender);
     let mut broker0 = Broker::new(actual_behaviour.label(router_0.clone()));
     let mut broker1 = Broker::new(actual_behaviour.label(router_1.clone()));
@@ -233,7 +233,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_order() -> Result<()> {
     let link_3 = "link_3";
     let link_4 = "link_4";
     let link_5 = "link_5";
-    let (sender, receiver) = channel::<LogEntry>();
+    let (sender, receiver) = unbounded::<LogEntry>();
     let actual_behaviour = Operations::turned_on(sender);
     let mut broker0 = Broker::new(actual_behaviour.label(router_0.clone()));
     let mut broker1 = Broker::new(actual_behaviour.label(router_1.clone()));
@@ -333,7 +333,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_presence() -> Result<()> {
     let link_3 = "link_3";
     let link_4 = "link_4";
     let link_5 = "link_5";
-    let (sender, receiver) = channel::<LogEntry>();
+    let (sender, receiver) = unbounded::<LogEntry>();
     let actual_behaviour = Operations::turned_on(sender);
     let mut broker0 = Broker::new(actual_behaviour.label(router_0.clone()));
     let mut broker1 = Broker::new(actual_behaviour.label(router_1.clone()));

@@ -5,7 +5,7 @@ use {
     },
     copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket, Operations},
     anyhow::Result,
-    std::sync::mpsc::{SyncSender},
+    crossbeam_channel::{Sender},
     log::{warn, trace},
     std::collections::HashMap,
 };
@@ -16,7 +16,7 @@ impl Router {
         label: &String,
         ops: &Operations,
         ilp: &InterLinkPacket,
-        r2b_tx: SyncSender<InterLinkPacket>,
+        r2b_tx: Sender<InterLinkPacket>,
         rs: &mut ResponseStore,
         blooms: &mut HashMap<LinkId, Blooms>,
         bayes: &mut Bayes,
