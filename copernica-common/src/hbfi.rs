@@ -1,7 +1,6 @@
 use {
     crate::{constants, PublicIdentity, PublicIdentityInterface},
     anyhow::{Result},
-    serde::{Deserialize, Serialize},
     std::fmt,
     core::hash::{Hash, Hasher}
 };
@@ -9,7 +8,7 @@ use {
 pub type BFI = [u16; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]; // Bloom Filter Index
 pub type BFIS = [BFI; constants::BFI_COUNT]; // Bloom Filter Index
 
-#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HBFI {
     // Hierarchical Bloom Filter Index
     pub request_pid: PublicIdentityInterface,

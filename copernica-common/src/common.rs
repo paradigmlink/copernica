@@ -4,7 +4,6 @@ use {
         constants,
         serialization::*,
     },
-    serde::{Deserialize, Serialize},
     std::fmt,
     rand_core::{CryptoRng, RngCore},
     anyhow::{anyhow, Result},
@@ -12,10 +11,10 @@ use {
 };
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Nonce(pub [u8; constants::NONCE_SIZE]);
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Tag(pub [u8; constants::TAG_SIZE]);
 // the below is a hack, I don't know how to implement Serialize/Deserialize for struct Data(pub [u8; constants::FRAGMENT_SIZE])
-#[derive(Clone, PartialOrd, Ord, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialOrd, Ord, Hash, Debug)]
 pub struct Data(Vec<u8>);
 impl Data {
     pub fn new(data: Vec<u8>) -> Result<Data> {

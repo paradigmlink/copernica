@@ -8,15 +8,8 @@ edition = "2018"
 
 [dependencies]
 copernica-common = { path = "../copernica-common" }
-copernica-monitor = { path = "../copernica-monitor" }
 async-io = "1.4.1"
-async-executor = "1.4.1"
 futures-lite = "1.11.3"
-futures = "0.3.15"
 anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
 reed-solomon = "0.2"
 log = "0.4"
-rand = "0.8.3"
-rand_core = "0.6.1"
-cryptoxide = "0.3.2"

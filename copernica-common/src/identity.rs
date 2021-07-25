@@ -10,7 +10,6 @@ use {
     },
     crate::{ Nonce, bloom_filter_index, BFI, constants },
     anyhow::{Result, anyhow},
-    serde::{Deserialize, Serialize},
     std::{
         convert::{TryFrom, TryInto as _},
         fmt::{self, Display, Formatter},
@@ -38,11 +37,10 @@ struct PrivateIdentity(ed25519_hd::SecretKey);
 /// This key cannot be used for anything else, we restrict its usage
 /// to public derivation of different keys
 ///
-#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "String")]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Clone)]
 pub struct PublicIdentity(ed25519_hd::PublicKey);
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PublicIdentityInterface {
     Present { public_identity: PublicIdentity },
     Absent,

@@ -40,8 +40,6 @@ pub const CLEARTEXT_LINK_NARROW_WAIST_SIZE_END: usize = CLEARTEXT_LINK_NARROW_WA
 pub const TO_REPLY_TO_MPSC: usize = 0;
 pub const TO_REPLY_TO_UDPIP4: usize = 10;
 pub const TO_REPLY_TO_UDPIP6: usize = 22;
-pub const TO_REPLY_TO_MACADDR6: usize = 6;
-pub const TO_REPLY_TO_MACADDR8: usize = 8;
 pub const TO_REPLY_TO_RF: usize = 4;
 
 pub const CYPHERTEXT_HBFI_SIZE: usize = ((BLOOM_FILTER_INDEX_ELEMENT_LENGTH * 2) * BFI_COUNT) + U64_SIZE + (ID_SIZE * 2) + (CC_SIZE * 2);

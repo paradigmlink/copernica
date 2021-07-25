@@ -18,20 +18,9 @@ debug = 2
 [dependencies]
 copernica-broker = { path = "../copernica-broker" }
 copernica-protocols = { path = "../copernica-protocols" }
-copernica-services = { path = "../copernica-services" }
 copernica-links = { path = "../copernica-links" }
 copernica-common = { path = "../copernica-common" }
-copernica-monitor= { path = "../copernica-monitor" }
 log = "0.4"
-dirs = "2.0.2"
-serde = { version = "1.0", features = ["derive"] }
 rand = "0.8.3"
-async-std = "1.4.0"
 anyhow = "1.0"
-reed-solomon = "0.2"
-rand_core = "0.6.1"
-rand_chacha = "0.3.0"
-futures = "0.3.13"
-async-global-executor = "2.0.2"
-async-io = "1.4.1"
 scaffolding = { git = "https://github.com/primetype/scaffolding", features = ["with-quickcheck"] }

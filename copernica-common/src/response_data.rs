@@ -3,13 +3,12 @@ use {
         constants, Data, PublicIdentity, PublicIdentityInterface, PrivateIdentityInterface, Tag, Nonce
     },
     std::fmt,
-    serde::{Deserialize, Serialize},
     anyhow::{anyhow, Result},
     rand::Rng,
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
     log::{error},
 };
-#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum ResponseData {
     ClearText {
         data: Data,

@@ -1,20 +1,16 @@
 use {
-    serde::{Deserialize, Serialize},
     std::{fmt, net::SocketAddr},
     crate::{
         PrivateIdentityInterface, PublicIdentity, PublicIdentityInterface, SharedSecret, Nonce,
     },
     anyhow::{Result, anyhow},
-    macaddr::{MacAddr6, MacAddr8},
     rand::Rng,
 };
 pub type Hertz = u32;
-#[derive(Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub enum ReplyTo {
     Mpsc,
     UdpIp(SocketAddr),
-    MacAddr6(MacAddr6),
-    MacAddr8(MacAddr8),
     Rf(Hertz),
 }
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -128,12 +124,6 @@ impl fmt::Debug for ReplyTo {
             },
             ReplyTo::Mpsc => {
                 write!(f, "ReplyTo::Mpsc")
-            },
-            ReplyTo::MacAddr6(addr) => {
-                write!(f, "ReplyTo::MacAddr6({})", addr)
-            },
-            ReplyTo::MacAddr8(addr) => {
-                write!(f, "ReplyTo::MacAddr8({})", addr)
             },
             ReplyTo::Rf(hertz) => {
                 write!(f, "ReplyTo::Rf({})", hertz)
