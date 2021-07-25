@@ -5,7 +5,6 @@ use {
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Receiver, Sender, bounded},
-    std::sync::{Arc, Mutex},
     log::{trace, error},
 };
 #[allow(dead_code)]
@@ -15,9 +14,9 @@ pub struct MpscChannel {
     ops: Operations,
     // t = tansport; c = copernic; 0 = this instance of t; 1 = the pair of same type
     l2bs_tx: Sender<InterLinkPacket>,
-    bs2l_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+    bs2l_rx: Receiver<InterLinkPacket>,
     l2l0_tx: Sender<Vec<u8>>,        // give
-    l2l0_rx: Arc<Mutex<Receiver<Vec<u8>>>>,      // keep
+    l2l0_rx: Receiver<Vec<u8>>,      // keep
     l2l1_tx: Option<Vec<Sender<Vec<u8>>>>,
 }
 impl MpscChannel {
@@ -48,9 +47,9 @@ impl Link for MpscChannel {
                         link_id,
                         ops,
                         l2bs_tx,
-                        bs2l_rx: Arc::new(Mutex::new(bs2l_rx)),
+                        bs2l_rx,
                         l2l0_tx,
-                        l2l0_rx: Arc::new(Mutex::new(l2l0_rx)),
+                        l2l0_rx,
                         l2l1_tx: None,
                     })
             }
@@ -68,7 +67,6 @@ impl Link for MpscChannel {
         std::thread::spawn(move || {
             match this_link.reply_to()? {
                 ReplyTo::Mpsc => {
-                    let l2l0_rx = l2l0_rx.lock().unwrap();
                     loop {
                         match l2l0_rx.recv() {
                             Ok(msg) => {
@@ -101,7 +99,6 @@ impl Link for MpscChannel {
         let label = self.label.clone();
         if let Some(l2l1_tx) = self.l2l1_tx.clone() {
             std::thread::spawn(move || {
-                let bs2l_rx = bs2l_rx.lock().unwrap();
                 loop {
                     match bs2l_rx.recv() {
                         Ok(ilp) => {

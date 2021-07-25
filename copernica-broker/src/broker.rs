@@ -10,7 +10,6 @@ use {
     uluru::LRUCache,
     std::{
         collections::HashMap,
-        sync::{Arc, Mutex},
     },
     log::{
         error, trace,
@@ -47,10 +46,10 @@ pub struct Broker {
     ops: Operations,
     rs:     ResponseStore,
     l2b_tx: Sender<InterLinkPacket>,                         // give to link
-    l2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,                       // keep in broker
+    l2b_rx: Receiver<InterLinkPacket>,                       // keep in broker
     b2l:    HashMap<u32, Sender<InterLinkPacket>>,           // keep in broker
     r2b_tx: Sender<InterLinkPacket>,                // give to router
-    r2b_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,  // keep in broker
+    r2b_rx: Receiver<InterLinkPacket>,  // keep in broker
     blooms: HashMap<LinkId, Blooms>,
 }
 impl Broker {
@@ -65,9 +64,9 @@ impl Broker {
             label,
             rs,
             l2b_tx,
-            l2b_rx: Arc::new(Mutex::new(l2b_rx)),
+            l2b_rx,
             r2b_tx,
-            r2b_rx: Arc::new(Mutex::new(r2b_rx)),
+            r2b_rx,
             b2l,
             blooms,
             ops,
@@ -94,7 +93,7 @@ impl Broker {
         let choke = LinkId::choke();
         let mut b2l = self.b2l.clone();
         let r2b_tx = self.r2b_tx.clone();
-        let r2b_rx_mutex = Arc::clone(&self.r2b_rx);
+        let r2b_rx = self.r2b_rx.clone();
         let mut bayes = Bayes::new();
         for (link_id, _) in &blooms {
             bayes.add_link(&link_id);
@@ -103,7 +102,6 @@ impl Broker {
         let ops = self.ops.clone();
         let label = self.label.clone();
         std::thread::spawn(move || {
-            let l2b_rx = l2b_rx.lock().unwrap();
             loop {
                 match l2b_rx.recv() {
                     Ok(ilp) => {
@@ -125,9 +123,7 @@ impl Broker {
         let label = self.label.clone();
         std::thread::spawn(move || {
             loop {
-                let r2b_rx_mutex = r2b_rx_mutex.clone();
-                let r2b_rx_ref = r2b_rx_mutex.lock().unwrap();
-                if let Ok(ilp) = r2b_rx_ref.recv() {
+                if let Ok(ilp) = r2b_rx.recv() {
                     match &ilp.link_id().lookup_id() {
                         Ok(id) => {
                             match b2l.get_mut(id) {

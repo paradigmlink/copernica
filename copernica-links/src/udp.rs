@@ -7,7 +7,6 @@ use {
     log::{error, trace},
     std::{
       net::{SocketAddr, UdpSocket},
-      sync::{Arc, Mutex},
     },
 };
 #[allow(dead_code)]
@@ -16,7 +15,7 @@ pub struct UdpIp {
     link_id: LinkId,
     ops: Operations,
     l2bs_tx: Sender<InterLinkPacket>,
-    bs2l_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+    bs2l_rx: Receiver<InterLinkPacket>,
 }
 impl Link for UdpIp {
     fn new(link_id: LinkId
@@ -27,7 +26,7 @@ impl Link for UdpIp {
         trace!("LISTEN ON {:?}:", link_id);
         ops.register_link(label.clone());
         match link_id.reply_to()? {
-            ReplyTo::UdpIp(_) => return Ok(UdpIp { label, link_id, ops, l2bs_tx, bs2l_rx: Arc::new(Mutex::new(bs2l_rx)) }),
+            ReplyTo::UdpIp(_) => return Ok(UdpIp { label, link_id, ops, l2bs_tx, bs2l_rx }),
             _ => return Err(anyhow!("UdpIp Link expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
         }
     }
@@ -81,7 +80,6 @@ impl Link for UdpIp {
         std::thread::spawn(move || {
             match async_io::Async::<UdpSocket>::bind(SocketAddr::new("127.0.0.1".parse()?, 0)) {
                 Ok(socket) => {
-                    let bs2l_rx = bs2l_rx.lock().unwrap();
                     loop {
                         match bs2l_rx.recv() {
                             Ok(ilp) => {

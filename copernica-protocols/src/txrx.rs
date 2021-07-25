@@ -61,14 +61,14 @@ pub enum TxRx {
         link_id: LinkId,
         protocol_sid: PrivateIdentityInterface,
         p2l_tx: Sender<InterLinkPacket>,
-        l2p_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        l2p_rx: Receiver<InterLinkPacket>,
         responses: Arc<Mutex<HashMap<HBFIExcludeFrame, BTreeSet<NarrowWaistPacketReqEqRes>>>>,
         unreliable_sequenced_response_tx: Sender<InterLinkPacket>,
-        unreliable_sequenced_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        unreliable_sequenced_response_rx: Receiver<InterLinkPacket>,
         reliable_sequenced_response_tx: Sender<InterLinkPacket>,
-        reliable_sequenced_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        reliable_sequenced_response_rx: Receiver<InterLinkPacket>,
         reliable_ordered_response_tx: Sender<InterLinkPacket>,
-        reliable_ordered_response_rx: Arc<Mutex<Receiver<InterLinkPacket>>>,
+        reliable_ordered_response_rx: Receiver<InterLinkPacket>,
     },
     Inert,
 }
@@ -87,13 +87,13 @@ impl TxRx {
             link_id,
             protocol_sid,
             p2l_tx,
-            l2p_rx: Arc::new(Mutex::new(l2p_rx)),
+            l2p_rx,
             responses: Arc::new(Mutex::new(HashMap::new())),
-            unreliable_sequenced_response_rx: Arc::new(Mutex::new(unreliable_sequenced_response_rx)),
+            unreliable_sequenced_response_rx,
             unreliable_sequenced_response_tx,
-            reliable_sequenced_response_rx: Arc::new(Mutex::new(reliable_sequenced_response_rx)),
+            reliable_sequenced_response_rx,
             reliable_sequenced_response_tx,
-            reliable_ordered_response_rx: Arc::new(Mutex::new(reliable_ordered_response_rx)),
+            reliable_ordered_response_rx,
             reliable_ordered_response_tx,
          }
     }
@@ -127,9 +127,7 @@ impl TxRx {
     pub fn next(self) -> Result<InterLinkPacket> {
         match self {
             TxRx::Initialized { l2p_rx, .. } => {
-                let l2p_rx_mutex = Arc::clone(&l2p_rx);
-                let l2p_rx_ref = l2p_rx_mutex.lock().unwrap();
-                let out = l2p_rx_ref.recv()?;
+                let out = l2p_rx.recv()?;
                 Ok(out)
             },
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
@@ -196,7 +194,7 @@ impl TxRx {
         , congestion_window: Arc<Mutex<BTreeSet<NarrowWaistPacketReqEqRes>>>
         , hbfi_seek: HBFI
         , reliability: &Reliability
-        , rx_mutex: Arc<Mutex<Receiver<InterLinkPacket>>>
+        , rx: Receiver<InterLinkPacket>
         , retries: &mut u64
         , window_timeout: &mut u64
         , (timeout_tx, timeout_rx): (Sender<()>, Receiver<()>)
@@ -223,8 +221,7 @@ impl TxRx {
                 let congestion_window_to_thread = Arc::clone(&congestion_window);
                 std::thread::spawn(move || {
                     loop {
-                        let rx_ref = rx_mutex.lock().unwrap();
-                        match rx_ref.recv() {
+                        match rx.recv() {
                             Ok(ilp) => {
                                 let nw = ilp.narrow_waist();
                                 let responses_mutex = Arc::clone(&responses_to_thread);
@@ -250,7 +247,6 @@ impl TxRx {
                             },
                             Err(e) => {debug!("{}", e)},
                         }
-                        drop(rx_ref);
                     }
                 });
                 let out = timeout_rx.recv_timeout(Duration::from_millis(*window_timeout));
@@ -289,7 +285,7 @@ impl TxRx {
     }
     fn request(&mut self
         , reliability: &Reliability
-        , rx_mutex: Arc<Mutex<Receiver<InterLinkPacket>>>
+        , rx: Receiver<InterLinkPacket>
         , hbfi_seek: HBFI
         , start: u64
         , end: u64
@@ -320,7 +316,7 @@ impl TxRx {
                     }
                 }
                 drop(congestion_window_ref);
-                let aimd = self.send_and_receive(Arc::clone(&congestion_window), hbfi_seek.clone(), &reliability, rx_mutex.clone(), retries, window_timeout, timeout_txrx.clone())?;
+                let aimd = self.send_and_receive(Arc::clone(&congestion_window), hbfi_seek.clone(), &reliability, rx.clone(), retries, window_timeout, timeout_txrx.clone())?;
                 self.process_aimd(aimd, &reliability, &mut congestion_window_size, &mut pending_queue);
             }
             self.reconstruct_responses(hbfi_seek, start, end)
@@ -329,10 +325,10 @@ impl TxRx {
         match self {
             TxRx::Initialized { ref unreliable_sequenced_response_rx, .. } => {
                 let mut window_timeout = 300;
-                let rx_mutex = Arc::clone(&unreliable_sequenced_response_rx);
+                let rx = unreliable_sequenced_response_rx.clone();
                 self.request(
                     &Reliability::UnreliableSequenced,
-                    rx_mutex,
+                    rx,
                     hbfi_seek,
                     start,
                     end,
@@ -347,10 +343,10 @@ impl TxRx {
         match self {
             TxRx::Initialized { ref reliable_sequenced_response_rx, .. } => {
                 let mut window_timeout = 300;
-                let rx_mutex = Arc::clone(&reliable_sequenced_response_rx);
+                let rx = reliable_sequenced_response_rx.clone();
                 self.request(
                     &Reliability::ReliableSequenced,
-                    rx_mutex,
+                    rx,
                     hbfi_seek,
                     start,
                     end,
@@ -365,10 +361,10 @@ impl TxRx {
         match self {
             TxRx::Initialized { ref reliable_ordered_response_rx, .. } => {
                 let mut window_timeout = 300;
-                let rx_mutex = Arc::clone(&reliable_ordered_response_rx);
+                let rx = reliable_ordered_response_rx.clone();
                 self.request(
                     &Reliability::ReliableOrdered,
-                    rx_mutex,
+                    rx,
                     hbfi_seek,
                     start,
                     end,
