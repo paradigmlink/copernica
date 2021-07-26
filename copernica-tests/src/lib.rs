@@ -1,11 +1,17 @@
 mod common;
-mod unreliable_sequenced;
-mod reliable_sequenced;
-mod reliable_ordered;
+mod unreliable_sequenced_cyphertext;
+mod reliable_sequenced_cyphertext;
+mod reliable_ordered_cyphertext;
+mod unreliable_sequenced_cleartext;
+mod reliable_sequenced_cleartext;
+mod reliable_ordered_cleartext;
 pub use {
-    unreliable_sequenced::{unreliable_sequenced_ping_pong},
-    reliable_sequenced::{reliable_sequenced_ping_pong},
-    reliable_ordered::{reliable_ordered_ping_pong},
+    unreliable_sequenced_cleartext::{unreliable_sequenced_cleartext_ping_pong},
+    unreliable_sequenced_cyphertext::{unreliable_sequenced_cyphertext_ping_pong},
+    reliable_sequenced_cleartext::{reliable_sequenced_cleartext_ping_pong},
+    reliable_sequenced_cyphertext::{reliable_sequenced_cyphertext_ping_pong},
+    reliable_ordered_cleartext::{reliable_ordered_cleartext_ping_pong},
+    reliable_ordered_cyphertext::{reliable_ordered_cyphertext_ping_pong},
 };
 use {
     anyhow::{Result, anyhow},

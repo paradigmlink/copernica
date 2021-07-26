@@ -12,20 +12,20 @@ use {
         collections::HashMap,
     },
 };
-pub fn reliable_sequenced_ping_pong(ordering: Ordering) -> TestTree {
+pub fn reliable_sequenced_cyphertext_ping_pong(ordering: Ordering) -> TestTree {
     group!(
         format!("Unit tests, ordering with {:?}", ordering),
         ordering,
         [
             setting!(Timeout(Duration::from_secs(5))),
-            single!(|| { reliable_sequenced_cleartext_ping_pong_corrupt_immune() }),
-            single!(|| { reliable_sequenced_cleartext_ping_pong_corrupt_integrity() }),
-            single!(|| { reliable_sequenced_cleartext_ping_pong_corrupt_order() }),
-            single!(|| { reliable_sequenced_cleartext_ping_pong_corrupt_presence() }),
+            single!(|| { reliable_sequenced_cyphertext_ping_pong_corrupt_immune() }),
+            single!(|| { reliable_sequenced_cyphertext_ping_pong_corrupt_integrity() }),
+            single!(|| { reliable_sequenced_cyphertext_ping_pong_corrupt_order() }),
+            single!(|| { reliable_sequenced_cyphertext_ping_pong_corrupt_presence() }),
         ]
     )
 }
-pub fn reliable_sequenced_cleartext_ping_pong_corrupt_immune() -> Result<()> {
+pub fn reliable_sequenced_cyphertext_ping_pong_corrupt_immune() -> Result<()> {
     let router_0 = "router_0";
     let router_1 = "router_1";
     let echo_protocol_0 = "echo_protocol_0";
@@ -65,8 +65,8 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_immune() -> Result<()> {
     // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
-    let address4 = ReplyTo::UdpIp("127.0.0.1:50009".parse()?);
-    let address5 = ReplyTo::UdpIp("127.0.0.1:50010".parse()?);
+    let address4 = ReplyTo::UdpIp("127.0.0.1:50033".parse()?);
+    let address5 = ReplyTo::UdpIp("127.0.0.1:50034".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
     let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
@@ -110,7 +110,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_immune() -> Result<()> {
     link5.run()?;
     echo_protocol1.run()?;
     let response = std::thread::spawn(move || {
-        let data: String = echo_protocol1.reliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id()).unwrap();
+        let data: String = echo_protocol1.reliable_sequenced_cyphertext_ping(echo_protocol_sid0.public_id()).unwrap();
         actual_behaviour.end();
         data
     });
@@ -123,7 +123,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_immune() -> Result<()> {
         Ok(())
     }
 }
-pub fn reliable_sequenced_cleartext_ping_pong_corrupt_integrity() -> Result<()> {
+pub fn reliable_sequenced_cyphertext_ping_pong_corrupt_integrity() -> Result<()> {
     let router_0 = "router_0";
     let router_1 = "router_1";
     let echo_protocol_0 = "echo_protocol_0";
@@ -163,8 +163,8 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_integrity() -> Result<()> 
     // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
-    let address4 = ReplyTo::UdpIp("127.0.0.1:50011".parse()?);
-    let address5 = ReplyTo::UdpIp("127.0.0.1:50012".parse()?);
+    let address4 = ReplyTo::UdpIp("127.0.0.1:50035".parse()?);
+    let address5 = ReplyTo::UdpIp("127.0.0.1:50036".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
     let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
@@ -210,7 +210,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_integrity() -> Result<()> 
     link5.run()?;
     echo_protocol1.run()?;
     let response = std::thread::spawn(move || {
-        let data: String = echo_protocol1.reliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id()).unwrap();
+        let data: String = echo_protocol1.reliable_sequenced_cyphertext_ping(echo_protocol_sid0.public_id()).unwrap();
         actual_behaviour.end();
         data
     });
@@ -223,7 +223,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_integrity() -> Result<()> 
         Ok(())
     }
 }
-pub fn reliable_sequenced_cleartext_ping_pong_corrupt_order() -> Result<()> {
+pub fn reliable_sequenced_cyphertext_ping_pong_corrupt_order() -> Result<()> {
     let router_0 = "router_0";
     let router_1 = "router_1";
     let echo_protocol_0 = "echo_protocol_0";
@@ -263,8 +263,8 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_order() -> Result<()> {
     // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
-    let address4 = ReplyTo::UdpIp("127.0.0.1:50013".parse()?);
-    let address5 = ReplyTo::UdpIp("127.0.0.1:50014".parse()?);
+    let address4 = ReplyTo::UdpIp("127.0.0.1:50037".parse()?);
+    let address5 = ReplyTo::UdpIp("127.0.0.1:50038".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
     let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
@@ -309,7 +309,7 @@ echo_protocol0.run()?;
     link5.run()?;
     echo_protocol1.run()?;
     let response = std::thread::spawn(move || {
-        let data: String = echo_protocol1.reliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id()).unwrap();
+        let data: String = echo_protocol1.reliable_sequenced_cyphertext_ping(echo_protocol_sid0.public_id()).unwrap();
         actual_behaviour.end();
         data
     });
@@ -323,7 +323,7 @@ echo_protocol0.run()?;
     }
 }
 
-pub fn reliable_sequenced_cleartext_ping_pong_corrupt_presence() -> Result<()> {
+pub fn reliable_sequenced_cyphertext_ping_pong_corrupt_presence() -> Result<()> {
     let router_0 = "router_0";
     let router_1 = "router_1";
     let echo_protocol_0 = "echo_protocol_0";
@@ -363,8 +363,8 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_presence() -> Result<()> {
     // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
-    let address4 = ReplyTo::UdpIp("127.0.0.1:50015".parse()?);
-    let address5 = ReplyTo::UdpIp("127.0.0.1:50016".parse()?);
+    let address4 = ReplyTo::UdpIp("127.0.0.1:50039".parse()?);
+    let address5 = ReplyTo::UdpIp("127.0.0.1:50040".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
     let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
@@ -410,7 +410,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_presence() -> Result<()> {
     link5.run()?;
     echo_protocol1.run()?;
     let response = std::thread::spawn(move || {
-        let data: String = echo_protocol1.reliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id()).unwrap();
+        let data: String = echo_protocol1.reliable_sequenced_cyphertext_ping(echo_protocol_sid0.public_id()).unwrap();
         actual_behaviour.end();
         data
     });

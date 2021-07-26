@@ -12,7 +12,7 @@ use {
         collections::HashMap,
     },
 };
-pub fn reliable_ordered_ping_pong(ordering: Ordering) -> TestTree {
+pub fn reliable_ordered_cleartext_ping_pong(ordering: Ordering) -> TestTree {
     group!(
         format!("Unit tests, ordering with {:?}", ordering),
         ordering,
@@ -420,44 +420,3 @@ pub fn reliable_ordered_cleartext_ping_pong_corrupt_presence() -> Result<()> {
         Ok(())
     }
 }
-/*
-    debug!("unreliable unordered cleartext ping");
-    let pong: String = echo_protocol1.unreliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
-    debug!("unreliable unordered cleartext {:?}", pong);
-
-    debug!("unreliable unordered cyphertext ping");
-    let pong: String = echo_protocol0.unreliable_unordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
-    debug!("unreliable unordered cyphertext {:?}", pong);
-
-    debug!("unreliable sequenced cleartext ping");
-    let pong: String = echo_protocol1.unreliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id())?;
-    debug!("unreliable sequenced cleartext {:?}", pong);
-
-    debug!("unreliable sequenced cyphertext ping");
-    let pong: String = echo_protocol0.unreliable_sequenced_cyphertext_ping(echo_protocol_sid1.public_id())?;
-    debug!("unreliable sequenced cyphertext {:?}", pong);
-
-    debug!("reliable unordered cleartext ping");
-    let pong: String = echo_protocol1.reliable_unordered_cleartext_ping(echo_protocol_sid0.public_id())?;
-    debug!("reliable unordered cleartext {:?}", pong);
-
-    debug!("reliable unordered cyphertext ping");
-    let pong: String = echo_protocol0.reliable_unordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
-    debug!("reliable unordered cyphertext {:?}", pong);
-
-    debug!("reliable ordered cleartext ping");
-    let pong: String = echo_protocol1.reliable_ordered_cleartext_ping(echo_protocol_sid0.public_id())?;
-    debug!("reliable ordered cleartext {:?}", pong);
-
-    debug!("reliable ordered cyphertext ping");
-    let pong: String = echo_protocol0.reliable_ordered_cyphertext_ping(echo_protocol_sid1.public_id())?;
-    debug!("reliable ordered cyphertext {:?}", pong);
-
-    debug!("reliable sequenced cleartext ping");
-    let pong: String = echo_protocol1.reliable_sequenced_cleartext_ping(echo_protocol_sid0.public_id())?;
-    debug!("reliable sequenced cleartext {:?}", pong);
-
-    debug!("reliable sequenced cyphertext ping");
-    let pong: String = echo_protocol0.reliable_sequenced_cyphertext_ping(echo_protocol_sid1.public_id())?;
-    debug!("reliable sequenced cyphertext {:?}", pong);
-*/
