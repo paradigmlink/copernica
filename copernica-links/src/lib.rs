@@ -12,13 +12,27 @@ use {
         Operations, serialization::*
     },
     crossbeam_channel::{Receiver, Sender},
-    anyhow::{Result},
+    anyhow::{anyhow, Result},
     reed_solomon::{Buffer, Encoder, Decoder},
+    //log::{debug},
 };
 pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
     let dec = Decoder::new(6);
-    let reconstituted: Vec<_> = msg.chunks(255).map(|c| Buffer::from_slice(c, c.len())).map(|d| dec.correct(&d,None).unwrap()).collect();
-    let reconstituted: Vec<_> = reconstituted.iter().map(|d| d.data()).collect::<Vec<_>>().concat();
+    let mut buffers: Vec<Buffer> = vec![];
+    for chunk in msg.chunks(255) {
+        buffers.push(Buffer::from_slice(chunk, chunk.len()));
+    }
+    let mut reconstituted: Vec<Buffer> = vec![];
+    for buffer in buffers {
+        let buf = match dec.correct(&buffer, None) {
+            Ok(b) => b,
+            Err(e) => {
+                return Err(anyhow!("Packet corrupted beyond recover, dropping it with error: {:?}", e));
+            },
+        };
+        reconstituted.push(buf);
+    }
+    let reconstituted: Vec<u8> = reconstituted.iter().map(|d| d.data()).collect::<Vec<_>>().concat();
     Ok(deserialize_link_packet(&reconstituted, link_id)?)
 }
 pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {

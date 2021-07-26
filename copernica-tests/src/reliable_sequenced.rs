@@ -181,22 +181,23 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_integrity() -> Result<()> 
     expected_behaviour.insert(LogEntry::register(link_4.clone()), 1);
     expected_behaviour.insert(LogEntry::register(link_5.clone()), 1);
     link3.corrupt(Corruption::Integrity);
-    expected_behaviour.insert(LogEntry::message(router_0.clone()), 4);
-    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_1.clone()), 1);
-    expected_behaviour.insert(LogEntry::message(link_1.clone()), 2);
-    expected_behaviour.insert(LogEntry::forward_response_downstream(router_0.clone()), 1);
-    expected_behaviour.insert(LogEntry::forward_response_downstream(router_1.clone()), 1);
-    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_0.clone()), 1);
-    expected_behaviour.insert(LogEntry::forward_request_upstream(router_0.clone()), 1);
-    expected_behaviour.insert(LogEntry::message(link_0.clone()), 2);
-    expected_behaviour.insert(LogEntry::message(echo_protocol_0.clone()), 2);
-    expected_behaviour.insert(LogEntry::message(link_2.clone()), 2);
-    expected_behaviour.insert(LogEntry::message(link_4.clone()), 8);
-    expected_behaviour.insert(LogEntry::message(router_1.clone()), 16);
-    expected_behaviour.insert(LogEntry::message(link_5.clone()), 8);
-    expected_behaviour.insert(LogEntry::forward_request_upstream(router_1.clone()), 7);
-    expected_behaviour.insert(LogEntry::message(echo_protocol_1.clone()), 8);
-    expected_behaviour.insert(LogEntry::message(link_3.clone()), 8);
+
+    expected_behaviour.insert(LogEntry::message(echo_protocol_0.clone()), 16);
+    expected_behaviour.insert(LogEntry::message(link_5.clone()), 17);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_1.clone()), 9);
+    expected_behaviour.insert(LogEntry::message(link_3.clone()), 17);
+    expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_0.clone()), 8);
+    expected_behaviour.insert(LogEntry::forward_request_upstream(router_0.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_4.clone()), 17);
+    expected_behaviour.insert(LogEntry::message(router_1.clone()), 34);
+    expected_behaviour.insert(LogEntry::message(router_0.clone()), 32);
+    expected_behaviour.insert(LogEntry::response_arrived_downstream(echo_protocol_1.clone()), 8);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_0.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_2.clone()), 16);
+    expected_behaviour.insert(LogEntry::message(link_0.clone()), 16);
+    expected_behaviour.insert(LogEntry::forward_response_downstream(router_1.clone()), 8);
+    expected_behaviour.insert(LogEntry::message(link_1.clone()), 16);
+    expected_behaviour.insert(LogEntry::message(echo_protocol_1.clone()), 17);
 
     echo_protocol0.run()?;
     link0.run()?;
@@ -215,7 +216,7 @@ pub fn reliable_sequenced_cleartext_ping_pong_corrupt_integrity() -> Result<()> 
     });
     process_network(expected_behaviour, receiver)?;
     let actual_response = response.join().expect("failed to extract data from JoinHandle");
-    let expected_response = "pingpong".to_string();
+    let expected_response = "pngpong".to_string();
     if actual_response != expected_response{
         Err(anyhow!("actual returned data (1st under) didn't match expected returned data (2nd under):\n{}\n{}", actual_response, expected_response))
     } else {
