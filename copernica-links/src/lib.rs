@@ -27,7 +27,7 @@ pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPack
         let buf = match dec.correct(&buffer, None) {
             Ok(b) => b,
             Err(e) => {
-                return Err(anyhow!("Packet corrupted beyond recover, dropping it with error: {:?}", e));
+                return Err(anyhow!("Packet corrupted beyond recovery, dropping it (error: {:?})", e));
             },
         };
         reconstituted.push(buf);

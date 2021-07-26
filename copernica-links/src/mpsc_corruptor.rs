@@ -5,7 +5,9 @@ use {
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Receiver, Sender, bounded},
-    log::{trace, error, debug},
+    log::{trace, error,
+        //debug
+    },
 };
 #[derive(Clone)]
 pub enum Corruption {
@@ -145,7 +147,7 @@ impl Link for MpscCorruptor {
                                             }
                                         } else {
                                             has_integrity_been_corrupted = true;
-                                            debug!("Corrupt Integrity");
+                                            //debug!("Corrupt Integrity");
                                             for i in 4..8 {
                                                 corrupted[i] = 0x0;
                                             }
@@ -184,7 +186,7 @@ impl Link for MpscCorruptor {
                                         } else {
                                             memory = corrupted;
                                             has_order_been_corrupted = true;
-                                            debug!("Corrupt Order");
+                                            //debug!("Corrupt Order");
                                             continue
                                         }
                                     } else {
@@ -204,7 +206,7 @@ impl Link for MpscCorruptor {
                                             }
                                         } else {
                                             has_presence_been_corrupted = true;
-                                            debug!("Corrupt Presence");
+                                            //debug!("Corrupt Presence");
                                             continue
                                         }
                                     } else {
