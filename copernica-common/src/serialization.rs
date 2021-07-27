@@ -7,16 +7,18 @@ use {
         PublicIdentityInterface, PublicIdentity, Signature
     },
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
-    log::{trace, error},
+    log::{trace, error,
+    //    debug
+    },
     anyhow::{anyhow, Result},
 };
-fn u16_to_u8(i: u16) -> [u8; 2] {
+pub fn u16_to_u8(i: u16) -> [u8; 2] {
     [(i >> 8) as u8, i as u8]
 }
-fn u8_to_u16(i: [u8; 2]) -> u16 {
+pub fn u8_to_u16(i: [u8; 2]) -> u16 {
     ((i[0] as u16) << 8) | i[1] as u16
 }
-fn bfi_to_u8(bfi: BFI) -> [u8; BFI_BYTE_SIZE] {
+pub fn bfi_to_u8(bfi: BFI) -> [u8; BFI_BYTE_SIZE] {
     let mut bbfi: [u8; BFI_BYTE_SIZE] = [0; BFI_BYTE_SIZE];
     let mut count = 0;
     for i in bfi.iter() {
@@ -27,7 +29,7 @@ fn bfi_to_u8(bfi: BFI) -> [u8; BFI_BYTE_SIZE] {
     }
     bbfi
 }
-fn u8_to_bfi(bbfi: [u8; BFI_BYTE_SIZE]) -> BFI {
+pub fn u8_to_bfi(bbfi: [u8; BFI_BYTE_SIZE]) -> BFI {
     [((bbfi[0] as u16) << 8) | bbfi[1] as u16,
     ((bbfi[2]  as u16) << 8) | bbfi[3] as u16,
     ((bbfi[4]  as u16) << 8) | bbfi[5] as u16,
@@ -63,16 +65,6 @@ pub fn serialize_response_data(rd: &ResponseData) -> (u16, Vec<u8>) {
             (buf.len() as u16, buf)
         },
     }
-}
-pub fn deserialize_cyphertext_response_data(data: &Vec<u8>) -> Result<ResponseData> {
-    let mut tag = Tag([0u8; TAG_SIZE]);
-    tag.0.clone_from_slice(&data[..TAG_SIZE]);
-    let data = Data::new(data[TAG_SIZE..].to_vec())?;
-    Ok(ResponseData::reconstitute_cypher_text(tag, data))
-}
-pub fn deserialize_cleartext_response_data(data: &Vec<u8>) -> Result<ResponseData> {
-    let data = Data::new(data[..].to_vec())?;
-    Ok(ResponseData::reconstitute_clear_text(data))
 }
 pub fn serialize_hbfi(hbfi: &HBFI) -> Result<(u8, Vec<u8>)> {
     let mut buf: Vec<u8> = vec![];
@@ -173,7 +165,7 @@ pub fn deserialize_cyphertext_narrow_waist_packet_response(data: &Vec<u8>) -> Re
     let hbfi_end = CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CYPHERTEXT_HBFI_SIZE;
     let response_data_end = hbfi_end + CYPHERTEXT_RESPONSE_DATA_SIZE;
     let hbfi: HBFI = deserialize_cyphertext_hbfi(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end].to_vec())?;
-    let data: ResponseData = deserialize_cyphertext_response_data(&data[hbfi_end..response_data_end].to_vec())?;
+    let data: ResponseData = ResponseData::from_cyphertext_bytes(&data[hbfi_end..response_data_end].to_vec())?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, signature, nonce, data };
     Ok(nw)
 }
@@ -188,7 +180,7 @@ pub fn deserialize_cleartext_narrow_waist_packet_response(data: &Vec<u8>) -> Res
     let hbfi_end = CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CLEARTEXT_HBFI_SIZE;
     let response_data_end = hbfi_end + CLEARTEXT_RESPONSE_DATA_SIZE;
     let hbfi: HBFI = deserialize_cleartext_hbfi(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end].to_vec())?;
-    let data: ResponseData = deserialize_cleartext_response_data(&data[hbfi_end..response_data_end].to_vec())?;
+    let data: ResponseData = ResponseData::from_cleartext_bytes(&data[hbfi_end..response_data_end].to_vec())?;
     let nw: NarrowWaistPacket = NarrowWaistPacket::Response { hbfi, signature, nonce, data };
     Ok(nw)
 }
@@ -251,7 +243,7 @@ pub fn serialize_narrow_waist_packet(nw: &NarrowWaistPacket) -> Result<(u16, Vec
     Ok((size, buf))
 }
 
-fn serialize_reply_to(rt: &ReplyTo) -> Result<(u8, Vec<u8>)> {
+pub fn serialize_reply_to(rt: &ReplyTo) -> Result<(u8, Vec<u8>)> {
     let mut buf: Vec<u8> = vec![];
     let size: u8;
     match rt {
@@ -275,7 +267,7 @@ fn serialize_reply_to(rt: &ReplyTo) -> Result<(u8, Vec<u8>)> {
     Ok((size, buf))
 }
 
-fn deserialize_reply_to(data: &Vec<u8>) -> Result<ReplyTo> {
+pub fn deserialize_reply_to(data: &Vec<u8>) -> Result<ReplyTo> {
     let rt = match data.len() as usize {
         TO_REPLY_TO_MPSC => {
             ReplyTo::Mpsc

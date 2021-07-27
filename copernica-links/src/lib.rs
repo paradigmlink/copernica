@@ -33,7 +33,12 @@ pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPack
         reconstituted.push(buf);
     }
     let reconstituted: Vec<u8> = reconstituted.iter().map(|d| d.data()).collect::<Vec<_>>().concat();
-    Ok(deserialize_link_packet(&reconstituted, link_id)?)
+    let (public_id0, lp0) = LinkPacket::from_bytes(&reconstituted, link_id.clone())?;
+    //let (public_id1, lp1) = deserialize_link_packet(&reconstituted, link_id)?;
+    //if lp0 != lp1 {
+    //    debug!("NOT EQUAL\n{:?}\n{:?}", lp0, lp1);
+    //}
+    Ok((public_id0, lp0))
 }
 pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
     let mut merged = vec![];

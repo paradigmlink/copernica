@@ -83,6 +83,8 @@ pub fn unreliable_sequenced_cleartext_ping_pong_corrupt_immune() -> Result<()> {
     expected_behaviour.insert(LogEntry::register(link_4.clone()), 1);
     expected_behaviour.insert(LogEntry::register(link_5.clone()), 1);
     link3.corrupt(Corruption::Immune);
+
+
     expected_behaviour.insert(LogEntry::message(link_3.clone()), 16);
     expected_behaviour.insert(LogEntry::message(link_4.clone()), 16);
     expected_behaviour.insert(LogEntry::found_response_upstream(echo_protocol_0.clone()), 8);
@@ -99,6 +101,8 @@ pub fn unreliable_sequenced_cleartext_ping_pong_corrupt_immune() -> Result<()> {
     expected_behaviour.insert(LogEntry::message(router_1.clone()), 32);
     expected_behaviour.insert(LogEntry::forward_request_upstream(router_1.clone()), 8);
     expected_behaviour.insert(LogEntry::message(link_0.clone()), 16);
+
+
     echo_protocol0.run()?;
     link0.run()?;
     link1.run()?;

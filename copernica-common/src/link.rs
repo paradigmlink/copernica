@@ -1,18 +1,11 @@
 use {
-    std::{fmt, net::SocketAddr},
+    std::{fmt},
     crate::{
-        PrivateIdentityInterface, PublicIdentity, PublicIdentityInterface, SharedSecret, Nonce,
+        PrivateIdentityInterface, PublicIdentity, PublicIdentityInterface, SharedSecret, Nonce, ReplyTo,
     },
     anyhow::{Result, anyhow},
     rand::Rng,
 };
-pub type Hertz = u32;
-#[derive(Clone, Eq, Hash, PartialEq)]
-pub enum ReplyTo {
-    Mpsc,
-    UdpIp(SocketAddr),
-    Rf(Hertz),
-}
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub enum LinkId {
     Identity {
