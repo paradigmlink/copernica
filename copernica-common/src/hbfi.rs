@@ -158,6 +158,38 @@ impl HBFI {
                 , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
                 , frm})
     }
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = vec![];
+        let res = &bfi_to_u8(self.res);
+        let req = &bfi_to_u8(self.req);
+        let app = &bfi_to_u8(self.app);
+        let m0d = &bfi_to_u8(self.m0d);
+        let fun = &bfi_to_u8(self.fun);
+        let arg = &bfi_to_u8(self.arg);
+        let frm = &u64_to_u8(self.frm);
+        let mut ids_buf: Vec<u8> = vec![];
+        match &self.request_pid {
+            PublicIdentityInterface::Present { public_identity } => {
+                ids_buf.extend_from_slice(self.response_pid.key().as_ref());
+                ids_buf.extend_from_slice(self.response_pid.chain_code().as_ref());
+                ids_buf.extend_from_slice(public_identity.key().as_ref());
+                ids_buf.extend_from_slice(public_identity.chain_code().as_ref());
+            },
+            PublicIdentityInterface::Absent => {
+                ids_buf.extend_from_slice(self.response_pid.key().as_ref());
+                ids_buf.extend_from_slice(self.response_pid.chain_code().as_ref());
+            },
+        }
+        buf.extend_from_slice(res);
+        buf.extend_from_slice(req);
+        buf.extend_from_slice(app);
+        buf.extend_from_slice(m0d);
+        buf.extend_from_slice(fun);
+        buf.extend_from_slice(arg);
+        buf.extend_from_slice(frm);
+        buf.extend_from_slice(&ids_buf);
+        buf
+    }
 }
 impl fmt::Debug for HBFI {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

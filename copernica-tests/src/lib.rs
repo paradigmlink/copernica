@@ -5,6 +5,7 @@ mod reliable_ordered_cyphertext;
 mod unreliable_sequenced_cleartext;
 mod reliable_sequenced_cleartext;
 mod reliable_ordered_cleartext;
+mod primitive_link_packet;
 pub use {
     unreliable_sequenced_cleartext::{unreliable_sequenced_cleartext_ping_pong},
     unreliable_sequenced_cyphertext::{unreliable_sequenced_cyphertext_ping_pong},
@@ -12,6 +13,7 @@ pub use {
     reliable_sequenced_cyphertext::{reliable_sequenced_cyphertext_ping_pong},
     reliable_ordered_cleartext::{reliable_ordered_cleartext_ping_pong},
     reliable_ordered_cyphertext::{reliable_ordered_cyphertext_ping_pong},
+    primitive_link_packet::{primitive_link_packet},
 };
 use {
     anyhow::{Result, anyhow},

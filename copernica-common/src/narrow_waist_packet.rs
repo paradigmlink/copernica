@@ -6,6 +6,7 @@ use {
         PrivateIdentityInterface,
         Signature,
         constants::*, Tag,
+        PublicIdentity, LinkId,
     },
     core::hash::{Hash},
     cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
@@ -75,6 +76,22 @@ impl NarrowWaistPacket {
             },
         }
     }
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = vec![];
+        match self {
+            NarrowWaistPacket::Request { hbfi, nonce } => {
+                buf.extend_from_slice(&nonce.0);
+                buf.extend_from_slice(&hbfi.as_bytes());
+            },
+            NarrowWaistPacket::Response { hbfi, signature, nonce, data } => {
+                buf.extend_from_slice(signature.as_ref());
+                buf.extend_from_slice(&nonce.0);
+                buf.extend_from_slice(&hbfi.as_bytes());
+                buf.extend_from_slice(&data.as_bytes());
+            },
+        }
+        buf
+    }
     pub fn from_cleartext_bytes(data: &[u8]) -> Result<Self> {
         let nw_size = data.len();
         let nw: NarrowWaistPacket = match nw_size {
@@ -120,32 +137,33 @@ impl NarrowWaistPacket {
                 return Err(anyhow!(msg));
             },
         };
+        if !nw.verify()? {
+            let err_msg = "NarrowWaistPacket::from_cleartext_bytes signature check failed";
+            error!("{}", err_msg);
+            return Err(anyhow!(err_msg))
+        }
         Ok(nw)
     }
-    pub fn from_cyphertext_bytes(data: &[u8], mut ctx: ChaCha20Poly1305, link_tag: Tag) -> Result<Self> {
+    pub fn from_cyphertext_bytes(data: &[u8], link_id: LinkId, link_nonce: Nonce, lnk_tx_pid: PublicIdentity, link_tag: Tag) -> Result<Self> {
         let nw_size = data.len();
+        let shared_secret = link_id.shared_secret(link_nonce.clone(), lnk_tx_pid.clone())?;
+        let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &link_nonce.0, &[]);
+        drop(shared_secret);
+        let mut decrypted = vec![0u8; nw_size];
+        let encrypted = &data[..nw_size];
+        if !ctx.decrypt(encrypted, &mut decrypted, &link_tag.0) {
+            let err_msg = "Failed to decrypt NarrowWaistPacket";
+            error!("{}", err_msg);
+            return Err(anyhow!(err_msg))
+        };
         let nw: NarrowWaistPacket = match nw_size {
             CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
-                let mut decrypted = vec![0u8; nw_size];
-                let encrypted = &data[..nw_size];
-                if !ctx.decrypt(encrypted, &mut decrypted, &link_tag.0) {
-                    let err_msg = "failed to decrypt link packet";
-                    error!("{}", err_msg);
-                    return Err(anyhow!(err_msg))
-                };
                 let mut nonce = Nonce([0u8; NONCE_SIZE]);
                 nonce.0.clone_from_slice(&decrypted[0..NONCE_SIZE]);
                 let hbfi: HBFI = HBFI::from_cyphertext_bytes(&decrypted[NONCE_SIZE..NONCE_SIZE+CYPHERTEXT_HBFI_SIZE])?;
                 NarrowWaistPacket::Request { hbfi, nonce }
             },
             CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
-                let mut decrypted = vec![0u8; nw_size];
-                let encrypted = &data[..nw_size];
-                if !ctx.decrypt(encrypted, &mut decrypted, &link_tag.0) {
-                    let err_msg = "failed to decrypt link packet";
-                    error!("{}", err_msg);
-                    return Err(anyhow!(err_msg))
-                };
                 let mut signature = [0u8; Signature::SIZE];
                 signature.clone_from_slice(&decrypted[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
                 let signature: Signature = Signature::from(signature);
@@ -158,26 +176,12 @@ impl NarrowWaistPacket {
                 NarrowWaistPacket::Response { hbfi, signature, nonce, data }
             },
             CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
-                let mut decrypted = vec![0u8; nw_size];
-                let encrypted = &data[..nw_size];
-                if !ctx.decrypt(encrypted, &mut decrypted, &link_tag.0) {
-                    let err_msg = "failed to decrypt link packet";
-                    error!("{}", err_msg);
-                    return Err(anyhow!(err_msg))
-                };
                 let mut nonce = Nonce([0u8; NONCE_SIZE]);
                 nonce.0.clone_from_slice(&decrypted[0..NONCE_SIZE]);
                 let hbfi: HBFI = HBFI::from_cleartext_bytes(&decrypted[NONCE_SIZE..NONCE_SIZE+CLEARTEXT_HBFI_SIZE])?;
                 NarrowWaistPacket::Request { hbfi, nonce }
             },
             CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
-                let mut decrypted = vec![0u8; nw_size];
-                let encrypted = &data[..nw_size];
-                if !ctx.decrypt(encrypted, &mut decrypted, &link_tag.0) {
-                    let err_msg = "failed to decrypt link packet";
-                    error!("{}", err_msg);
-                    return Err(anyhow!(err_msg))
-                };
                 let mut signature = [0u8; Signature::SIZE];
                 signature.clone_from_slice(&decrypted[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
                 let signature: Signature = Signature::from(signature);
@@ -195,9 +199,8 @@ impl NarrowWaistPacket {
                 return Err(anyhow!(msg));
             },
         };
-        //debug!("{:?}", nw);
         if !nw.verify()? {
-            let err_msg = "The manifest signature check failed when extracting the data from a NarrowWaistPacket::Response";
+            let err_msg = "NarrowWaistPacket::from_cyphertext_bytes signature check failed";
             error!("{}", err_msg);
             return Err(anyhow!(err_msg))
         }

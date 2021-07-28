@@ -36,4 +36,20 @@ impl ReplyTo {
         };
         Ok(rt)
     }
+    pub fn as_bytes(&self) -> Result<Vec<u8>> {
+        let mut buf: Vec<u8> = vec![];
+        match self {
+            ReplyTo::Mpsc => {
+            },
+            ReplyTo::UdpIp(addr) => {
+                let addr_s = bincode::serialize(&addr)?;
+                buf.extend_from_slice(addr_s.as_ref());
+            }
+            ReplyTo::Rf(hz) => {
+                let hz = bincode::serialize(&hz)?;
+                buf.extend_from_slice(hz.as_ref());
+            }
+        }
+        Ok(buf)
+    }
 }

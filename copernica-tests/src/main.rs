@@ -5,6 +5,7 @@ use {
     copernica_tests::{
         unreliable_sequenced_cleartext_ping_pong, reliable_sequenced_cleartext_ping_pong, reliable_ordered_cleartext_ping_pong,
         unreliable_sequenced_cyphertext_ping_pong, reliable_sequenced_cyphertext_ping_pong, reliable_ordered_cyphertext_ping_pong,
+        primitive_link_packet
     },
 };
 
@@ -16,6 +17,7 @@ fn main() -> Result<()> {
             group!(
                 "Basic Echo",
                 [
+                    primitive_link_packet(Ordering::Any),
                     unreliable_sequenced_cleartext_ping_pong(Ordering::Any),
                     reliable_sequenced_cleartext_ping_pong(Ordering::Any),
                     reliable_ordered_cleartext_ping_pong(Ordering::Any),

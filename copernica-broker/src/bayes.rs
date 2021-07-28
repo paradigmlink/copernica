@@ -225,6 +225,7 @@ impl Bayes {
         result
     }
 }
+/*
 #[cfg(test)]
 mod test_bfis {
     use super::*;
@@ -445,3 +446,4 @@ mod test_bayes {
         assert_eq!(classes[1].weight, -100.69314718055995);
     }
 }
+*/

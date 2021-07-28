@@ -9,12 +9,11 @@ pub use {
 use {
     copernica_common::{
         InterLinkPacket, LinkId, LinkPacket, PublicIdentity,
-        Operations, serialization::*
+        Operations
     },
     crossbeam_channel::{Receiver, Sender},
     anyhow::{anyhow, Result},
     reed_solomon::{Buffer, Encoder, Decoder},
-    //log::{debug},
 };
 pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
     let dec = Decoder::new(6);
@@ -34,17 +33,13 @@ pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPack
     }
     let reconstituted: Vec<u8> = reconstituted.iter().map(|d| d.data()).collect::<Vec<_>>().concat();
     let (public_id0, lp0) = LinkPacket::from_bytes(&reconstituted, link_id.clone())?;
-    //let (public_id1, lp1) = deserialize_link_packet(&reconstituted, link_id)?;
-    //if lp0 != lp1 {
-    //    debug!("NOT EQUAL\n{:?}\n{:?}", lp0, lp1);
-    //}
     Ok((public_id0, lp0))
 }
 pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
     let mut merged = vec![];
     let enc = Encoder::new(6);
-    let nw: Vec<u8> = serialize_link_packet(&lp, link_id)?;
-    let cs = nw.chunks(255-6);
+    let lpb: Vec<u8> = lp.as_bytes(link_id.clone())?;
+    let cs = lpb.chunks(255-6);
     for c in cs {
         let c = enc.encode(&c[..]);
         merged.extend(&**c);

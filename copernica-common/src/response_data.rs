@@ -35,6 +35,20 @@ impl fmt::Debug for ResponseData {
     }
 }
 impl ResponseData {
+    pub fn as_bytes(&self) -> Vec<u8> {
+        let mut buf: Vec<u8> = vec![];
+        match self {
+            ResponseData::ClearText { data } => {
+                buf.extend_from_slice(&data.as_bytes());
+                buf
+            },
+            ResponseData::CypherText { data, tag } => {
+                buf.extend_from_slice(&tag.0);
+                buf.extend_from_slice(&data.as_bytes());
+                buf
+            },
+        }
+    }
     pub fn from_cyphertext_bytes(data: &[u8]) -> Result<Self> {
         let mut tag = Tag([0u8; TAG_SIZE]);
         tag.0.clone_from_slice(&data[..TAG_SIZE]);
@@ -109,7 +123,7 @@ impl ResponseData {
                         let shared_secret = request_sid.shared_secret(nonce_reverse, response_pid);
                         let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
                         let mut decrypted = [0u8; FRAGMENT_SIZE];
-                        if ctx.decrypt(&data.raw_data(), &mut decrypted[..], &tag.0[..]) {
+                        if ctx.decrypt(&data.as_bytes(), &mut decrypted[..], &tag.0[..]) {
                             let data: Data = Data::new(decrypted.to_vec())?;
                             Ok(data.data()?)
                         } else {
@@ -123,9 +137,9 @@ impl ResponseData {
     }
     pub fn manifest_data(&self) -> Vec<u8> {
         match self {
-            ResponseData::ClearText { data } => { data.raw_data() },
+            ResponseData::ClearText { data } => { data.as_bytes() },
             ResponseData::CypherText { data, tag } => {
-                [data.raw_data(), tag.0[..].to_vec()].concat()
+                [data.as_bytes(), tag.0[..].to_vec()].concat()
             },
         }
     }

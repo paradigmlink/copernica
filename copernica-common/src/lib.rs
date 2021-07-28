@@ -1,5 +1,8 @@
 mod link;
 mod hbfi;
+mod data;
+mod tag;
+mod nonce;
 mod hbfi_exclude_frame;
 mod link_packet;
 mod common;
@@ -14,10 +17,13 @@ pub mod log;
 pub mod serialization;
 mod identity;
 pub use crate::{
+    data::{Data},
+    tag::{Tag},
+    nonce::{Nonce},
     hbfi::{HBFI, BFI, BFIS, bloom_filter_index},
     hbfi_exclude_frame::{HBFIExcludeFrame},
     link::{LinkId},
-    common::{Data, Nonce, Tag, generate_nonce, manifest},
+    common::{ generate_nonce, manifest},
     operations::{Operations, LogEntry},
     response_data::{ResponseData},
     link_packet::{LinkPacket},
