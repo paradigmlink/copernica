@@ -105,10 +105,18 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
-    pub fn protocol_public_id(&self) -> Result<PublicIdentity> {
+    pub fn protocol_pid(&self) -> Result<PublicIdentity> {
         match self {
             TxRx::Initialized { protocol_sid, .. } => {
                 Ok(protocol_sid.public_id())
+            },
+            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
+        }
+    }
+    pub fn protocol_sid(&self) -> Result<PrivateIdentityInterface> {
+        match self {
+            TxRx::Initialized { protocol_sid, .. } => {
+                Ok(protocol_sid.clone())
             },
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
@@ -124,7 +132,7 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
-    pub fn next(self) -> Result<InterLinkPacket> {
+    pub fn next(&self) -> Result<InterLinkPacket> {
         match self {
             TxRx::Initialized { l2p_rx, .. } => {
                 let out = l2p_rx.recv()?;
@@ -313,7 +321,7 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
-    fn request(&mut self
+    fn request(&self
         , reliability: Arc<Mutex<Reliability>>
         , rx: Receiver<InterLinkPacket>
         , hbfi_seek: HBFI
@@ -368,6 +376,15 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
+    pub fn unreliable_sequenced_response(&self, ilp: InterLinkPacket) -> Result<()> {
+        match self {
+            TxRx::Initialized { ref unreliable_sequenced_response_tx, .. } => {
+                unreliable_sequenced_response_tx.send(ilp)?;
+            },
+            TxRx::Inert => return Err(anyhow!("You must peer with a link first"))
+        }
+        Ok(())
+    }
     pub fn reliable_sequenced_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64, retries: &mut u64, window_timeout: &mut u64) -> Result<Vec<Vec<u8>>> {
         match self {
             TxRx::Initialized { ref reliable_sequenced_response_rx, .. } => {
@@ -386,6 +403,15 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
+    pub fn reliable_sequenced_response(&self, ilp: InterLinkPacket) -> Result<()> {
+        match self {
+            TxRx::Initialized { ref reliable_sequenced_response_tx, .. } => {
+                reliable_sequenced_response_tx.send(ilp)?;
+            },
+            TxRx::Inert => return Err(anyhow!("You must peer with a link first"))
+        }
+        Ok(())
+    }
     pub fn reliable_ordered_request(&mut self, hbfi_seek: HBFI, start: u64, end: u64, retries: &mut u64, window_timeout: &mut u64) -> Result<Vec<Vec<u8>>> {
         match self {
             TxRx::Initialized { ref reliable_ordered_response_rx, .. } => {
@@ -403,7 +429,16 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
-    pub fn respond(self,
+    pub fn reliable_ordered_response(&self, ilp: InterLinkPacket) -> Result<()>{
+        match self {
+            TxRx::Initialized { ref reliable_ordered_response_tx, .. } => {
+                reliable_ordered_response_tx.send(ilp)?;
+            },
+            TxRx::Inert => return Err(anyhow!("You must peer with a link first"))
+        }
+        Ok(())
+    }
+    pub fn respond(&self,
         hbfi: HBFI,
         data: Vec<u8>,
     ) -> Result<()> {
