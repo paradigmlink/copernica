@@ -11,10 +11,10 @@ use {
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum ResponseData {
     ClearText {
-        data: Data,
+        data: Box<Data>,
     },
     CypherText {
-        data: Data,
+        data: Box<Data>,
         tag: Tag,
     },
 }
@@ -43,7 +43,7 @@ impl ResponseData {
                 buf
             },
             ResponseData::CypherText { data, tag } => {
-                buf.extend_from_slice(&tag.0);
+                buf.extend_from_slice(&tag.as_bytes());
                 buf.extend_from_slice(&data.as_bytes());
                 buf
             },
@@ -52,12 +52,12 @@ impl ResponseData {
     pub fn from_cyphertext_bytes(data: &[u8]) -> Result<Self> {
         let mut tag = Tag([0u8; TAG_SIZE]);
         tag.0.clone_from_slice(&data[..TAG_SIZE]);
-        let data = Data::new(data[TAG_SIZE..].to_vec())?;
-        Ok(ResponseData::CypherText { tag, data })
+        let data = Data::new(&data[TAG_SIZE..])?;
+        Ok(ResponseData::CypherText { tag, data: Box::new(data) })
     }
     pub fn from_cleartext_bytes(data: &[u8]) -> Result<Self> {
-        let data = Data::new(data[..].to_vec())?;
-        Ok(ResponseData::ClearText { data })
+        let data = Data::new(&data[..])?;
+        Ok(ResponseData::ClearText { data: Box::new(data) })
     }
     pub fn insert(response_sid: PrivateIdentityInterface, request_pid: PublicIdentityInterface, data: Vec<u8>, nonce: Nonce) -> Result<Self> {
         match request_pid {
@@ -84,8 +84,8 @@ impl ResponseData {
                 let mut encrypted: Vec<u8> = vec![0; data.len()];
                 let mut tag = Tag([0; TAG_SIZE]);
                 ctx.encrypt(&data, &mut encrypted[..], &mut tag.0);
-                let data = Data::new(encrypted)?;
-                Ok(ResponseData::CypherText { data, tag })
+                let data = Data::new(&encrypted[..])?;
+                Ok(ResponseData::CypherText { data: Box::new(data), tag })
             },
             PublicIdentityInterface::Absent => {
                 if data.len() > DATA_SIZE {
@@ -100,8 +100,8 @@ impl ResponseData {
                 let u8_nonce: u8 = rng.gen();
                 let metadata = vec![u8_nonce, b2, b1];
                 let data = vec![data, padding, metadata];
-                let data = Data::new(data.into_iter().flatten().collect::<Vec<u8>>())?;
-                Ok(ResponseData::ClearText { data })
+                let data = Data::new(&data.into_iter().flatten().collect::<Vec<u8>>()[..])?;
+                Ok(ResponseData::ClearText { data: Box::new(data) })
             },
         }
     }
@@ -124,7 +124,7 @@ impl ResponseData {
                         let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &nonce.0, &[]);
                         let mut decrypted = [0u8; FRAGMENT_SIZE];
                         if ctx.decrypt(&data.as_bytes(), &mut decrypted[..], &tag.0[..]) {
-                            let data: Data = Data::new(decrypted.to_vec())?;
+                            let data: Data = Data::new(&decrypted[..])?;
                             Ok(data.data()?)
                         } else {
                             Err(anyhow!("Couldn't decrypt the data"))
@@ -132,14 +132,6 @@ impl ResponseData {
                     },
                     PublicIdentityInterface::Absent => Err(anyhow!("Cannot determine if the Request's PublicIdentity matches the PublicIdentity used to sign or decrypt the encrypted Response"))
                 }
-            },
-        }
-    }
-    pub fn manifest_data(&self) -> Vec<u8> {
-        match self {
-            ResponseData::ClearText { data } => { data.as_bytes() },
-            ResponseData::CypherText { data, tag } => {
-                [data.as_bytes(), tag.0[..].to_vec()].concat()
             },
         }
     }

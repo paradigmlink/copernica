@@ -45,7 +45,7 @@ impl NarrowWaistPacket {
         let hbfi = hbfi.clone();
         let nonce: Nonce = generate_nonce(&mut rng);
         let data = ResponseData::insert(response_sid.clone(), hbfi.request_pid.clone(), data, nonce.clone())?;
-        let manifest = manifest(data.manifest_data(), &hbfi, &nonce)?;
+        let manifest = manifest(&data, &hbfi, &nonce);
         let response_signkey = response_sid.signing_key();
         let signature = response_signkey.sign(manifest);
         Ok(NarrowWaistPacket::Response { hbfi, nonce, data, signature })
@@ -56,7 +56,7 @@ impl NarrowWaistPacket {
                 return Ok(true)
             },
             NarrowWaistPacket::Response { data, hbfi, signature, nonce} => {
-                let manifest = manifest(data.manifest_data(), hbfi, nonce)?;
+                let manifest = manifest(&data, &hbfi, &nonce);
                 let verify_key = hbfi.response_pid.verify_key()?;
                 let verified = verify_key.verify(&signature, manifest);
                 return Ok(verified);
