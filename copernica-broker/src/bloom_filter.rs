@@ -9,28 +9,24 @@ pub struct Blooms {
     forwarded_request: Pheromone,
 }
 impl Blooms {
-    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             pending_request: Pheromone::default(),
             forwarded_request: Pheromone::default(),
         }
     }
-    // Pending Request Sparse Distributed Representation
-    // Used to determine the direction of upstream and shouldn't be conflated
-    // with Forwarded Request which determines which faces are downstream nodes,
-    // specifically which nodes to not forward to again.
+    // A pending request is used to determine the direction of downstream
+    // (from where the Request originated, NOT where the Response might be).
     pub fn create_pending_request(&mut self, hbfi: HBFI) {
         self.pending_request.insert(HBFIExcludeFrame(hbfi));
     }
     pub fn contains_pending_request(&mut self, hbfi: HBFI) -> bool {
         self.pending_request.touch(|n| n == &HBFIExcludeFrame(hbfi.clone()))
     }
-    // Forwarded Request Sparse Distributed Representation
-    // Used to determine if a request has been forwarded on this face so as
-    // not to forward the request on the face again. It's easy to get
-    // this mixed up with Pending Requests, which has the specific purpose
-    // of determining which faces are upstream nodes
+    // A forwarded request is used to determine the direction or a potential
+    // direction of upstream (where the Response might be). If a link has a
+    // pending_request on it, it means that link is facing DOWNSTREAM (towards
+    // the Request) hence we will not forward the Request on that link.
     pub fn create_forwarded_request(&mut self, hbfi: HBFI) {
         self.forwarded_request.insert(HBFIExcludeFrame(hbfi));
     }
