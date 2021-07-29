@@ -113,14 +113,6 @@ impl TxRx {
             TxRx::Inert => Err(anyhow!("You must peer with a link first"))
         }
     }
-    pub fn protocol_sid(&self) -> Result<PrivateIdentityInterface> {
-        match self {
-            TxRx::Initialized { protocol_sid, .. } => {
-                Ok(protocol_sid.clone())
-            },
-            TxRx::Inert => Err(anyhow!("You must peer with a link first"))
-        }
-    }
     fn register_hbfi(&self, hbfi: HBFI) -> Result<()> {
         match self {
             TxRx::Initialized { responses, .. } => {

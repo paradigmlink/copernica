@@ -92,9 +92,9 @@ impl Echo {
     }
 }
 impl Protocol for Echo {
-    fn new(protocol_sid: PrivateIdentityInterface, (label, ops): (String, Operations)) -> Echo {
+    fn new(protocol_sid: PrivateIdentityInterface, (label, ops): (String, Operations)) -> Self {
         ops.register_protocol(label.clone());
-        Echo {
+        Self {
             label,
             protocol_sid,
             txrx: TxRx::Inert,
@@ -108,7 +108,7 @@ impl Protocol for Echo {
         let ops = self.ops.clone();
         let label = self.label.clone();
         std::thread::spawn(move || {
-            let res_check = bfi(&format!("{}", txrx.protocol_sid()?.public_id()))?;
+            let res_check = bfi(&format!("{}", txrx.protocol_pid()?))?;
             let app_check = bfi("echo")?;
             let m0d_check = bfi("echo")?;
             let fun_check = bfi("echo")?;
