@@ -80,7 +80,7 @@ fn cleartext_link_packet_on_cleartext_response() {
     let link_sid1 = PrivateIdentityInterface::new_key();
     let link_id1 = LinkId::link_with_type(link_sid1.clone(), PublicIdentityInterface::Absent, ReplyTo::Mpsc);
     let hbfi = HBFI::new(PublicIdentityInterface::Absent, response_sid.public_id(), "test", "test", "test", "test").unwrap();
-    let nw = NarrowWaistPacket::response(response_sid, hbfi, "blah".as_bytes().to_vec()).unwrap();
+    let nw = NarrowWaistPacket::response(response_sid, hbfi, "0123".as_bytes().to_vec()).unwrap();
     let expected_lp = LinkPacket::new(ReplyTo::Mpsc, nw);
     let actual_lps = expected_lp.as_bytes(link_id1.clone()).unwrap();
     let (_pub_id, actual_lp) = LinkPacket::from_bytes(&actual_lps, link_id1).unwrap();
@@ -93,7 +93,7 @@ fn cyphertext_link_packet_on_cleartext_response() {
     let link_id0 = LinkId::link_with_type(link_sid0.clone(), PublicIdentityInterface::new(link_sid1.public_id()), ReplyTo::Mpsc);
     let link_id1 = LinkId::link_with_type(link_sid1.clone(), PublicIdentityInterface::new(link_sid0.public_id()), ReplyTo::Mpsc);
     let hbfi = HBFI::new(PublicIdentityInterface::Absent, response_sid.public_id(), "test", "test", "test", "test").unwrap();
-    let nw = NarrowWaistPacket::response(response_sid, hbfi, "blah".as_bytes().to_vec()).unwrap();
+    let nw = NarrowWaistPacket::response(response_sid, hbfi, "0123".as_bytes().to_vec()).unwrap();
     let expected_lp = LinkPacket::new(ReplyTo::Mpsc, nw);
     let actual_lps = expected_lp.as_bytes(link_id1.clone()).unwrap();
     let (_pub_id, actual_lp) = LinkPacket::from_bytes(&actual_lps, link_id0).unwrap();
@@ -107,7 +107,7 @@ fn cleartext_link_packet_on_cyphertext_response() {
     let link_id0 = LinkId::link_with_type(link_sid0.clone(), PublicIdentityInterface::Absent, ReplyTo::Mpsc);
     let link_id1 = LinkId::link_with_type(link_sid1.clone(), PublicIdentityInterface::Absent, ReplyTo::Mpsc);
     let hbfi = HBFI::new(PublicIdentityInterface::new(request_sid.public_id()), response_sid.public_id(), "test", "test", "test", "test").unwrap();
-    let nw = NarrowWaistPacket::response(response_sid, hbfi, "blah".as_bytes().to_vec()).unwrap();
+    let nw = NarrowWaistPacket::response(response_sid, hbfi, "0123".as_bytes().to_vec()).unwrap();
     let expected_lp = LinkPacket::new(ReplyTo::Mpsc, nw);
     let actual_lps = expected_lp.as_bytes(link_id1.clone()).unwrap();
     let (_pub_id, actual_lp) = LinkPacket::from_bytes(&actual_lps, link_id0).unwrap();
@@ -121,7 +121,7 @@ fn cyphertext_link_packet_on_cyphertext_response() {
     let link_id0 = LinkId::link_with_type(link_sid0.clone(), PublicIdentityInterface::new(link_sid1.public_id()), ReplyTo::Mpsc);
     let link_id1 = LinkId::link_with_type(link_sid1.clone(), PublicIdentityInterface::new(link_sid0.public_id()), ReplyTo::Mpsc);
     let hbfi = HBFI::new(PublicIdentityInterface::new(request_sid.public_id()), response_sid.public_id(), "test", "test", "test", "test").unwrap();
-    let nw = NarrowWaistPacket::response(response_sid, hbfi, "blah".as_bytes().to_vec()).unwrap();
+    let nw = NarrowWaistPacket::response(response_sid, hbfi, "0123".as_bytes().to_vec()).unwrap();
     let expected_lp = LinkPacket::new(ReplyTo::Mpsc, nw);
     let actual_lps = expected_lp.as_bytes(link_id1.clone()).unwrap();
     let (_pub_id, actual_lp) = LinkPacket::from_bytes(&actual_lps, link_id0).unwrap();

@@ -1,6 +1,6 @@
 use {
     crate::{constants::*, serialization::*, PublicIdentity, PublicIdentityInterface},
-    anyhow::{Result},
+    anyhow::{Result, anyhow},
     std::fmt,
     core::hash::{Hash}
 };
@@ -118,45 +118,51 @@ impl HBFI {
             , frm: self.frm.clone()
         })
     }
-    pub fn from_cyphertext_bytes(data: &[u8]) -> Result<Self> {
-        let mut bfis: Vec<BFI> = Vec::with_capacity(BFI_COUNT);
-        let mut count = 0;
-        for _ in 0..BFI_COUNT {
-            let mut bbfi = [0u8; BFI_BYTE_SIZE];
-            bbfi.clone_from_slice(&data[count..count+BFI_BYTE_SIZE]);
-            bfis.push(u8_to_bfi(bbfi));
-            count += BFI_BYTE_SIZE;
+    pub fn from_bytes(data: &[u8]) -> Result<Self> {
+        match data.len() {
+          CYPHERTEXT_HBFI_SIZE => {
+              let mut bfis: Vec<BFI> = Vec::with_capacity(BFI_COUNT);
+              let mut count = 0;
+              for _ in 0..BFI_COUNT {
+                  let mut bbfi = [0u8; BFI_BYTE_SIZE];
+                  bbfi.clone_from_slice(&data[count..count+BFI_BYTE_SIZE]);
+                  bfis.push(u8_to_bfi(bbfi));
+                  count += BFI_BYTE_SIZE;
+              }
+              let mut frm = [0u8; FRAME_SIZE];
+              frm.clone_from_slice(&data[HBFI_FRAME_START..HBFI_FRAME_END]);
+              let frm: u64 = u8_to_u64(frm);
+              let mut res_key = [0u8; ID_SIZE + CC_SIZE];
+              res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
+              let mut req_key = [0u8; ID_SIZE + CC_SIZE];
+              req_key.clone_from_slice(&data[HBFI_REQUEST_KEY_START..HBFI_REQUEST_KEY_END]);
+              Ok(HBFI { response_pid: PublicIdentity::from(res_key)
+                      , request_pid: PublicIdentityInterface::new(PublicIdentity::from(req_key))
+                      , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
+                      , frm})
+          },
+          CLEARTEXT_HBFI_SIZE => {
+              let mut bfis: Vec<BFI> = Vec::with_capacity(BFI_COUNT);
+              let mut count = 0;
+              for _ in 0..BFI_COUNT {
+                  let mut bbfi = [0u8; BFI_BYTE_SIZE];
+                  bbfi.clone_from_slice(&data[count..count+BFI_BYTE_SIZE]);
+                  bfis.push(u8_to_bfi(bbfi));
+                  count += BFI_BYTE_SIZE;
+              }
+              let mut frm = [0u8; FRAME_SIZE];
+              frm.clone_from_slice(&data[HBFI_FRAME_START..HBFI_FRAME_END]);
+              let frm: u64 = u8_to_u64(frm);
+              let mut res_key = [0u8; ID_SIZE + CC_SIZE];
+              res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
+              Ok(HBFI { response_pid: PublicIdentity::from(res_key)
+                      , request_pid: PublicIdentityInterface::Absent
+                      , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
+                      , frm})
+          }
+            _ => Err(anyhow!("Length of data used to reconstruct a HBFI is unrecognised")),
         }
-        let mut frm = [0u8; U64_SIZE];
-        frm.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
-        let frm: u64 = u8_to_u64(frm);
-        let mut res_key = [0u8; ID_SIZE + CC_SIZE];
-        res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
-        let mut req_key = [0u8; ID_SIZE + CC_SIZE];
-        req_key.clone_from_slice(&data[HBFI_REQUEST_KEY_START..HBFI_REQUEST_KEY_END]);
-        Ok(HBFI { response_pid: PublicIdentity::from(res_key)
-                , request_pid: PublicIdentityInterface::new(PublicIdentity::from(req_key))
-                , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
-                , frm})
-    }
-    pub fn from_cleartext_bytes(data: &[u8]) -> Result<Self> {
-        let mut bfis: Vec<BFI> = Vec::with_capacity(BFI_COUNT);
-        let mut count = 0;
-        for _ in 0..BFI_COUNT {
-            let mut bbfi = [0u8; BFI_BYTE_SIZE];
-            bbfi.clone_from_slice(&data[count..count+BFI_BYTE_SIZE]);
-            bfis.push(u8_to_bfi(bbfi));
-            count += BFI_BYTE_SIZE;
-        }
-        let mut frm = [0u8; U64_SIZE];
-        frm.clone_from_slice(&data[HBFI_OFFSET_START..HBFI_OFFSET_END]);
-        let frm: u64 = u8_to_u64(frm);
-        let mut res_key = [0u8; ID_SIZE + CC_SIZE];
-        res_key.clone_from_slice(&data[HBFI_RESPONSE_KEY_START..HBFI_RESPONSE_KEY_END]);
-        Ok(HBFI { response_pid: PublicIdentity::from(res_key)
-                , request_pid: PublicIdentityInterface::Absent
-                , res: bfis[0], req: bfis[1], app: bfis[2], m0d: bfis[3], fun: bfis[4], arg: bfis[5]
-                , frm})
+
     }
     pub fn as_bytes(&self) -> Vec<u8> {
         let mut buf: Vec<u8> = vec![];

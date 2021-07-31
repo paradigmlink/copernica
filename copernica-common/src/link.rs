@@ -112,8 +112,11 @@ impl fmt::Debug for LinkId {
 impl fmt::Debug for ReplyTo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ReplyTo::UdpIp(addr) => {
-                write!(f, "ReplyTo::UdpIp({})", addr)
+            ReplyTo::UdpIpV4(addr) => {
+                write!(f, "ReplyTo::UdpIpV4({})", addr)
+            },
+            ReplyTo::UdpIpV6(addr) => {
+                write!(f, "ReplyTo::UdpIpV6({})", addr)
             },
             ReplyTo::Mpsc => {
                 write!(f, "ReplyTo::Mpsc")

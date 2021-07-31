@@ -4,12 +4,11 @@ use {
         manifest, generate_nonce,
         ResponseData, Nonce,
         PrivateIdentityInterface,
+        PublicIdentityInterface,
         Signature,
-        constants::*, Tag,
-        PublicIdentity, LinkId,
+        constants::*,
     },
     core::hash::{Hash},
-    cryptoxide::{chacha20poly1305::{ChaCha20Poly1305}},
     std::{
         fmt,
     },
@@ -80,127 +79,73 @@ impl NarrowWaistPacket {
         let mut buf: Vec<u8> = vec![];
         match self {
             NarrowWaistPacket::Request { hbfi, nonce } => {
-                buf.extend_from_slice(&nonce.0);
+                match hbfi.request_pid {
+                    PublicIdentityInterface::Absent => {
+                        buf.extend_from_slice(&[CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_INDEX]);
+                    },
+                    PublicIdentityInterface::Present { .. } => {
+                        buf.extend_from_slice(&[CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_INDEX]);
+                    }
+                }
+                buf.extend_from_slice(&nonce.as_bytes());
                 buf.extend_from_slice(&hbfi.as_bytes());
             },
             NarrowWaistPacket::Response { hbfi, signature, nonce, data } => {
+                match hbfi.request_pid {
+                    PublicIdentityInterface::Absent => {
+                        buf.extend_from_slice(&[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_INDEX]);
+                    },
+                    PublicIdentityInterface::Present { .. } => {
+                        buf.extend_from_slice(&[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_INDEX]);
+                    }
+                }
                 buf.extend_from_slice(signature.as_ref());
-                buf.extend_from_slice(&nonce.0);
+                buf.extend_from_slice(&nonce.as_bytes());
                 buf.extend_from_slice(&hbfi.as_bytes());
                 buf.extend_from_slice(&data.as_bytes());
             },
         }
         buf
     }
-    pub fn from_cleartext_bytes(data: &[u8]) -> Result<Self> {
-        let nw_size = data.len();
-        let nw: NarrowWaistPacket = match nw_size {
-            CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
-                let mut nonce = Nonce([0u8; NONCE_SIZE]);
-                nonce.0.clone_from_slice(&data[0..NONCE_SIZE]);
-                let hbfi: HBFI = HBFI::from_cyphertext_bytes(&data[NONCE_SIZE..NONCE_SIZE+CYPHERTEXT_HBFI_SIZE])?;
+    pub fn from_bytes(data: &[u8]) -> Result<Self> {
+        let nw_index = data[0];
+        let nw: NarrowWaistPacket = match nw_index {
+            CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_INDEX => {
+                let nonce = Nonce::from_bytes(&data[CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_NONCE_START..CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_NONCE_END]);
+                let hbfi: HBFI = HBFI::from_bytes(&data[CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_HBFI_START..CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_HBFI_END])?;
                 NarrowWaistPacket::Request { hbfi, nonce }
             },
-            CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
-                let mut signature = [0u8; Signature::SIZE];
-                signature.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
-                let signature: Signature = Signature::from(signature);
-                let mut nonce = Nonce([0u8; NONCE_SIZE]);
-                nonce.0.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
-                let hbfi_end = CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CYPHERTEXT_HBFI_SIZE;
-                let response_data_end = hbfi_end + CYPHERTEXT_RESPONSE_DATA_SIZE;
-                let hbfi: HBFI = HBFI::from_cyphertext_bytes(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end])?;
-                let data: ResponseData = ResponseData::from_cyphertext_bytes(&data[hbfi_end..response_data_end].to_vec())?;
-                NarrowWaistPacket::Response { hbfi, signature, nonce, data }
-            },
-            CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
-                let mut nonce = Nonce([0u8; NONCE_SIZE]);
-                nonce.0.clone_from_slice(&data[0..NONCE_SIZE]);
-                let hbfi: HBFI = HBFI::from_cleartext_bytes(&data[NONCE_SIZE..NONCE_SIZE+CLEARTEXT_HBFI_SIZE])?;
+            CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_INDEX => {
+                let nonce = Nonce::from_bytes(&data[CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_NONCE_START..CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_NONCE_END]);
+                let hbfi: HBFI = HBFI::from_bytes(&data[CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_HBFI_START..CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_HBFI_END])?;
                 NarrowWaistPacket::Request { hbfi, nonce }
             },
-            CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
+            CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_INDEX => {
                 let mut signature = [0u8; Signature::SIZE];
                 signature.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
                 let signature: Signature = Signature::from(signature);
-                let mut nonce = Nonce([0u8; NONCE_SIZE]);
-                nonce.0.clone_from_slice(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
-                let hbfi_end = CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CLEARTEXT_HBFI_SIZE;
-                let response_data_end = hbfi_end + CLEARTEXT_RESPONSE_DATA_SIZE;
-                let hbfi: HBFI = HBFI::from_cleartext_bytes(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end])?;
-                let data: ResponseData = ResponseData::from_cleartext_bytes(&data[hbfi_end..response_data_end].to_vec())?;
+                let nonce = Nonce::from_bytes(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
+                let hbfi: HBFI = HBFI::from_bytes(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_HBFI_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_HBFI_END])?;
+                let data: ResponseData = ResponseData::from_bytes(&data[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_DATA_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_DATA_END])?;
+                NarrowWaistPacket::Response { hbfi, signature, nonce, data }
+            },
+            CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_INDEX => {
+                let mut signature = [0u8; Signature::SIZE];
+                signature.clone_from_slice(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
+                let signature: Signature = Signature::from(signature);
+                let nonce = Nonce::from_bytes(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
+                let hbfi: HBFI = HBFI::from_bytes(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_HBFI_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_HBFI_END])?;
+                let data: ResponseData = ResponseData::from_bytes(&data[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_DATA_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_DATA_END])?;
                 NarrowWaistPacket::Response { hbfi, signature, nonce, data }
             },
             _ => {
-                let msg = format!("Cleartext link level packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE);
+                let msg = format!("Index used in the NarrowWaistPacket is unrecognized");
                 error!("{}", msg);
                 return Err(anyhow!(msg));
             },
         };
         if !nw.verify()? {
             let err_msg = "NarrowWaistPacket::from_cleartext_bytes signature check failed";
-            error!("{}", err_msg);
-            return Err(anyhow!(err_msg))
-        }
-        Ok(nw)
-    }
-    pub fn from_cyphertext_bytes(data: &[u8], link_id: LinkId, link_nonce: Nonce, lnk_tx_pid: PublicIdentity, link_tag: Tag) -> Result<Self> {
-        let nw_size = data.len();
-        let shared_secret = link_id.shared_secret(link_nonce.clone(), lnk_tx_pid.clone())?;
-        let mut ctx = ChaCha20Poly1305::new(&shared_secret.as_ref(), &link_nonce.0, &[]);
-        drop(shared_secret);
-        let mut decrypted = vec![0u8; nw_size];
-        let encrypted = &data[..nw_size];
-        if !ctx.decrypt(encrypted, &mut decrypted, &link_tag.0) {
-            let err_msg = "Failed to decrypt NarrowWaistPacket";
-            error!("{}", err_msg);
-            return Err(anyhow!(err_msg))
-        };
-        let nw: NarrowWaistPacket = match nw_size {
-            CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
-                let mut nonce = Nonce([0u8; NONCE_SIZE]);
-                nonce.0.clone_from_slice(&decrypted[0..NONCE_SIZE]);
-                let hbfi: HBFI = HBFI::from_cyphertext_bytes(&decrypted[NONCE_SIZE..NONCE_SIZE+CYPHERTEXT_HBFI_SIZE])?;
-                NarrowWaistPacket::Request { hbfi, nonce }
-            },
-            CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
-                let mut signature = [0u8; Signature::SIZE];
-                signature.clone_from_slice(&decrypted[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
-                let signature: Signature = Signature::from(signature);
-                let mut nonce = Nonce([0u8; NONCE_SIZE]);
-                nonce.0.clone_from_slice(&decrypted[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
-                let hbfi_end = CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CYPHERTEXT_HBFI_SIZE;
-                let response_data_end = hbfi_end + CYPHERTEXT_RESPONSE_DATA_SIZE;
-                let hbfi: HBFI = HBFI::from_cyphertext_bytes(&decrypted[CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end])?;
-                let data: ResponseData = ResponseData::from_cyphertext_bytes(&decrypted[hbfi_end..response_data_end].to_vec())?;
-                NarrowWaistPacket::Response { hbfi, signature, nonce, data }
-            },
-            CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE => {
-                let mut nonce = Nonce([0u8; NONCE_SIZE]);
-                nonce.0.clone_from_slice(&decrypted[0..NONCE_SIZE]);
-                let hbfi: HBFI = HBFI::from_cleartext_bytes(&decrypted[NONCE_SIZE..NONCE_SIZE+CLEARTEXT_HBFI_SIZE])?;
-                NarrowWaistPacket::Request { hbfi, nonce }
-            },
-            CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE => {
-                let mut signature = [0u8; Signature::SIZE];
-                signature.clone_from_slice(&decrypted[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIG_END]);
-                let signature: Signature = Signature::from(signature);
-                let mut nonce = Nonce([0u8; NONCE_SIZE]);
-                nonce.0.clone_from_slice(&decrypted[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_START..CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END]);
-                let hbfi_end = CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END + CLEARTEXT_HBFI_SIZE;
-                let response_data_end = hbfi_end + CLEARTEXT_RESPONSE_DATA_SIZE;
-                let hbfi: HBFI = HBFI::from_cleartext_bytes(&decrypted[CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_NONCE_END..hbfi_end])?;
-                let data: ResponseData = ResponseData::from_cleartext_bytes(&decrypted[hbfi_end..response_data_end].to_vec())?;
-                NarrowWaistPacket::Response { hbfi, signature, nonce, data }
-            },
-            _ => {
-                let msg = format!("Cyphertext link level packet arrived with an unrecognised NarrowWaistPacket SIZE of {}, where supported sizes are: CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE {}, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE {}", nw_size, CYPHERTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CYPHERTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_REQUEST_SIZE, CLEARTEXT_NARROW_WAIST_PACKET_RESPONSE_SIZE);
-                error!("{}", msg);
-                return Err(anyhow!(msg));
-            },
-        };
-        if !nw.verify()? {
-            let err_msg = "NarrowWaistPacket::from_cyphertext_bytes signature check failed";
             error!("{}", err_msg);
             return Err(anyhow!(err_msg))
         }

@@ -49,15 +49,22 @@ impl ResponseData {
             },
         }
     }
-    pub fn from_cyphertext_bytes(data: &[u8]) -> Result<Self> {
-        let mut tag = Tag([0u8; TAG_SIZE]);
-        tag.0.clone_from_slice(&data[..TAG_SIZE]);
-        let data = Data::new(&data[TAG_SIZE..])?;
-        Ok(ResponseData::CypherText { tag, data: Box::new(data) })
-    }
-    pub fn from_cleartext_bytes(data: &[u8]) -> Result<Self> {
-        let data = Data::new(&data[..])?;
-        Ok(ResponseData::ClearText { data: Box::new(data) })
+    pub fn from_bytes(data: &[u8]) -> Result<Self> {
+        match data.len() {
+            CYPHERTEXT_RESPONSE_DATA_SIZE => {
+                let mut tag = Tag([0u8; TAG_SIZE]);
+                tag.0.clone_from_slice(&data[..TAG_SIZE]);
+                let data = Data::new(&data[TAG_SIZE..])?;
+                Ok(ResponseData::CypherText { tag, data: Box::new(data) })
+            },
+            CLEARTEXT_RESPONSE_DATA_SIZE => {
+                let data = Data::new(&data[..])?;
+                Ok(ResponseData::ClearText { data: Box::new(data) })
+            }
+            _ => {
+                Err(anyhow!("Length of data used to reconstruct a ResponseData is unrecognised"))
+            }
+        }
     }
     pub fn insert(response_sid: PrivateIdentityInterface, request_pid: PublicIdentityInterface, data: Vec<u8>, nonce: Nonce) -> Result<Self> {
         match request_pid {

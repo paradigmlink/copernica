@@ -1,53 +1,73 @@
 use {
     crate::{
         constants::*,
+        serialization::{u8_to_u16, u16_to_u8},
     },
-    std::{net::SocketAddr},
+    std::net::{SocketAddrV4, SocketAddrV6},
     anyhow::{Result, anyhow},
-    //log::{debug},
     bincode,
 };
 pub type Hertz = u32;
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub enum ReplyTo {
     Mpsc,
-    UdpIp(SocketAddr),
+    UdpIpV4(SocketAddrV4),
+    UdpIpV6(SocketAddrV6),
     Rf(Hertz),
 }
 impl ReplyTo {
     pub fn from_bytes(data: &[u8]) -> Result<Self> {
-        let rt = match data.len() as usize {
-            TO_REPLY_TO_MPSC => {
+        let mut reply_to_index = [0u8; 2];
+        reply_to_index.clone_from_slice(&[data[REPLY_TO_INDEX_START], data[REPLY_TO_INDEX_END]]);
+        let reply_to_index: u16 = u8_to_u16(reply_to_index);
+        let rt = match reply_to_index {
+            REPLY_TO_MPSC_INDEX => {
                 ReplyTo::Mpsc
             },
-            TO_REPLY_TO_UDPIP4 => {
-                let address = bincode::deserialize(&data)?;
-                ReplyTo::UdpIp(address)
-            },
-            TO_REPLY_TO_UDPIP6 => {
-                let address = bincode::deserialize(&data)?;
-                ReplyTo::UdpIp(address)
-            },
-            TO_REPLY_TO_RF => {
-                let address = bincode::deserialize(&data)?;
+            REPLY_TO_RF_INDEX => {
+                let address = &data[REPLY_TO_START..REPLY_TO_MPSC_SIZE];
+                let address = bincode::deserialize(address)?;
                 ReplyTo::Rf(address)
             },
-            _ => return Err(anyhow!("Deserializing ReplyTo hit an unrecognised type or variation"))
+            REPLY_TO_UDPIPV4_INDEX => {
+                let address = &data[REPLY_TO_START..REPLY_TO_UDPIPV4_SIZE];
+                let address = bincode::deserialize(address)?;
+                ReplyTo::UdpIpV4(address)
+            },
+            REPLY_TO_UDPIPV6_INDEX => {
+                let address = &data[REPLY_TO_START..REPLY_TO_UDPIPV6_SIZE];
+                let address = bincode::deserialize(address)?;
+                ReplyTo::UdpIpV6(address)
+            },
+            i => return Err(anyhow!("Deserializing ReplyTo hit an unrecognised type or variation: {}", i))
         };
         Ok(rt)
     }
     pub fn as_bytes(&self) -> Result<Vec<u8>> {
         let mut buf: Vec<u8> = vec![];
+        let padding: &[u8; REPLY_TO_SIZE] = &[0u8; REPLY_TO_SIZE];
         match self {
             ReplyTo::Mpsc => {
+                buf.extend_from_slice(&u16_to_u8(REPLY_TO_MPSC_INDEX));
+                buf.extend_from_slice(&padding[..]);
             },
-            ReplyTo::UdpIp(addr) => {
-                let addr_s = bincode::serialize(&addr)?;
-                buf.extend_from_slice(addr_s.as_ref());
-            }
             ReplyTo::Rf(hz) => {
-                let hz = bincode::serialize(&hz)?;
-                buf.extend_from_slice(hz.as_ref());
+                buf.extend_from_slice(&u16_to_u8(REPLY_TO_RF_INDEX));
+                let address = bincode::serialize(&hz)?;
+                buf.extend_from_slice(&address[..]);
+                buf.extend_from_slice(&padding[address.len()..]);
+            }
+            ReplyTo::UdpIpV4(addr) => {
+                buf.extend_from_slice(&u16_to_u8(REPLY_TO_UDPIPV4_INDEX));
+                let address = bincode::serialize(&addr)?;
+                buf.extend_from_slice(&address[..]);
+                buf.extend_from_slice(&padding[address.len()..]);
+            }
+            ReplyTo::UdpIpV6(addr) => {
+                buf.extend_from_slice(&u16_to_u8(REPLY_TO_UDPIPV6_INDEX));
+                let address = bincode::serialize(&addr)?;
+                buf.extend_from_slice(&address[..]);
+                buf.extend_from_slice(&padding[address.len()..]);
             }
         }
         Ok(buf)

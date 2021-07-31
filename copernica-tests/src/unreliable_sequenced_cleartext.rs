@@ -3,7 +3,7 @@ use {
     copernica_protocols::{Echo, Protocol},
     copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface, PublicIdentityInterface, Operations, LogEntry},
     copernica_broker::{Broker},
-    copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIp, Corruption},
+    copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIpV4, Corruption},
     crate::process_network,
     scaffolding::{ group, single, Ordering, TestTree, setting, settings::Timeout},
     crossbeam_channel::{unbounded},
@@ -65,12 +65,12 @@ pub fn unreliable_sequenced_cleartext_ping_pong_corrupt_immune() -> Result<()> {
     // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
-    let address4 = ReplyTo::UdpIp("127.0.0.1:50001".parse()?);
-    let address5 = ReplyTo::UdpIp("127.0.0.1:50002".parse()?);
+    let address4 = ReplyTo::UdpIpV4("127.0.0.1:50001".parse()?);
+    let address5 = ReplyTo::UdpIpV4("127.0.0.1:50002".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
-    let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
-    let mut link5: UdpIp = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+    let mut link4: UdpIpV4 = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
+    let mut link5: UdpIpV4 = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
     let mut expected_behaviour: HashMap<LogEntry, i32> = HashMap::new();
     expected_behaviour.insert(LogEntry::register(router_0.clone()), 1);
     expected_behaviour.insert(LogEntry::register(router_1.clone()), 1);
@@ -167,12 +167,12 @@ pub fn unreliable_sequenced_cleartext_ping_pong_corrupt_integrity() -> Result<()
     // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
-    let address4 = ReplyTo::UdpIp("127.0.0.1:50003".parse()?);
-    let address5 = ReplyTo::UdpIp("127.0.0.1:50004".parse()?);
+    let address4 = ReplyTo::UdpIpV4("127.0.0.1:50003".parse()?);
+    let address5 = ReplyTo::UdpIpV4("127.0.0.1:50004".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
-    let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
-    let mut link5: UdpIp = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+    let mut link4: UdpIpV4 = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
+    let mut link5: UdpIpV4 = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
     let mut expected_behaviour: HashMap<LogEntry, i32> = HashMap::new();
     expected_behaviour.insert(LogEntry::register(router_0.clone()), 1);
     expected_behaviour.insert(LogEntry::register(router_1.clone()), 1);
@@ -267,12 +267,12 @@ pub fn unreliable_sequenced_cleartext_ping_pong_corrupt_order() -> Result<()> {
     // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
-    let address4 = ReplyTo::UdpIp("127.0.0.1:50005".parse()?);
-    let address5 = ReplyTo::UdpIp("127.0.0.1:50006".parse()?);
+    let address4 = ReplyTo::UdpIpV4("127.0.0.1:50005".parse()?);
+    let address5 = ReplyTo::UdpIpV4("127.0.0.1:50006".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
-    let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
-    let mut link5: UdpIp = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+    let mut link4: UdpIpV4 = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
+    let mut link5: UdpIpV4 = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
     let mut expected_behaviour: HashMap<LogEntry, i32> = HashMap::new();
     expected_behaviour.insert(LogEntry::register(router_0.clone()), 1);
     expected_behaviour.insert(LogEntry::register(router_1.clone()), 1);
@@ -367,12 +367,12 @@ pub fn unreliable_sequenced_cleartext_ping_pong_corrupt_presence() -> Result<()>
     // to echo_protocol1
     let link_sid4 = PrivateIdentityInterface::new_key();
     let link_sid5 = PrivateIdentityInterface::new_key();
-    let address4 = ReplyTo::UdpIp("127.0.0.1:50007".parse()?);
-    let address5 = ReplyTo::UdpIp("127.0.0.1:50008".parse()?);
+    let address4 = ReplyTo::UdpIpV4("127.0.0.1:50007".parse()?);
+    let address5 = ReplyTo::UdpIpV4("127.0.0.1:50008".parse()?);
     let link_id4 = LinkId::link_with_type(link_sid4.clone(), PublicIdentityInterface::new(link_sid5.public_id()), address4.clone());
     let link_id5 = LinkId::link_with_type(link_sid5.clone(), PublicIdentityInterface::new(link_sid4.public_id()), address5.clone());
-    let mut link4: UdpIp = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
-    let mut link5: UdpIp = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
+    let mut link4: UdpIpV4 = Link::new(link_id4.clone(), actual_behaviour.label(link_4.clone()), broker1.peer_with_link(link_id4.remote(address5)?)?)?;
+    let mut link5: UdpIpV4 = Link::new(link_id5.clone(), actual_behaviour.label(link_5.clone()), echo_protocol1.peer_with_link(link_id5.remote(address4)?)?)?;
     let mut expected_behaviour: HashMap<LogEntry, i32> = HashMap::new();
     expected_behaviour.insert(LogEntry::register(router_0.clone()), 1);
     expected_behaviour.insert(LogEntry::register(router_1.clone()), 1);

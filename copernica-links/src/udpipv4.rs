@@ -10,24 +10,24 @@ use {
     },
 };
 #[allow(dead_code)]
-pub struct UdpIp {
+pub struct UdpIpV4 {
     label: String,
     link_id: LinkId,
     ops: Operations,
     l2bs_tx: Sender<InterLinkPacket>,
     bs2l_rx: Receiver<InterLinkPacket>,
 }
-impl Link for UdpIp {
+impl Link for UdpIpV4 {
     fn new(link_id: LinkId
         , (label, ops): (String, Operations)
         , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
-        ) -> Result<UdpIp>
+        ) -> Result<UdpIpV4>
     {
         trace!("LISTEN ON {:?}:", link_id);
         ops.register_link(label.clone());
         match link_id.reply_to()? {
-            ReplyTo::UdpIp(_) => return Ok(UdpIp { label, link_id, ops, l2bs_tx, bs2l_rx }),
-            _ => return Err(anyhow!("UdpIp Link expects a LinkId of type Link.ReplyTo::UdpIp(...)")),
+            ReplyTo::UdpIpV4(_) => return Ok(UdpIpV4 { label, link_id, ops, l2bs_tx, bs2l_rx }),
+            _ => return Err(anyhow!("UdpIpV4 Link expects a LinkId of type Link.ReplyTo::UdpIpV4(...)")),
         }
     }
     #[allow(unreachable_code)]
@@ -38,7 +38,7 @@ impl Link for UdpIp {
         let label = self.label.clone();
         std::thread::spawn(move || {
             match this_link.reply_to()? {
-                ReplyTo::UdpIp(addr) => {
+                ReplyTo::UdpIpV4(addr) => {
                     match async_io::Async::<UdpSocket>::bind(addr) {
                         Ok(socket) => {
                             loop {
@@ -84,7 +84,7 @@ impl Link for UdpIp {
                         match bs2l_rx.recv() {
                             Ok(ilp) => {
                                 match ilp.reply_to()? {
-                                    ReplyTo::UdpIp(remote_addr) => {
+                                    ReplyTo::UdpIpV4(remote_addr) => {
                                         let lp = ilp.link_packet().change_origination(this_link.reply_to()?);
                                         trace!("\t\t\t|  |  broker-or-protocol-to-link");
                                         trace!("\t\t\t|  |  {}", this_link.lookup_id()?);
