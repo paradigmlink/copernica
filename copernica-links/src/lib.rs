@@ -10,13 +10,14 @@ use {
     copernica_packets::{
         InterLinkPacket, LinkId, LinkPacket, PublicIdentity,
     },
-    copernica_common::{ Operations },
+    copernica_common::{ Operations, constants::REED_SOLOMON_DE_EN_CODER_SIZE },
     crossbeam_channel::{Receiver, Sender},
     anyhow::{anyhow, Result},
     reed_solomon::{Buffer, Encoder, Decoder},
+    //log::debug,
 };
 pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
-    let dec = Decoder::new(6);
+    let dec = Decoder::new(REED_SOLOMON_DE_EN_CODER_SIZE);
     let mut buffers: Vec<Buffer> = vec![];
     for chunk in msg.chunks(255) {
         buffers.push(Buffer::from_slice(chunk, chunk.len()));
@@ -37,9 +38,9 @@ pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPack
 }
 pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
     let mut merged = vec![];
-    let enc = Encoder::new(6);
+    let enc = Encoder::new(REED_SOLOMON_DE_EN_CODER_SIZE);
     let lpb: Vec<u8> = lp.as_bytes(link_id.clone())?;
-    let cs = lpb.chunks(255-6);
+    let cs = lpb.chunks(255-REED_SOLOMON_DE_EN_CODER_SIZE);
     for c in cs {
         let c = enc.encode(&c[..]);
         merged.extend(&**c);

@@ -19,7 +19,7 @@ impl Data {
         &self.0[..]
     }
     pub fn data(&self) -> Result<Vec<u8>> {
-        let length = u8_to_u16([self.0[LENGTH_OF_DATA_STARTING_POSITION], self.0[LENGTH_OF_DATA_ENDING_POSITION]]);
+        let length = u8_to_u16([self.0[DATA_SIZE_START], self.0[DATA_SIZE_END]]);
         let (data, _) = self.0.split_at(length as usize);
         Ok(data.to_vec())
     }
