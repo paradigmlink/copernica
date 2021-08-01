@@ -50,7 +50,7 @@ impl LinkPacket {
                     LinkPacket { reply_to, nw } => {
                         buf.extend_from_slice(lnk_tx_pid.key().as_ref());
                         buf.extend_from_slice(lnk_tx_pid.chain_code().as_ref());
-                        let nonce = Nonce::new_nonce();
+                        let nonce = Nonce::new();
                         buf.extend_from_slice(&nonce.0);
                         let mut tag = Tag::new_empty_tag();
                         let shared_secret = link_id.shared_secret(nonce.clone(), lnk_rx_pid)?;

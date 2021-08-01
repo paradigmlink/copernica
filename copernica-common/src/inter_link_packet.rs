@@ -1,6 +1,6 @@
 use {
     crate::{
-        link::{LinkId},
+        link_id::{LinkId},
         reply_to::{ReplyTo},
         LinkPacket,
         NarrowWaistPacket,

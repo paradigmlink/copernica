@@ -1,7 +1,6 @@
 use {
     crate::{
         hbfi::HBFI,
-        manifest, generate_nonce,
         ResponseData, Nonce,
         PrivateIdentityInterface,
         PublicIdentityInterface,
@@ -30,8 +29,7 @@ pub enum NarrowWaistPacket {
 }
 impl NarrowWaistPacket {
     pub fn request(hbfi: HBFI) -> Result<Self> {
-        let mut rng = rand::thread_rng();
-        let nonce: Nonce = generate_nonce(&mut rng);
+        let nonce: Nonce = Nonce::new();
         Ok(NarrowWaistPacket::Request { hbfi, nonce })
     }
     pub fn response(response_sid: PrivateIdentityInterface, hbfi: HBFI, data: Vec<u8>) -> Result<Self> {
@@ -40,9 +38,8 @@ impl NarrowWaistPacket {
             error!("{}", msg);
             return Err(anyhow!(msg));
         }
-        let mut rng = rand::thread_rng();
         let hbfi = hbfi.clone();
-        let nonce: Nonce = generate_nonce(&mut rng);
+        let nonce: Nonce = Nonce::new();
         let data = ResponseData::insert(response_sid.clone(), hbfi.request_pid.clone(), data, nonce.clone())?;
         let manifest = manifest(&data, &hbfi, &nonce);
         let response_signkey = response_sid.signing_key();
@@ -151,6 +148,9 @@ impl NarrowWaistPacket {
         }
         Ok(nw)
     }
+}
+fn manifest(data: &ResponseData, hbfi: &HBFI, nonce: &Nonce) ->  Vec<u8> {
+    [data.as_bytes(), hbfi.as_bytes(), nonce.as_bytes()].concat()
 }
 impl fmt::Debug for NarrowWaistPacket {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

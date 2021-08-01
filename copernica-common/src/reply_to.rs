@@ -3,7 +3,7 @@ use {
         constants::*,
         serialization::{u8_to_u16, u16_to_u8},
     },
-    std::net::{SocketAddrV4, SocketAddrV6},
+    std::{fmt, net::{SocketAddrV4, SocketAddrV6}},
     anyhow::{Result, anyhow},
     bincode,
 };
@@ -71,5 +71,23 @@ impl ReplyTo {
             }
         }
         Ok(buf)
+    }
+}
+impl fmt::Debug for ReplyTo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ReplyTo::UdpIpV4(addr) => {
+                write!(f, "ReplyTo::UdpIpV4({})", addr)
+            },
+            ReplyTo::UdpIpV6(addr) => {
+                write!(f, "ReplyTo::UdpIpV6({})", addr)
+            },
+            ReplyTo::Mpsc => {
+                write!(f, "ReplyTo::Mpsc")
+            },
+            ReplyTo::Rf(hertz) => {
+                write!(f, "ReplyTo::Rf({})", hertz)
+            },
+        }
     }
 }

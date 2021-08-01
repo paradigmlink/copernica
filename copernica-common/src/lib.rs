@@ -1,11 +1,10 @@
-mod link;
+mod link_id;
 mod hbfi;
 mod data;
 mod tag;
 mod nonce;
 mod hbfi_exclude_frame;
 mod link_packet;
-mod common;
 mod response_data;
 mod narrow_waist_packet;
 mod narrow_waist_packet_request_equals_response;
@@ -22,8 +21,7 @@ pub use crate::{
     nonce::{Nonce},
     hbfi::{HBFI, BFI, BFIS, bloom_filter_index},
     hbfi_exclude_frame::{HBFIExcludeFrame},
-    link::{LinkId},
-    common::{ generate_nonce, manifest},
+    link_id::{LinkId},
     operations::{Operations, LogEntry},
     response_data::{ResponseData},
     link_packet::{LinkPacket},
