@@ -5,8 +5,8 @@ use {
         PrivateIdentityInterface,
         PublicIdentityInterface,
         Signature,
-        constants::*,
     },
+    copernica_common::constants::*,
     core::hash::{Hash},
     std::{
         fmt,

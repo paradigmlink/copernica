@@ -1,7 +1,8 @@
 use {
     crate::{
-        constants::*, Data, PublicIdentity, PublicIdentityInterface, PrivateIdentityInterface, Tag, Nonce
+        Data, PublicIdentity, PublicIdentityInterface, PrivateIdentityInterface, Tag, Nonce
     },
+    copernica_common::constants::*,
     std::fmt,
     anyhow::{anyhow, Result},
     rand::Rng,

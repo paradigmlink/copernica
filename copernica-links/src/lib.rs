@@ -7,10 +7,10 @@ pub use {
     mpsc_corruptor::{MpscCorruptor, Corruption},
 };
 use {
-    copernica_common::{
+    copernica_packets::{
         InterLinkPacket, LinkId, LinkPacket, PublicIdentity,
-        Operations
     },
+    copernica_common::{ Operations },
     crossbeam_channel::{Receiver, Sender},
     anyhow::{anyhow, Result},
     reed_solomon::{Buffer, Encoder, Decoder},

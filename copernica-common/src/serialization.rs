@@ -1,30 +1,8 @@
-use {
-    crate::{
-        constants::*, BFI,
-    },
-};
 pub fn u16_to_u8(i: u16) -> [u8; 2] {
     [(i >> 8) as u8, i as u8]
 }
 pub fn u8_to_u16(i: [u8; 2]) -> u16 {
     ((i[0] as u16) << 8) | i[1] as u16
-}
-pub fn bfi_to_u8(bfi: BFI) -> [u8; BFI_BYTE_SIZE] {
-    let mut bbfi: [u8; BFI_BYTE_SIZE] = [0; BFI_BYTE_SIZE];
-    let mut count = 0;
-    for i in bfi.iter() {
-        let two_u8 = u16_to_u8(*i);
-        bbfi[count]   = two_u8[0];
-        bbfi[count+1] = two_u8[1];
-        count+=2;
-    }
-    bbfi
-}
-pub fn u8_to_bfi(bbfi: [u8; BFI_BYTE_SIZE]) -> BFI {
-    [((bbfi[0] as u16) << 8) | bbfi[1] as u16,
-    ((bbfi[2]  as u16) << 8) | bbfi[3] as u16,
-    ((bbfi[4]  as u16) << 8) | bbfi[5] as u16,
-    ((bbfi[6]  as u16) << 8) | bbfi[7] as u16]
 }
 pub fn u8_to_u64(v: [u8; 8]) -> u64 {
     let mut x: u64 = 0;

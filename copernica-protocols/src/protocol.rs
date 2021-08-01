@@ -1,5 +1,6 @@
 use {
-    copernica_common::{LinkId, InterLinkPacket, PrivateIdentityInterface, constants, Operations},
+    copernica_packets::{LinkId, InterLinkPacket, PrivateIdentityInterface},
+    copernica_common::{constants, Operations},
     crossbeam_channel::{Receiver, Sender, bounded},
     crate::{TxRx},
     anyhow::{Result},

@@ -8,7 +8,7 @@ use {
         iter::FromIterator,
         vec::Vec
     },
-    copernica_common::{LinkId, BFIS},
+    copernica_packets::{LinkId, BFIS},
 };
 struct BFIs {
     bfis: HashMap<BFIS, HashMap<LinkId, i64>>,
@@ -22,7 +22,7 @@ impl BFIs {
     fn train(&mut self, bfis: &BFIS, link: &LinkId) {
         //debug!("train {:?}", bfis);
         let linkids = self.bfis
-            .entry(*bfis)
+            .entry(bfis.clone())
             .or_insert(HashMap::new());
         let value = linkids.entry(link.clone()).or_insert(0);
         *value += 1;
@@ -30,7 +30,7 @@ impl BFIs {
     fn super_train(&mut self, bfis: &BFIS, link: &LinkId) {
         //debug!("supertrain {:?}", bfis);
         let linkids = self.bfis
-            .entry(*bfis)
+            .entry(bfis.clone())
             .or_insert(HashMap::new());
         let value = linkids.entry(link.clone()).or_insert(0);
         *value += 4;
@@ -229,7 +229,7 @@ impl Bayes {
 #[cfg(test)]
 mod test_bfis {
     use super::*;
-    use copernica_common::{BFIS, LinkId, ReplyTo, constants, PrivateIdentityInterface};
+    use copernica_packets::{BFIS, LinkId, ReplyTo, constants, PrivateIdentityInterface};
     fn generate_bfis() -> BFIS {
         let h1: BFIS = [
             [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize],
@@ -273,7 +273,7 @@ mod test_bfis {
 #[cfg(test)]
 mod test_linkids {
     use super::*;
-    use copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface};
+    use copernica_packets::{LinkId, ReplyTo, PrivateIdentityInterface};
     #[test]
     fn linkid_add() {
         let mut linkids = Links::new();
@@ -341,7 +341,7 @@ mod test_linkids {
 mod test_bayes {
     use super::*;
     use std::f64::consts::LN_2;
-    use copernica_common::{LinkId, ReplyTo, constants, PrivateIdentityInterface};
+    use copernica_packets::{LinkId, ReplyTo, constants, PrivateIdentityInterface};
     fn generate_max_bfis() -> BFIS {
         let h1: BFIS = [
             [u16::MAX; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize],

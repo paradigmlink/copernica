@@ -1,7 +1,5 @@
 use {
-  crate::{
-    constants::NONCE_SIZE,
-  },
+  copernica_common::constants::NONCE_SIZE,
   rand::RngCore,
 };
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]

@@ -1,8 +1,5 @@
 use {
-    crate::{
-        constants::*,
-        serialization::u8_to_u16,
-    },
+    copernica_common::{constants::*, u8_to_u16 },
     std::fmt,
     anyhow::{anyhow, Result},
     //log::{debug},

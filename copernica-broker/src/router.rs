@@ -3,7 +3,8 @@ use {
         bloom_filter::{Blooms},
         Bayes, LinkWeight, ResponseStore
     },
-    copernica_common::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket, Operations},
+    copernica_packets::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket },
+    copernica_common::{ Operations },
     anyhow::Result,
     crossbeam_channel::{Sender},
     log::{warn, trace},

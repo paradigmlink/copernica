@@ -1,9 +1,10 @@
 use {
     anyhow::{Result},
     bincode,
-    copernica_common::{
-        bloom_filter_index as bfi, NarrowWaistPacket, HBFI, PublicIdentity, PublicIdentityInterface, PrivateIdentityInterface, Operations
+    copernica_packets::{
+        bloom_filter_index as bfi, NarrowWaistPacket, HBFI, PublicIdentity, PublicIdentityInterface, PrivateIdentityInterface
     },
+    copernica_common::{ Operations },
     crate::{Protocol, TxRx},
     log::{trace},
 };
@@ -120,14 +121,14 @@ impl Protocol for Echo {
                         let nw: NarrowWaistPacket = ilp.narrow_waist();
                         match nw.clone() {
                             NarrowWaistPacket::Request { hbfi, .. } => match hbfi {
-                                HBFI { res, app, m0d, fun, arg, frm, .. }
-                                    if (res == res_check)
-                                        && (app == app_check)
-                                        && (m0d == m0d_check)
-                                        && (fun == fun_check)
+                                HBFI { ref res, ref app, ref m0d, ref fun, ref arg, frm, .. }
+                                    if (res == &res_check)
+                                        && (app == &app_check)
+                                        && (m0d == &m0d_check)
+                                        && (fun == &fun_check)
                                     => {
                                         match arg {
-                                            arg if arg == bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
+                                            arg if arg == &bfi(UNRELIABLE_SEQUENCED_ECHO)? => {
                                                 let mut echo: Vec<u8> = vec![];
                                                 match frm {
                                                     frm if frm == 0 => {
@@ -160,7 +161,7 @@ impl Protocol for Echo {
                                                 }
                                                 txrx.respond(hbfi, echo)?;
                                             },
-                                            arg if arg == bfi(RELIABLE_ORDERED_ECHO)? => {
+                                            arg if arg == &bfi(RELIABLE_ORDERED_ECHO)? => {
                                                 let mut echo: Vec<u8> = vec![];
                                                 match frm {
                                                     frm if frm == 0 => {
@@ -193,7 +194,7 @@ impl Protocol for Echo {
                                                 }
                                                 txrx.respond(hbfi, echo)?;
                                             },
-                                            arg if arg == bfi(RELIABLE_SEQUENCED_ECHO)? => {
+                                            arg if arg == &bfi(RELIABLE_SEQUENCED_ECHO)? => {
                                                 let mut echo: Vec<u8> = vec![];
                                                 match frm {
                                                     frm if frm == 0 => {

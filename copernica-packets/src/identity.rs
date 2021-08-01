@@ -8,7 +8,7 @@ use {
         },
         Seed,
     },
-    crate::{ Nonce, bloom_filter_index, BFI, constants },
+    crate::{ Nonce, bloom_filter_index, BFI},
     anyhow::{Result, anyhow},
     std::{
         convert::{TryFrom, TryInto as _},
@@ -52,7 +52,7 @@ impl PublicIdentityInterface {
     pub fn bloom_filter_index(&self) -> Result<BFI> {
         match self {
             PublicIdentityInterface::Present { public_identity } => Ok(bloom_filter_index(&format!("{}", public_identity))?),
-            PublicIdentityInterface::Absent => Ok([0; constants::BLOOM_FILTER_INDEX_ELEMENT_LENGTH]),
+            PublicIdentityInterface::Absent => Ok(BFI::new()),
         }
     }
     pub fn public_identity(&self) -> Result<PublicIdentity> {

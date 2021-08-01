@@ -1,7 +1,8 @@
 use {
     anyhow::{Result, anyhow},
     copernica_protocols::{Echo, Protocol},
-    copernica_common::{LinkId, ReplyTo, PrivateIdentityInterface, PublicIdentityInterface, Operations, LogEntry},
+    copernica_packets::{LinkId, ReplyTo, PrivateIdentityInterface, PublicIdentityInterface},
+    copernica_common::{Operations, LogEntry},
     copernica_broker::{Broker},
     copernica_links::{Link, MpscChannel, MpscCorruptor, UdpIpV4, Corruption},
     crate::process_network,

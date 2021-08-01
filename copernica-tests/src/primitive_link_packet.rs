@@ -1,6 +1,6 @@
 use {
     scaffolding::{ group, single, Ordering, TestTree, setting, settings::Timeout},
-    copernica_common::{
+    copernica_packets::{
         ReplyTo, LinkPacket,
         LinkId, NarrowWaistPacket, PublicIdentityInterface, PrivateIdentityInterface, HBFI,
     },

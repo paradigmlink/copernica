@@ -19,6 +19,7 @@ debug = 2
 copernica-broker = { path = "../copernica-broker" }
 copernica-protocols = { path = "../copernica-protocols" }
 copernica-links = { path = "../copernica-links" }
+copernica-packets = { path = "../copernica-packets" }
 copernica-common = { path = "../copernica-common" }
 log = "0.4"
 rand = "0.8.3"

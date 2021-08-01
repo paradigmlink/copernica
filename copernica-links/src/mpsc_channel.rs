@@ -1,8 +1,9 @@
 use {
     crate::{Link, decode, encode},
-    copernica_common::{
-        InterLinkPacket, LinkId, ReplyTo, constants, Operations
+    copernica_packets::{
+        InterLinkPacket, LinkId, ReplyTo
     },
+    copernica_common::{ Operations, constants },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Receiver, Sender, bounded},
     log::{trace, error},

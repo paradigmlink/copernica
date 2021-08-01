@@ -1,8 +1,5 @@
 use {
-    crate::{
-        constants::*,
-        serialization::{u8_to_u16, u16_to_u8},
-    },
+    copernica_common::{u8_to_u16, u16_to_u8, constants::*},
     std::{fmt, net::{SocketAddrV4, SocketAddrV6}},
     anyhow::{Result, anyhow},
     bincode,

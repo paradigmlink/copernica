@@ -130,6 +130,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "copernica-common",
+ "copernica-packets",
  "crossbeam-channel",
  "log",
  "uluru",
@@ -139,19 +140,10 @@ dependencies = [
 name = "copernica-common"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "bech32",
- "bincode",
  "chrono",
  "crossbeam-channel",
- "cryptoxide",
  "fern",
- "hex",
- "keynesis",
  "log",
- "rand",
- "rand_core",
- "thiserror",
 ]
 
 [[package]]
@@ -161,10 +153,29 @@ dependencies = [
  "anyhow",
  "async-io",
  "copernica-common",
+ "copernica-packets",
  "crossbeam-channel",
  "futures-lite",
  "log",
  "reed-solomon",
+]
+
+[[package]]
+name = "copernica-packets"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bech32",
+ "bincode",
+ "copernica-common",
+ "crossbeam-channel",
+ "cryptoxide",
+ "hex",
+ "keynesis",
+ "log",
+ "rand",
+ "rand_core",
+ "thiserror",
 ]
 
 [[package]]
@@ -174,6 +185,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "copernica-common",
+ "copernica-packets",
  "crossbeam-channel",
  "log",
 ]
@@ -183,8 +195,8 @@ name = "copernica-services"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "copernica-common",
  "copernica-links",
+ "copernica-packets",
  "copernica-protocols",
  "log",
  "serde",
@@ -199,6 +211,7 @@ dependencies = [
  "copernica-broker",
  "copernica-common",
  "copernica-links",
+ "copernica-packets",
  "copernica-protocols",
  "crossbeam-channel",
  "log",

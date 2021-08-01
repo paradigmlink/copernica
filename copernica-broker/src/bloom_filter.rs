@@ -1,5 +1,6 @@
 use {
-    copernica_common::{HBFI, HBFIExcludeFrame, constants},
+    copernica_packets::{HBFI, HBFIExcludeFrame},
+    copernica_common::{ constants },
     uluru::LRUCache,
 };
 pub type Pheromone = LRUCache<HBFIExcludeFrame, { constants::RESPONSE_STORE_SIZE }>;

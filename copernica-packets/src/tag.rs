@@ -1,4 +1,4 @@
-use crate::constants::TAG_SIZE;
+use copernica_common::constants::TAG_SIZE;
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Tag(pub [u8; TAG_SIZE]);
 impl Tag {

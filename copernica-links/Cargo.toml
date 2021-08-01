@@ -7,7 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-copernica-common = { path = "../copernica-common" }
+copernica-packets = { path = "../copernica-packets" }
+copernica-common= { path = "../copernica-common" }
 async-io = "1.4.1"
 futures-lite = "1.11.3"
 anyhow = "1.0"

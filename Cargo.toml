@@ -4,6 +4,7 @@ members = [
     "copernica-broker",
     "copernica-services",
     "copernica-links",
+    "copernica-packets",
     "copernica-common",
     "copernica-tests",
     "copernica-protocols",

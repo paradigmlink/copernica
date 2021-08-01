@@ -5,7 +5,7 @@ authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 edition = "2018"
 
 [dependencies]
-copernica-common= { path = "../copernica-common" }
+copernica-packets = { path = "../copernica-packets" }
 copernica-links = { path = "../copernica-links" }
 copernica-protocols = { path = "../copernica-protocols" }
 log = "0.4"

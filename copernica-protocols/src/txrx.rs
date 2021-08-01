@@ -1,9 +1,10 @@
 use {
-    copernica_common::{
+    copernica_packets::{
         LinkId, NarrowWaistPacket, NarrowWaistPacketReqEqRes,
         LinkPacket, InterLinkPacket, HBFI, HBFIExcludeFrame,
-        PrivateIdentityInterface, PublicIdentity, constants, Operations,
+        PrivateIdentityInterface, PublicIdentity
     },
+    copernica_common::{constants, Operations},
     log::{trace,
         debug,
         error

@@ -1,6 +1,7 @@
 use {
     crate::{Link, encode, decode},
-    copernica_common::{ InterLinkPacket, LinkId, ReplyTo, Operations },
+    copernica_packets::{ InterLinkPacket, LinkId, ReplyTo },
+    copernica_common::{ Operations },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Receiver, Sender},
     futures_lite::{future},
