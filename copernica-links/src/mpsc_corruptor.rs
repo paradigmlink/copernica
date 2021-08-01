@@ -149,7 +149,7 @@ impl Link for MpscCorruptor {
                                         } else {
                                             has_integrity_been_corrupted = true;
                                             //debug!("Corrupt Integrity");
-                                            for i in 4..10 {
+                                            for i in 10..16 {
                                                 corrupted[i] = 0x0;
                                             }
                                             for s in l2l1_tx.clone() {

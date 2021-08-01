@@ -1,8 +1,8 @@
-pub const FRAGMENT_SIZE: usize= 1100;
-pub const REED_SOLOMON_DE_EN_CODER_SIZE: usize = 11;
+pub const FRAGMENT_SIZE: usize= 1024;
+pub const REED_SOLOMON_DE_EN_CODER_SIZE: usize = 10;
 // the above two constants give us a maximum packet size of the largest packet (Cyphertext Link + Cyphertext NarrowWaistPacket)
-// of 1471 bytes. 1472 is the maximum we can go (see https://gafferongames.com/post/packet_fragmentation_and_reassembly/)
-// thus we have about 5 bytes of error correction capability and still have a nice roundish number of 1100 of data.
+// of 1469 bytes. 1472 is the maximum we can go (see https://gafferongames.com/post/packet_fragmentation_and_reassembly/)
+// thus we have about 5 bytes of error correction capability and still have a nice roundish number of 1024 of data.
 
 pub const DATA_SIZE_START: usize = FRAGMENT_SIZE-2;
 pub const DATA_SIZE_END: usize = FRAGMENT_SIZE-1;

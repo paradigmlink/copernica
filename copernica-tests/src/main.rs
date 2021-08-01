@@ -19,9 +19,9 @@ fn main() -> Result<()> {
                 [
                     primitive_link_packet(Ordering::Any),
                     unreliable_sequenced_cleartext_ping_pong(Ordering::Any),
+                    unreliable_sequenced_cyphertext_ping_pong(Ordering::Any),
                     reliable_sequenced_cleartext_ping_pong(Ordering::Any),
                     reliable_ordered_cleartext_ping_pong(Ordering::Any),
-                    unreliable_sequenced_cyphertext_ping_pong(Ordering::Any),
                     reliable_sequenced_cyphertext_ping_pong(Ordering::Any),
                     reliable_ordered_cyphertext_ping_pong(Ordering::Any),
                 ]
