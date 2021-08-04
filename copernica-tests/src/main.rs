@@ -5,7 +5,7 @@ use {
     copernica_tests::{
         unreliable_sequenced_cleartext_ping_pong, reliable_sequenced_cleartext_ping_pong, reliable_ordered_cleartext_ping_pong,
         unreliable_sequenced_cyphertext_ping_pong, reliable_sequenced_cyphertext_ping_pong, reliable_ordered_cyphertext_ping_pong,
-        primitive_link_packet
+        primitive_link_packet, basic_networks,
     },
 };
 
@@ -24,6 +24,7 @@ fn main() -> Result<()> {
                     reliable_ordered_cleartext_ping_pong(Ordering::Any),
                     reliable_sequenced_cyphertext_ping_pong(Ordering::Any),
                     reliable_ordered_cyphertext_ping_pong(Ordering::Any),
+                    basic_networks(Ordering::Any),
                 ]
             ),
         ]

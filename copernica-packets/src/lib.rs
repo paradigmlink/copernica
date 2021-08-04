@@ -4,6 +4,7 @@ mod data;
 mod tag;
 mod nonce;
 mod hbfi_exclude_frame;
+mod hbfi_only_keys;
 mod link_packet;
 mod response_data;
 mod narrow_waist_packet;
@@ -17,6 +18,7 @@ pub use crate::{
     nonce::{Nonce},
     hbfi::{HBFI, BFI, BFIS, bloom_filter_index},
     hbfi_exclude_frame::{HBFIExcludeFrame},
+    hbfi_only_keys::{HBFIOnlyKeys},
     link_id::{LinkId},
     response_data::{ResponseData},
     link_packet::{LinkPacket},

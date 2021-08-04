@@ -8,10 +8,10 @@ use {
         iter::FromIterator,
         vec::Vec
     },
-    copernica_packets::{LinkId, BFIS},
+    copernica_packets::{LinkId, HBFI, HBFIOnlyKeys},
 };
 struct BFIs {
-    bfis: HashMap<BFIS, HashMap<LinkId, i64>>,
+    bfis: HashMap<HBFIOnlyKeys, HashMap<LinkId, i64>>,
 }
 impl BFIs {
     pub fn new() -> BFIs {
@@ -19,23 +19,23 @@ impl BFIs {
             bfis: HashMap::new(),
         }
     }
-    fn train(&mut self, bfis: &BFIS, link: &LinkId) {
+    fn train(&mut self, bfis: &HBFI, link: &LinkId) {
         //debug!("train {:?}", bfis);
         let linkids = self.bfis
-            .entry(bfis.clone())
+            .entry(HBFIOnlyKeys(bfis.clone()))
             .or_insert(HashMap::new());
         let value = linkids.entry(link.clone()).or_insert(0);
         *value += 1;
     }
-    fn super_train(&mut self, bfis: &BFIS, link: &LinkId) {
+    fn super_train(&mut self, bfis: &HBFI, link: &LinkId) {
         //debug!("supertrain {:?}", bfis);
         let linkids = self.bfis
-            .entry(bfis.clone())
+            .entry(HBFIOnlyKeys(bfis.clone()))
             .or_insert(HashMap::new());
         let value = linkids.entry(link.clone()).or_insert(0);
         *value += 4;
     }
-    fn get_frequency(&mut self, bfis: &BFIS, linkid: &LinkId) -> (Option<&i64>, bool) {
+    fn get_frequency(&mut self, bfis: &HBFIOnlyKeys, linkid: &LinkId) -> (Option<&i64>, bool) {
         match self.bfis.get(bfis) {
             Some(linkids) => match linkids.get(linkid) {
                 Some(value) => return (Some(value), true),
@@ -86,11 +86,11 @@ impl Model {
     fn add_link(&mut self, linkid: &LinkId) {
         self.links.train(linkid);
     }
-    fn train(&mut self, data: &BFIS, linkid: &LinkId) {
+    fn train(&mut self, data: &HBFI, linkid: &LinkId) {
         self.links.train(linkid);
         self.bfis.train(data, linkid);
     }
-    fn super_train(&mut self, data: &BFIS, linkid: &LinkId) {
+    fn super_train(&mut self, data: &HBFI, linkid: &LinkId) {
         self.links.super_train(linkid);
         self.bfis.super_train(data, linkid);
     }
@@ -134,7 +134,7 @@ impl Bayes {
             return None;
         }
     }
-    fn calculate_attr_prob(&mut self, bfis: &BFIS, linkid: &LinkId) -> Option<f64> {
+    fn calculate_attr_prob(&mut self, bfis: &HBFIOnlyKeys, linkid: &LinkId) -> Option<f64> {
         match self.model.bfis.get_frequency(bfis, linkid) {
             (Some(frequency), true) => match self.model.links.get_count(linkid) {
                 Some(count) => return Some((*frequency as f64) / (*count as f64)),
@@ -145,7 +145,7 @@ impl Bayes {
             (Some(_), false) => None,
         }
     }
-    fn calculate_attr_log_prob(&mut self, bfis: &BFIS, linkid: &LinkId) -> Option<f64> {
+    fn calculate_attr_log_prob(&mut self, bfis: &HBFIOnlyKeys, linkid: &LinkId) -> Option<f64> {
         match self.model.bfis.get_frequency(bfis, linkid) {
             (Some(frequency), true) => match self.model.links.get_count(linkid) {
                 Some(count) => return Some((*frequency as f64).ln() - (*count as f64).ln()),
@@ -156,7 +156,7 @@ impl Bayes {
             (Some(_), false) => None,
         }
     }
-    fn link_prob(&mut self, linkid: &LinkId, bfismap: &HashSet<BFIS>) -> Vec<f64> {
+    fn link_prob(&mut self, linkid: &LinkId, bfismap: &HashSet<HBFIOnlyKeys>) -> Vec<f64> {
         let mut probs: Vec<f64> = Vec::new();
         for bfis in bfismap {
             match self.calculate_attr_prob(bfis, linkid) {
@@ -168,7 +168,7 @@ impl Bayes {
         }
         return probs;
     }
-    fn link_log_prob(&mut self, linkid: &LinkId, bfismap: &HashSet<BFIS>) -> Vec<f64> {
+    fn link_log_prob(&mut self, linkid: &LinkId, bfismap: &HashSet<HBFIOnlyKeys>) -> Vec<f64> {
         let mut probs: Vec<f64> = Vec::new();
         for bfis in bfismap {
             match self.calculate_attr_log_prob(bfis, linkid) {
@@ -180,15 +180,15 @@ impl Bayes {
         }
         return probs;
     }
-    pub fn train(&mut self, data: &BFIS, linkid: &LinkId) {
+    pub fn train(&mut self, data: &HBFI, linkid: &LinkId) {
         self.model.train(data, linkid);
     }
-    pub fn super_train(&mut self, data: &BFIS, linkid: &LinkId) {
+    pub fn super_train(&mut self, data: &HBFI, linkid: &LinkId) {
         self.model.super_train(data, linkid);
     }
-    pub fn classify(&mut self, data: &BFIS) -> Vec<LinkWeight> {
-        let mut bfis_set: HashSet<BFIS> = HashSet::new();
-        bfis_set.insert(data.clone());
+    pub fn classify(&mut self, data: &HBFI) -> Vec<LinkWeight> {
+        let mut bfis_set: HashSet<HBFIOnlyKeys> = HashSet::new();
+        bfis_set.insert(HBFIOnlyKeys(data.clone()));
         let mut result: Vec<LinkWeight> = vec![];
         let linkids: HashSet<LinkId> =
             HashSet::from_iter(self.model.links.get_linkids().into_iter().cloned());
@@ -206,8 +206,8 @@ impl Bayes {
     }
     /// classify a `BFIS` returning a map of links and log-probabilities
     /// as keys and values, respectively. Using `log_classify` may prevent underflows.
-    pub fn log_classify(&mut self, data: &BFIS) -> Vec<LinkWeight> {
-        let mut bfis_set: HashSet<BFIS> = HashSet::new();
+    pub fn log_classify(&mut self, data: &HBFIOnlyKeys) -> Vec<LinkWeight> {
+        let mut bfis_set: HashSet<HBFIOnlyKeys> = HashSet::new();
         bfis_set.insert(data.clone());
         let mut result: Vec<LinkWeight> = vec![];
         let linkids: HashSet<LinkId> =

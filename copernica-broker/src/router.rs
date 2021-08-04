@@ -46,8 +46,8 @@ impl Router {
                             trace!("\t\t|  |  |  |  FORWARD REQUEST UPSTREAM");
                             ops.forward_request_upstream(label.clone());
                             this_bloom.create_pending_request(hbfi.clone());
-                            let link_weights = bayes.classify(&hbfi.to_bfis());
-                            bayes.train(&hbfi.to_bfis(), choke);
+                            let link_weights = bayes.classify(&hbfi);
+                            bayes.train(&hbfi, choke);
                             if link_weights[0].linkid == *choke {
                                 //warn!("{}, {:?}", link_weights[0].weight, link_weights[0].linkid);
                                 let litmus_weight = (link_weights[0].weight * 100.00) as u64;
@@ -99,7 +99,7 @@ impl Router {
                 NarrowWaistPacket::Response { hbfi, .. } => {
                     if this_bloom.contains_forwarded_request(hbfi.clone()) {
                         rs.insert(nw);
-                        bayes.super_train(&hbfi.to_bfis(), &this_link);
+                        bayes.super_train(&hbfi, &this_link);
                         for (that_link, that_bloom) in blooms.iter_mut() {
                             if that_link.link_pid()? == this_link.link_pid()? {
                                 continue;
