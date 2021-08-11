@@ -1,9 +1,14 @@
 [package]
 name = "copernica-common"
-version = "0.1.0"
+description = "Common types and functions used between all copernica crates"
+documentation = "https://docs.rs/copernica"
+homepage = "https://fractalide.com/copernica/"
+repository = "https://github.com/fractalide/copernica"
+readme = "README.md"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MPL-2.0"
+version = "0.1.0"
+authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
 
 [dependencies]
 fern = "0.5.9"

@@ -4,7 +4,10 @@ RPC (HATEOAS) actions on a universally addressable public key.
 
 Copernica is a transport agnostic overlay, privacy preserving, Information-centric, IP replacement, networking protocol. Just as Bitcoin separates money and state, so Copernica separates your data from -FAANG- state.
 
-This crate contains the broker. Brokers forward requests upstream (towards responder), and forward responses downstream (towards the requestor)
+This crate contains that which is sent over the wires. Packets!
+
+Link Packets are the packets that wrap the NarrowWaistPacket and they go over the links (transports)
+Inter Link Packets wrap Link Packets and are used exclusively for deciding when and where to forward on a packet.
 
 ## Contributing
 

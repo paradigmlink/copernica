@@ -1,11 +1,17 @@
 [package]
 name = "copernica-packets"
+description = "Types and functions used between all copernica crates"
+documentation = "https://docs.rs/copernica"
+homepage = "https://fractalide.com/copernica/"
+repository = "https://github.com/fractalide/copernica"
+readme = "README.md"
+edition = "2018"
+license = "MPL-2.0"
 version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
-edition = "2018"
 
 [dependencies]
-copernica-common = { path = "../copernica-common" }
+copernica-common = { version = "0.1.0", path = "../copernica-common" }
 bincode = "1.3"
 log = "0.4"
 rand = "0.8.3"

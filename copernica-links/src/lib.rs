@@ -1,3 +1,11 @@
+extern crate copernica_packets;
+extern crate copernica_common;
+extern crate async_io;
+extern crate futures_lite;
+extern crate anyhow;
+extern crate reed_solomon;
+extern crate log;
+extern crate crossbeam_channel;
 mod udpipv4;
 mod mpsc_channel;
 mod mpsc_corruptor;

@@ -1,3 +1,16 @@
+extern crate copernica_common;
+extern crate anyhow;
+extern crate rand;
+extern crate rand_core;
+extern crate cryptoxide;
+extern crate keynesis;
+extern crate core;
+extern crate log;
+extern crate bincode;
+extern crate crossbeam_channel;
+extern crate hex;
+extern crate bech32;
+extern crate thiserror;
 mod link_id;
 mod hbfi;
 mod data;

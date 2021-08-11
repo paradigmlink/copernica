@@ -4,7 +4,13 @@ RPC (HATEOAS) actions on a universally addressable public key.
 
 Copernica is a transport agnostic overlay, privacy preserving, Information-centric, IP replacement, networking protocol. Just as Bitcoin separates money and state, so Copernica separates your data from -FAANG- state.
 
-This crate contains the broker. Brokers forward requests upstream (towards responder), and forward responses downstream (towards the requestor)
+This crate contains a variety of different transports. Each transport is complimentary, with compliments sitting on each end a pipe.
+
+[protocol] -> [transport] ----/// \\\ ---- [transport] -> [broker]
+or
+[broker] -> [transport] ----/// \\\ ---- [transport] -> [broker]
+
+Feel free to add as many transports as you wish: XMPP, morse code, lasers, stenographically embedded into things like SMTP maybe? Go wild.
 
 ## Contributing
 

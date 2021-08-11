@@ -1,16 +1,22 @@
 [package]
 name = "copernica-broker"
+description = "The broker forwards requests upstream (towards responders) and forwards responses downstream (towards requestors)"
+documentation = "https://docs.rs/copernica"
+homepage = "https://fractalide.com/copernica/"
+repository = "https://github.com/fractalide/copernica"
+readme = "README.md"
+license = "MPL-2.0"
+edition = "2018"
 version = "0.1.0"
 authors = ["Stewart Mackenzie <sjm@fractalide.com>"]
-edition = "2018"
 
 [lib]
 name = "copernica_broker"
 path = "src/lib.rs"
 
 [dependencies]
-copernica-packets = { path = "../copernica-packets" }
-copernica-common = { path = "../copernica-common" }
+copernica-packets = { version = "0.1.0", path = "../copernica-packets" }
+copernica-common = { version = "0.1.0", path = "../copernica-common" }
 log = "0.4"
 anyhow = "1.0"
 uluru = "2.0.0"
