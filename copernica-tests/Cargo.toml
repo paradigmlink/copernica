@@ -26,3 +26,5 @@ rand = "0.8.3"
 anyhow = "1.0"
 scaffolding = { git = "https://github.com/primetype/scaffolding", features = ["with-quickcheck"] }
 crossbeam-channel = "0.5.1"
+fern = "0.5.9"
+chrono = "0.4.9"

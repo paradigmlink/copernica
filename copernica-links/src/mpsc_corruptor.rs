@@ -3,9 +3,10 @@ use {
     copernica_packets::{
         InterLinkPacket, LinkId, ReplyTo
     },
-    copernica_common::{ Operations, constants },
+    copernica_common::{ Operations, constants::{LABEL_SIZE, BOUNDED_BUFFER_SIZE} },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Receiver, Sender, bounded},
+    arrayvec::ArrayString,
     log::{trace, error,
         //debug
     },
@@ -19,7 +20,7 @@ pub enum Corruption {
 }
 #[allow(dead_code)]
 pub struct MpscCorruptor {
-    label: String,
+    label: ArrayString<LABEL_SIZE>,
     corruption: Corruption,
     link_id: LinkId,
     ops: Operations,
@@ -49,13 +50,13 @@ impl MpscCorruptor {
 
 impl Link for MpscCorruptor {
     fn new(link_id: LinkId
-        , (label, ops): (String, Operations)
+        , (label, ops): (ArrayString<LABEL_SIZE>, Operations)
         , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket>, Receiver<InterLinkPacket> )
         ) -> Result<MpscCorruptor> {
         ops.register_link(label.clone());
         match link_id.reply_to()? {
             ReplyTo::Mpsc => {
-                let (l2l0_tx, l2l0_rx) = bounded::<Vec<u8>>(constants::BOUNDED_BUFFER_SIZE);
+                let (l2l0_tx, l2l0_rx) = bounded::<Vec<u8>>(BOUNDED_BUFFER_SIZE);
                 return Ok(
                     MpscCorruptor {
                         label,

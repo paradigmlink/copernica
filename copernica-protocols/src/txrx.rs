@@ -4,13 +4,14 @@ use {
         LinkPacket, InterLinkPacket, HBFI, HBFIExcludeFrame,
         PrivateIdentityInterface, PublicIdentity
     },
-    copernica_common::{constants, Operations},
+    copernica_common::{constants::{BOUNDED_BUFFER_SIZE, LABEL_SIZE}, Operations},
     log::{trace,
         debug,
         error
     },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Receiver, Sender, bounded, unbounded, RecvTimeoutError, SendError},
+    arrayvec::ArrayString,
     std::{
         time::{Duration},
         sync::{Arc, Mutex},
@@ -57,7 +58,7 @@ enum AIMD {
 #[derive(Clone)]
 pub enum TxRx {
     Initialized {
-        label: String,
+        label: ArrayString<LABEL_SIZE>,
         ops: Operations,
         link_id: LinkId,
         protocol_sid: PrivateIdentityInterface,
@@ -77,11 +78,11 @@ impl TxRx {
     pub fn inert() -> TxRx {
         TxRx::Inert
     }
-    pub fn init(label: String, ops: Operations, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: Sender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
+    pub fn init(label: ArrayString<LABEL_SIZE>, ops: Operations, link_id: LinkId, protocol_sid: PrivateIdentityInterface, p2l_tx: Sender<InterLinkPacket>, l2p_rx: Receiver<InterLinkPacket>) -> TxRx
     {
-        let (unreliable_sequenced_response_tx, unreliable_sequenced_response_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
-        let (reliable_sequenced_response_tx, reliable_sequenced_response_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
-        let (reliable_ordered_response_tx, reliable_ordered_response_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let (unreliable_sequenced_response_tx, unreliable_sequenced_response_rx) = bounded::<InterLinkPacket>(BOUNDED_BUFFER_SIZE);
+        let (reliable_sequenced_response_tx, reliable_sequenced_response_rx) = bounded::<InterLinkPacket>(BOUNDED_BUFFER_SIZE);
+        let (reliable_ordered_response_tx, reliable_ordered_response_rx) = bounded::<InterLinkPacket>(BOUNDED_BUFFER_SIZE);
         TxRx::Initialized {
             label,
             ops,
@@ -98,7 +99,7 @@ impl TxRx {
             reliable_ordered_response_tx,
          }
     }
-    fn label(&self) -> Result<String> {
+    fn label(&self) -> Result<ArrayString<LABEL_SIZE>> {
         match self {
             TxRx::Initialized { label, .. } => {
                 Ok(label.clone())

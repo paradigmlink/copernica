@@ -5,6 +5,7 @@ extern crate log;
 extern crate bincode;
 extern crate anyhow;
 extern crate crossbeam_channel;
+extern crate arrayvec;
 mod protocol;
 mod echo;
 mod txrx;

@@ -1,7 +1,8 @@
 use {
     copernica_packets::{LinkId, InterLinkPacket, PrivateIdentityInterface},
-    copernica_common::{constants, Operations},
+    copernica_common::{constants::{LABEL_SIZE, BOUNDED_BUFFER_SIZE}, Operations},
     crossbeam_channel::{Receiver, Sender, bounded},
+    arrayvec::ArrayString,
     crate::{TxRx},
     anyhow::{Result},
 };
@@ -33,17 +34,17 @@ pub trait Protocol {
     fn get_protocol_sid(&mut self) -> PrivateIdentityInterface;
     fn get_ops(&self) -> Operations;
     fn set_txrx(&mut self, txrx: TxRx);
-    fn get_label(&self) -> String;
+    fn get_label(&self) -> ArrayString<LABEL_SIZE>;
     fn peer_with_link(&mut self, link_id: LinkId) -> Result<(Sender<InterLinkPacket>, Receiver<InterLinkPacket>)> {
-        let (l2p_tx, l2p_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
-        let (p2l_tx, p2l_rx) = bounded::<InterLinkPacket>(constants::BOUNDED_BUFFER_SIZE);
+        let (l2p_tx, l2p_rx) = bounded::<InterLinkPacket>(BOUNDED_BUFFER_SIZE);
+        let (p2l_tx, p2l_rx) = bounded::<InterLinkPacket>(BOUNDED_BUFFER_SIZE);
         let txrx = TxRx::init(self.get_label(), self.get_ops(), link_id, self.get_protocol_sid(), p2l_tx, l2p_rx);
         self.set_txrx(txrx);
         Ok((l2p_tx, p2l_rx))
     }
     #[allow(unreachable_code)]
     fn run(&self) -> Result<()>;
-    fn new(protocol_sid: PrivateIdentityInterface, ops: (String, Operations)) -> Self where Self: Sized;
+    fn new(protocol_sid: PrivateIdentityInterface, ops: (ArrayString<LABEL_SIZE>, Operations)) -> Self where Self: Sized;
 }
 
 

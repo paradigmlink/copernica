@@ -1,3 +1,5 @@
+extern crate fern;
+extern crate chrono;
 mod common;
 mod unreliable_sequenced_cyphertext;
 mod reliable_sequenced_cyphertext;
@@ -7,6 +9,7 @@ mod reliable_sequenced_cleartext;
 mod reliable_ordered_cleartext;
 mod primitive_link_packet;
 mod networks;
+mod logger;
 pub use {
     unreliable_sequenced_cleartext::{unreliable_sequenced_cleartext_ping_pong},
     unreliable_sequenced_cyphertext::{unreliable_sequenced_cyphertext_ping_pong},
@@ -16,6 +19,7 @@ pub use {
     reliable_ordered_cyphertext::{reliable_ordered_cyphertext_ping_pong},
     primitive_link_packet::{primitive_link_packet},
     networks::{basic_networks, },
+    logger::{setup_logging},
 };
 use {
     anyhow::{Result, anyhow},
@@ -29,42 +33,42 @@ pub fn process_network(mut expected_behaviour: HashMap<LogEntry, i32>, receiver:
     loop {
         let log_entry = receiver.recv()?;
         match log_entry {
-            LogEntry::Register { ref label } => {
+            LogEntry::Register(label) => {
                 if let Some(count) = expected_behaviour.get_mut(&log_entry) {
                     *count -= 1;
                 } else {
                     return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
                 }
             },
-            LogEntry::Message { ref label } => {
+            LogEntry::Message(label) => {
                 if let Some(count) = expected_behaviour.get_mut(&log_entry) {
                     *count -= 1;
                 } else {
                     return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
                 }
             },
-            LogEntry::FoundResponseUpstream { ref label } => {
+            LogEntry::FoundResponseUpstream(label) => {
                 if let Some(count) = expected_behaviour.get_mut(&log_entry) {
                     *count -= 1;
                 } else {
                     return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
                 }
             },
-            LogEntry::ResponseArrivedDownstream { ref label } => {
+            LogEntry::ResponseArrivedDownstream(label) => {
                 if let Some(count) = expected_behaviour.get_mut(&log_entry) {
                     *count -= 1;
                 } else {
                     return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
                 }
             },
-            LogEntry::ForwardResponseDownstream { ref label } => {
+            LogEntry::ForwardResponseDownstream(label) => {
                 if let Some(count) = expected_behaviour.get_mut(&log_entry) {
                     *count -= 1;
                 } else {
                     return Err(anyhow!("\"{}\" not present in expected_behaviour", label))
                 }
             },
-            LogEntry::ForwardRequestUpstream { ref label } => {
+            LogEntry::ForwardRequestUpstream(label) => {
                 if let Some(count) = expected_behaviour.get_mut(&log_entry) {
                     *count -= 1;
                 } else {

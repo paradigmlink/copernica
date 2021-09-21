@@ -1,18 +1,19 @@
 use {
     crate::{Link, encode, decode},
     copernica_packets::{ InterLinkPacket, LinkId, ReplyTo },
-    copernica_common::{ Operations },
+    copernica_common::{ Operations, constants },
     anyhow::{anyhow, Result},
     crossbeam_channel::{Receiver, Sender},
     futures_lite::{future},
     log::{error, trace},
+    arrayvec::ArrayString,
     std::{
       net::{SocketAddr, UdpSocket},
     },
 };
 #[allow(dead_code)]
 pub struct UdpIpV4 {
-    label: String,
+    label: ArrayString<{constants::LABEL_SIZE}>,
     link_id: LinkId,
     ops: Operations,
     l2bs_tx: Sender<InterLinkPacket>,
@@ -20,7 +21,7 @@ pub struct UdpIpV4 {
 }
 impl Link for UdpIpV4 {
     fn new(link_id: LinkId
-        , (label, ops): (String, Operations)
+        , (label, ops): (ArrayString<{constants::LABEL_SIZE}>, Operations)
         , (l2bs_tx, bs2l_rx): ( Sender<InterLinkPacket> , Receiver<InterLinkPacket> )
         ) -> Result<UdpIpV4>
     {

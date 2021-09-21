@@ -104,4 +104,4 @@ pub const BOUNDED_BUFFER_SIZE: usize = 25;
 pub const RESPONSE_STORE_SIZE: usize = 250;
 pub const PACKET_PHEROMONE_TRAIL_COUNT: usize = 500;
 
-
+pub const LABEL_SIZE: usize = 100;

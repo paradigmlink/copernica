@@ -129,6 +129,7 @@ name = "copernica-broker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "copernica-common",
  "copernica-packets",
  "crossbeam-channel",
@@ -140,9 +141,8 @@ dependencies = [
 name = "copernica-common"
 version = "0.1.0"
 dependencies = [
- "chrono",
+ "arrayvec",
  "crossbeam-channel",
- "fern",
  "log",
 ]
 
@@ -151,6 +151,7 @@ name = "copernica-links"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "async-io",
  "copernica-common",
  "copernica-packets",
@@ -183,6 +184,7 @@ name = "copernica-protocols"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "bincode",
  "copernica-common",
  "copernica-packets",
@@ -208,12 +210,14 @@ name = "copernica-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "copernica-broker",
  "copernica-common",
  "copernica-links",
  "copernica-packets",
  "copernica-protocols",
  "crossbeam-channel",
+ "fern",
  "log",
  "rand",
  "scaffolding",

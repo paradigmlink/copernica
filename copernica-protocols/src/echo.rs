@@ -4,7 +4,8 @@ use {
     copernica_packets::{
         bloom_filter_index as bfi, NarrowWaistPacket, HBFI, PublicIdentity, PublicIdentityInterface, PrivateIdentityInterface
     },
-    copernica_common::{ Operations },
+    copernica_common::{ Operations, constants::LABEL_SIZE },
+    arrayvec::ArrayString,
     crate::{Protocol, TxRx},
     log::{trace},
 };
@@ -13,7 +14,7 @@ static RELIABLE_ORDERED_ECHO: &str = "reliable_ordered_echo";
 static RELIABLE_SEQUENCED_ECHO: &str = "reliable_sequenced_echo";
 #[derive(Clone)]
 pub struct Echo {
-    label: String,
+    label: ArrayString<LABEL_SIZE>,
     protocol_sid: PrivateIdentityInterface,
     txrx: TxRx,
     ops: Operations,
@@ -93,7 +94,7 @@ impl Echo {
     }
 }
 impl Protocol for Echo {
-    fn new(protocol_sid: PrivateIdentityInterface, (label, ops): (String, Operations)) -> Self {
+    fn new(protocol_sid: PrivateIdentityInterface, (label, ops): (ArrayString<LABEL_SIZE>, Operations)) -> Self {
         ops.register_protocol(label.clone());
         Self {
             label,
@@ -277,7 +278,7 @@ impl Protocol for Echo {
     fn get_ops(&self) -> Operations {
         self.ops.clone()
     }
-    fn get_label(&self) -> String {
+    fn get_label(&self) -> ArrayString<LABEL_SIZE> {
         self.label.clone()
     }
 }

@@ -6,6 +6,7 @@ extern crate anyhow;
 extern crate reed_solomon;
 extern crate log;
 extern crate crossbeam_channel;
+extern crate arrayvec;
 mod udpipv4;
 mod mpsc_channel;
 mod mpsc_corruptor;
@@ -18,10 +19,11 @@ use {
     copernica_packets::{
         InterLinkPacket, LinkId, LinkPacket, PublicIdentity,
     },
-    copernica_common::{ Operations, constants::REED_SOLOMON_DE_EN_CODER_SIZE },
+    copernica_common::{ Operations, constants::{REED_SOLOMON_DE_EN_CODER_SIZE, LABEL_SIZE} },
     crossbeam_channel::{Receiver, Sender},
     anyhow::{anyhow, Result},
     reed_solomon::{Buffer, Encoder, Decoder},
+    arrayvec::ArrayString,
     //log::debug,
 };
 pub fn decode(msg: Vec<u8>, link_id: LinkId) -> Result<(PublicIdentity, LinkPacket)> {
@@ -57,5 +59,5 @@ pub fn encode(lp: LinkPacket, link_id: LinkId) -> Result<Vec<u8>> {
 }
 pub trait Link {
     fn run(&mut self) -> Result<()>;
-    fn new(link: LinkId, ops: (String, Operations), router_in_and_out: ( Sender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
+    fn new(link: LinkId, ops: (ArrayString<LABEL_SIZE>, Operations), router_in_and_out: ( Sender<InterLinkPacket> , Receiver<InterLinkPacket>)) -> Result<Self> where Self: Sized;
 }

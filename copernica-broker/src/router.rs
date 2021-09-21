@@ -4,17 +4,18 @@ use {
         Bayes, LinkWeight, ResponseStore
     },
     copernica_packets::{LinkId, InterLinkPacket, LinkPacket, NarrowWaistPacket },
-    copernica_common::{ Operations },
+    copernica_common::{ Operations, constants },
     anyhow::Result,
     crossbeam_channel::{Sender},
     log::{warn, trace},
     std::collections::HashMap,
+    arrayvec::ArrayString,
 };
 #[derive(Clone)]
 pub struct Router {}
 impl Router {
     pub fn handle_packet(
-        label: &String,
+        label: &ArrayString<{constants::LABEL_SIZE}>,
         ops: &Operations,
         ilp: &InterLinkPacket,
         r2b_tx: Sender<InterLinkPacket>,
