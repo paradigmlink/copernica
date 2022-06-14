@@ -259,8 +259,7 @@ mod tests {
     #[test]
     fn test_bloom_filter_index() {
         let actual = bloom_filter_index("9".into()).unwrap();
-        let expected: [u16; BLOOM_FILTER_INDEX_ELEMENT_LENGTH as usize] =
-            [19283, 50425, 20212, 47266];
+        let expected = BFI([19283, 50425, 20212, 47266]);
         assert_eq!(actual, expected);
     }
 }

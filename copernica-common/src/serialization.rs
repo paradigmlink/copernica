@@ -28,51 +28,28 @@ mod tests {
     fn test_u16_to_fro_u8() {
         let actual: u16 = u16::MIN;
         let expected: u16 = u8_to_u16(u16_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
 
         let actual: u16 = 1;
         let expected: u16 = u8_to_u16(u16_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
 
         let actual: u16 = u16::MAX;
         let expected: u16 = u8_to_u16(u16_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
-        assert_eq!(expected, actual);
-    }
-    #[test]
-    fn test_bfi_to_fro_u8() {
-        let actual: BFI = [0u16; BLOOM_FILTER_INDEX_ELEMENT_LENGTH];
-        let expected: BFI = u8_to_bfi(bfi_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
-        assert_eq!(expected, actual);
-
-        let actual: BFI = [0, 1, 2, 3];
-        let expected: BFI = u8_to_bfi(bfi_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
-        assert_eq!(expected, actual);
-
-        let actual: BFI = [u16::MAX, u16::MAX, u16::MAX, u16::MAX];
-        let expected: BFI = u8_to_bfi(bfi_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
     }
     #[test]
     fn test_u64_to_fro_u8() {
         let actual: u64 = 0;
         let expected: u64 = u8_to_u64(u64_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
 
         let actual: u64 = u64::MAX/2;
         let expected: u64 = u8_to_u64(u64_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
 
         let actual: u64 = u64::MAX;
         let expected: u64 = u8_to_u64(u64_to_u8(actual));
-        println!("expected: {:?}, actual: {:?}", expected, actual);
         assert_eq!(expected, actual);
     }
 }
