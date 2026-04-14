@@ -22,7 +22,7 @@ copernica-links = { path = "../copernica-links" }
 copernica-packets = { path = "../copernica-packets" }
 copernica-common = { path = "../copernica-common" }
 log = "0.4"
-rand = "0.8.3"
+rand = "0.9.3"
 anyhow = "1.0"
 scaffolding = { git = "https://github.com/primetype/scaffolding", features = ["with-quickcheck"] }
 crossbeam-channel = "0.5.1"
